@@ -46,6 +46,10 @@ namespace Legend.UnitySdk
         public event Action<LevelUpNotify>? OnLevelUp;
         public event Action<ChatNotify>? OnChatNotify;
         public event Action<StallSoldNotify>? OnStallSoldNotify;
+        public event Action<SkillListNotify>? OnSkillListNotify;
+        public event Action<SkillLevelUpNotify>? OnSkillLevelUpNotify;
+        public event Action<BuffApplyNotify>? OnBuffApplyNotify;
+        public event Action<BuffRemoveNotify>? OnBuffRemoveNotify;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -476,6 +480,22 @@ namespace Legend.UnitySdk
             return StallCancelResp.Parser.ParseFrom(frame.Payload);
         }
 
+        public async Task<LearnSkillResp> RequestLearnSkillAsync(string itemId, string skillId = "", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.LearnSkillReq, new LearnSkillReq
+            {
+                ItemId = itemId ?? "",
+                SkillId = skillId ?? ""
+            }, ct).ConfigureAwait(false);
+            return LearnSkillResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<SkillListResp> RequestSkillListAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.SkillListReq, new SkillListReq(), ct).ConfigureAwait(false);
+            return SkillListResp.Parser.ParseFrom(frame.Payload);
+        }
+
         public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
             // Ignore stale MoveSync if a portal already changed our map.
@@ -590,6 +610,22 @@ namespace Legend.UnitySdk
                                 SelfEntity.MaxHp = lu.EffectiveMaxHp;
                             }
                             _mainThreadActions.Enqueue(() => OnLevelUp?.Invoke(lu));
+                            break;
+                        case MsgId.SkillListNotify:
+                            var skl = SkillListNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnSkillListNotify?.Invoke(skl));
+                            break;
+                        case MsgId.SkillLevelUpNotify:
+                            var sku = SkillLevelUpNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnSkillLevelUpNotify?.Invoke(sku));
+                            break;
+                        case MsgId.BuffApplyNotify:
+                            var ba = BuffApplyNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnBuffApplyNotify?.Invoke(ba));
+                            break;
+                        case MsgId.BuffRemoveNotify:
+                            var br = BuffRemoveNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnBuffRemoveNotify?.Invoke(br));
                             break;
                         case MsgId.ChatNotify:
                             var chat = ChatNotify.Parser.ParseFrom(frame.Payload);

@@ -109,6 +109,8 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
             character.QuestJson = QuestJson.Empty;
         if (string.IsNullOrEmpty(character.EquipmentJson))
             character.EquipmentJson = EquipmentJson.Empty;
+        if (string.IsNullOrEmpty(character.SkillsJson))
+            character.SkillsJson = "[]";
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
 
@@ -219,6 +221,16 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         if (_byId.TryGetValue(characterId, out var c))
         {
             c.GuildId = guildId ?? string.Empty;
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task SaveSkillsAsync(string characterId, string skillsJson, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.SkillsJson = string.IsNullOrWhiteSpace(skillsJson) ? "[]" : skillsJson;
             c.UpdatedAt = DateTimeOffset.UtcNow;
         }
         return Task.CompletedTask;

@@ -71,7 +71,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.ChatReq or
         MsgId.StallListReq or MsgId.StallBrowseReq or MsgId.StallBuyReq or MsgId.StallCancelReq or
         MsgId.PartyInviteReq or MsgId.PartyAcceptReq or MsgId.PartyLeaveReq or MsgId.PartyKickReq or
-        MsgId.FriendAddReq or MsgId.FriendRemoveReq or MsgId.FriendListReq;
+        MsgId.FriendAddReq or MsgId.FriendRemoveReq or MsgId.FriendListReq or
+        MsgId.LearnSkillReq or MsgId.SkillListReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -231,6 +232,12 @@ public sealed partial class GameWorldModule : IGameModule
             case MsgId.FriendListReq:
                 await HandleFriendListAsync(session, frame, ct);
                 break;
+            case MsgId.LearnSkillReq:
+                await HandleLearnSkillAsync(session, frame, ct);
+                break;
+            case MsgId.SkillListReq:
+                await HandleSkillListAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -339,8 +346,11 @@ public sealed partial class GameWorldModule : IGameModule
             Gold = character.Gold,
             Quests = QuestHelper.Parse(character.QuestJson),
             Equipment = EquipmentHelper.Parse(character.EquipmentJson),
-            GuildId = character.GuildId ?? string.Empty
+            GuildId = character.GuildId ?? string.Empty,
+            LearnedSkills = SkillHelper.Parse(character.SkillsJson)
         };
+        EnsureStarterSkills(entity);
+        await PersistSkillsAsync(entity, ct);
         if (!string.IsNullOrEmpty(entity.GuildId))
         {
             var guild = await _storage.Guilds.GetByIdAsync(entity.GuildId, ct);
@@ -356,7 +366,7 @@ public sealed partial class GameWorldModule : IGameModule
             }
         }
         LevelCurve.ApplyBaseStats(entity, cls, _versionPack.Levels);
-        EquipmentHelper.RecalculateStats(entity, _versionPack.Items);
+        EquipmentHelper.RecalculateStats(entity, _versionPack.Items, _versionPack.Buffs);
         if (entity.Hp > entity.MaxHp) entity.Hp = entity.MaxHp;
         if (entity.Mp > entity.MaxMp) entity.Mp = entity.MaxMp;
 
@@ -396,8 +406,19 @@ public sealed partial class GameWorldModule : IGameModule
         }
         foreach (var eq in EquipmentHelper.ToProto(entity.Equipment, _versionPack.Items))
             resp.Equipment.Add(eq);
+        foreach (var sk in entity.LearnedSkills)
+        {
+            _versionPack.Skills.TryGetValue(sk.SkillId, out var skCfg);
+            resp.Skills.Add(SkillHelper.ToProto(sk, skCfg));
+        }
+        foreach (var ab in entity.ActiveBuffs)
+        {
+            _versionPack.Buffs.TryGetValue(ab.BuffId, out var bCfg);
+            resp.Buffs.Add(BuffHelper.ToProto(ab, bCfg));
+        }
 
         await session.SendAsync(MsgId.EnterWorldResp, frame.Seq, resp, ct);
+        await SendSkillListNotifyAsync(entity, "enter", ct);
 
         var enterNotice = new EntityEnterAoi { Entity = entity.ToSnapshot() };
         foreach (var viewer in nearbyPlayers)
@@ -603,6 +624,21 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
+        if (!HasLearnedSkill(attacker, skill.SkillId, out var learned) || learned is null)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrSkillNotLearned,
+                Message = $"尚未学会技能: {skill.SkillId}"
+            }, ct);
+            return;
+        }
+
+        int skillLevel = Math.Max(1, learned.Level);
+        double dmgMult = SkillHelper.EffectiveMultiplier(skill, skillLevel);
+        int cooldownMs = SkillHelper.EffectiveCooldownMs(skill, skillLevel);
+
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (attacker.SkillReadyAtUnixMs.TryGetValue(skill.SkillId, out long readyAt) && now < readyAt)
         {
@@ -655,10 +691,10 @@ public sealed partial class GameWorldModule : IGameModule
         }
 
         attacker.Mp -= skill.MpCost;
-        long nextReady = now + skill.CooldownMs;
+        long nextReady = now + cooldownMs;
         attacker.SkillReadyAtUnixMs[skill.SkillId] = nextReady;
 
-        int damage = CombatMath.CalcDamage(attacker.Atk, monster.Template.Def, skill.DamageMultiplier);
+        int damage = CombatMath.CalcDamage(attacker.Atk, monster.Template.Def, dmgMult);
         monster.Hp = Math.Max(0, monster.Hp - damage);
         monster.TargetEntityId = attacker.EntityId;
         bool killed = monster.Hp <= 0;
@@ -691,6 +727,11 @@ public sealed partial class GameWorldModule : IGameModule
 
         await _storage.Characters.SavePositionAsync(
             attacker.CharacterId, attacker.MapId, attacker.X, attacker.Y, attacker.Hp, attacker.Mp, ct);
+
+        await GrantSkillExpAsync(attacker, skill, skill.SkillExpPerCast + (killed ? skill.SkillExpPerKill : 0), ct);
+        if (!string.IsNullOrEmpty(skill.ApplyBuffOnCast))
+            await ApplyBuffAsync(attacker, skill.ApplyBuffOnCast, ct);
+        // Debuffs on monsters are not tracked in M9 player-buff state machine; poison DoT reserved for player targets.
 
         if (killed)
         {
@@ -921,6 +962,7 @@ public sealed partial class GameWorldModule : IGameModule
                 await Task.Delay(400, ct);
                 await TickMonstersAsync(ct);
                 await TickLootExpiryAsync(ct);
+                await TickPlayerBuffsAsync(ct);
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
@@ -1048,7 +1090,10 @@ public sealed partial class GameWorldModule : IGameModule
                 await target.Session.SendAsync(MsgId.CombatSync, 0, sync, ct);
 
                 if (died)
+                {
+                    await ClearBuffsOnDeathAsync(target, ct);
                     await RevivePlayerAsync(target, aoi, ct);
+                }
                 else
                     await _storage.Characters.SavePositionAsync(
                         target.CharacterId, target.MapId, target.X, target.Y, target.Hp, target.Mp, ct);
@@ -1794,7 +1839,7 @@ public sealed partial class GameWorldModule : IGameModule
             });
         }
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
         await PersistEquipmentAsync(player, ct);
 
         var resp = new EquipResp
@@ -1855,7 +1900,7 @@ public sealed partial class GameWorldModule : IGameModule
         InventoryHelper.AddItem(player.Inventory, existingSlot.ItemId, 1);
         player.Equipment.Remove(existingSlot);
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
         await PersistEquipmentAsync(player, ct);
 
         var resp = new UnequipResp
@@ -1959,7 +2004,7 @@ public sealed partial class GameWorldModule : IGameModule
         if (succeeded)
             equipped.EnhanceLevel = targetLevel;
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
         await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
         await _storage.Characters.SaveEquipmentAsync(
             player.CharacterId, EquipmentHelper.Serialize(player.Equipment), ct);
@@ -2061,7 +2106,7 @@ public sealed partial class GameWorldModule : IGameModule
                 };
             }
             LevelCurve.ApplyBaseStats(player, cls, _versionPack.Levels);
-            EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+            EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
             player.Hp = player.MaxHp;
             player.Mp = player.MaxMp;
 
@@ -2132,26 +2177,66 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
-        if (!_versionPack.Items.TryGetValue(itemId, out var tmpl) ||
-            !string.Equals(tmpl.Kind, "consumable", StringComparison.OrdinalIgnoreCase))
+        if (!_versionPack.Items.TryGetValue(itemId, out var tmpl))
         {
             await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
             {
                 Success = false,
                 ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
-                Message = "Item is not a usable consumable."
+                Message = "Unknown item."
             }, ct);
             return;
         }
 
-        if (tmpl.HealHp <= 0 && tmpl.HealMp <= 0)
+        bool isSkillbook = string.Equals(tmpl.Kind, "skillbook", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(tmpl.TeachesSkillId);
+        bool isBuffScroll = string.Equals(tmpl.Kind, "consumable", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(tmpl.AppliesBuffId);
+        bool isHeal = string.Equals(tmpl.Kind, "consumable", StringComparison.OrdinalIgnoreCase)
+            && (tmpl.HealHp > 0 || tmpl.HealMp > 0);
+
+        if (!isSkillbook && !isBuffScroll && !isHeal)
         {
             await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
             {
                 Success = false,
                 ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
-                Message = "Item has no useEffect."
+                Message = "Item is not usable."
             }, ct);
+            return;
+        }
+
+        if (isSkillbook)
+        {
+            var (ok, err, state) = await TryLearnSkillAsync(player, tmpl.TeachesSkillId, consumeItemId: itemId, ct);
+            if (!ok)
+            {
+                await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                    Message = MessageFor(err)
+                }, ct);
+                return;
+            }
+            int remBook = player.Inventory.Where(s =>
+                string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);
+            var bookResp = new UseItemResp
+            {
+                Success = true,
+                ErrorCode = ProtocolErrorCode.ErrNone,
+                Message = $"Learned {tmpl.TeachesSkillId}",
+                ItemId = itemId,
+                RemainingCount = remBook,
+                Hp = player.Hp,
+                MaxHp = player.MaxHp,
+                Mp = player.Mp,
+                MaxMp = player.MaxMp
+            };
+            foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+                bookResp.Inventory.Add(slot);
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, bookResp, ct);
+            await SendSkillListNotifyAsync(player, "learn", ct);
             return;
         }
 
@@ -2166,8 +2251,8 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
-        int healHp = tmpl.HealHp;
-        int healMp = tmpl.HealMp;
+        int healHp = isHeal ? tmpl.HealHp : 0;
+        int healMp = isHeal ? tmpl.HealMp : 0;
         int beforeHp = player.Hp;
         int beforeMp = player.Mp;
         player.Hp = Math.Min(player.MaxHp, player.Hp + healHp);
@@ -2179,6 +2264,9 @@ public sealed partial class GameWorldModule : IGameModule
             player.CharacterId, InventoryHelper.Serialize(player.Inventory), ct);
         await _storage.Characters.SavePositionAsync(
             player.CharacterId, player.MapId, player.X, player.Y, player.Hp, player.Mp, ct);
+
+        if (isBuffScroll)
+            await ApplyBuffAsync(player, tmpl.AppliesBuffId, ct);
 
         int remaining = player.Inventory.Where(s =>
             string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);

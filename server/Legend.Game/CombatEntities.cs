@@ -271,7 +271,8 @@ public static class EquipmentHelper
 
     public static void RecalculateStats(
         WorldPlayerEntity player,
-        IReadOnlyDictionary<string, ItemTemplate> items)
+        IReadOnlyDictionary<string, ItemTemplate> items,
+        IReadOnlyDictionary<string, BuffConfigItem>? buffs = null)
     {
         int totalAtk = player.BaseAtk;
         int totalDef = player.BaseDef;
@@ -290,5 +291,125 @@ public static class EquipmentHelper
         player.MaxHp = Math.Max(1, totalMaxHp);
         if (player.Hp > player.MaxHp)
             player.Hp = player.MaxHp;
+
+        if (buffs != null)
+            BuffHelper.ApplyBuffModifiers(player, buffs);
+    }
+}
+
+public sealed class LearnedSkillState
+{
+    public string SkillId { get; set; } = string.Empty;
+    public int Level { get; set; } = 1;
+    public int Exp { get; set; }
+}
+
+public sealed class ActiveBuffState
+{
+    public string BuffId { get; set; } = string.Empty;
+    public long ExpiresAtUnixMs { get; set; }
+    public long NextTickUnixMs { get; set; }
+    public int Stacks { get; set; } = 1;
+}
+
+public static class SkillHelper
+{
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    public static List<LearnedSkillState> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "[]")
+            return new List<LearnedSkillState>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<LearnedSkillState>>(json, JsonOpts) ?? new();
+        }
+        catch
+        {
+            return new List<LearnedSkillState>();
+        }
+    }
+
+    public static string Serialize(IEnumerable<LearnedSkillState> skills)
+        => JsonSerializer.Serialize(skills.ToList(), JsonOpts);
+
+    public static int ExpToNext(SkillConfigItem cfg, int level)
+    {
+        if (cfg.ExpToNextLevel.Count == 0)
+            return 0;
+        // index = current level (exp needed to reach level+1); level 1 uses index 1
+        if (level < 0)
+            return 0;
+        if (level >= cfg.MaxLevel)
+            return 0;
+        if (level < cfg.ExpToNextLevel.Count)
+            return Math.Max(0, cfg.ExpToNextLevel[level]);
+        return cfg.ExpToNextLevel[^1];
+    }
+
+    public static double EffectiveMultiplier(SkillConfigItem cfg, int level)
+    {
+        int lv = Math.Max(1, level);
+        return cfg.DamageMultiplier + cfg.DamageMultiplierPerLevel * (lv - 1);
+    }
+
+    public static int EffectiveCooldownMs(SkillConfigItem cfg, int level)
+    {
+        int lv = Math.Max(1, level);
+        int cd = cfg.CooldownMs + cfg.CooldownMsPerLevel * (lv - 1);
+        return Math.Max(200, cd);
+    }
+
+    public static SkillState ToProto(LearnedSkillState state, SkillConfigItem? cfg)
+    {
+        int maxLv = cfg?.MaxLevel ?? Math.Max(1, state.Level);
+        return new SkillState
+        {
+            SkillId = state.SkillId,
+            DisplayName = cfg?.DisplayName ?? state.SkillId,
+            Level = state.Level,
+            Exp = state.Exp,
+            ExpToNext = cfg is null ? 0 : ExpToNext(cfg, state.Level),
+            MaxLevel = maxLv
+        };
+    }
+}
+
+public static class BuffHelper
+{
+    public static BuffState ToProto(ActiveBuffState state, BuffConfigItem? cfg)
+    {
+        return new BuffState
+        {
+            BuffId = state.BuffId,
+            DisplayName = cfg?.DisplayName ?? state.BuffId,
+            Kind = cfg?.Kind ?? "buff",
+            ExpiresAtUnixMs = state.ExpiresAtUnixMs,
+            Stacks = state.Stacks,
+            AtkBonusPercent = cfg?.AtkBonusPercent ?? 0,
+            DefBonusPercent = cfg?.DefBonusPercent ?? 0,
+            MoveSlowPercent = cfg?.MoveSlowPercent ?? 0
+        };
+    }
+
+    public static void ApplyBuffModifiers(WorldPlayerEntity player, IReadOnlyDictionary<string, BuffConfigItem> buffs)
+    {
+        int atkPct = 0;
+        int defPct = 0;
+        foreach (var ab in player.ActiveBuffs)
+        {
+            if (!buffs.TryGetValue(ab.BuffId, out var cfg))
+                continue;
+            atkPct += cfg.AtkBonusPercent * Math.Max(1, ab.Stacks);
+            defPct += cfg.DefBonusPercent * Math.Max(1, ab.Stacks);
+        }
+        if (atkPct != 0)
+            player.Atk = Math.Max(1, (int)Math.Floor(player.Atk * (100.0 + atkPct) / 100.0));
+        if (defPct != 0)
+            player.Def = Math.Max(0, (int)Math.Floor(player.Def * (100.0 + defPct) / 100.0));
     }
 }

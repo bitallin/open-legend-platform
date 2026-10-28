@@ -9,8 +9,8 @@ echo " Legend Platform — Phase A (M5) Leveling Curve & Consumable Use"
 echo "=================================================================="
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION || true)"
-if [[ "$PROTO_VER" != "1.8.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.8.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.9.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.9.0, got '$PROTO_VER'"
   exit 1
 fi
 
@@ -118,4 +118,4 @@ echo "--- Host log (restart) ---"
 tail -n 40 "$HOST_LOG2"
 echo "-----------------------------------------"
 echo "✅ Phase A (M5) Verification PASSED"
-echo "Protocol: 1.8.0 | Storage: Sqlite at $SQLITE_DB"
+echo "Protocol: 1.9.0 | Storage: Sqlite at $SQLITE_DB"

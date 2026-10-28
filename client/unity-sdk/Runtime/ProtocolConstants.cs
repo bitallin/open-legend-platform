@@ -97,13 +97,21 @@ namespace Legend.Contracts
         FriendRemoveResp = 2714,
         FriendListReq = 2715,
         FriendListResp = 2716,
+        LearnSkillReq = 2801,
+        LearnSkillResp = 2802,
+        SkillListReq = 2803,
+        SkillListResp = 2804,
+        SkillListNotify = 2805,
+        SkillLevelUpNotify = 2806,
+        BuffApplyNotify = 2807,
+        BuffRemoveNotify = 2808,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.8.0";
-        public const string MinCompatibleVersion = "1.8.0";
+        public const string CurrentVersion = "1.9.0";
+        public const string MinCompatibleVersion = "1.9.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

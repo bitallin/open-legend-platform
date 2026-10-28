@@ -6,7 +6,23 @@
     "cooldownMs": 600,
     "range": 2,
     "damageMultiplier": 1.0,
-    "allowedClasses": ["warrior", "mage", "taoist"]
+    "damageMultiplierPerLevel": 0.05,
+    "allowedClasses": [
+      "warrior",
+      "mage",
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 8,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ]
   },
   {
     "skillId": "power_strike",
@@ -15,7 +31,22 @@
     "cooldownMs": 2500,
     "range": 2,
     "damageMultiplier": 1.75,
-    "allowedClasses": ["warrior"]
+    "damageMultiplierPerLevel": 0.15,
+    "cooldownMsPerLevel": -50,
+    "allowedClasses": [
+      "warrior"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 12,
+    "skillExpPerKill": 30,
+    "expToNextLevel": [
+      0,
+      50,
+      120,
+      250,
+      500
+    ]
   },
   {
     "skillId": "arcane_bolt",
@@ -24,6 +55,47 @@
     "cooldownMs": 1200,
     "range": 5,
     "damageMultiplier": 1.4,
-    "allowedClasses": ["mage"]
+    "damageMultiplierPerLevel": 0.12,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 12,
+    "skillExpPerKill": 30,
+    "expToNextLevel": [
+      0,
+      50,
+      120,
+      250,
+      500
+    ],
+    "applyDebuffOnHit": "debuff_poison"
+  },
+  {
+    "skillId": "fatal_strike",
+    "displayName": "致命一击",
+    "mpCost": 0,
+    "cooldownMs": 800,
+    "range": 2,
+    "damageMultiplier": 2.2,
+    "damageMultiplierPerLevel": 0.25,
+    "cooldownMsPerLevel": -100,
+    "allowedClasses": [
+      "warrior"
+    ],
+    "requiresLearn": true,
+    "learnRequiredLevel": 1,
+    "maxLevel": 5,
+    "skillBookItemId": "item_skillbook_fatal_strike",
+    "skillExpPerCast": 50,
+    "skillExpPerKill": 40,
+    "expToNextLevel": [
+      0,
+      50,
+      150,
+      300,
+      600
+    ]
   }
 ]

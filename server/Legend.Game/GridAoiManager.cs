@@ -38,6 +38,8 @@ public sealed class WorldPlayerEntity
     public string GuildName { get; set; } = string.Empty;
     public string GuildRank { get; set; } = string.Empty;
     public string PartyId { get; set; } = string.Empty;
+    public List<LearnedSkillState> LearnedSkills { get; set; } = new();
+    public List<ActiveBuffState> ActiveBuffs { get; set; } = new();
 
     public EntitySnapshot ToSnapshot() => new()
     {

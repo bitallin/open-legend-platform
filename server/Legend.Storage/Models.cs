@@ -30,6 +30,7 @@ public sealed class CharacterRecord
     public string QuestJson { get; set; } = "[]";
     public string EquipmentJson { get; set; } = "[]";
     public string GuildId { get; set; } = string.Empty;
+    public string SkillsJson { get; set; } = "[]";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -53,6 +54,7 @@ public sealed class CharacterRecord
         QuestJson = QuestJson,
         EquipmentJson = EquipmentJson,
         GuildId = GuildId,
+        SkillsJson = SkillsJson,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt
     };

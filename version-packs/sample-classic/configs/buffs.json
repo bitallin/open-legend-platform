@@ -1,0 +1,28 @@
+[
+  {
+    "buffId": "buff_war_cry",
+    "displayName": "战吼",
+    "kind": "buff",
+    "durationMs": 12000,
+    "tickMs": 0,
+    "atkBonusPercent": 25,
+    "defBonusPercent": 0,
+    "moveSlowPercent": 0,
+    "dotDamagePerTick": 0,
+    "stackRule": "refresh",
+    "clearOnDeath": true
+  },
+  {
+    "buffId": "debuff_poison",
+    "displayName": "中毒",
+    "kind": "debuff",
+    "durationMs": 10000,
+    "tickMs": 2000,
+    "atkBonusPercent": 0,
+    "defBonusPercent": -10,
+    "moveSlowPercent": 30,
+    "dotDamagePerTick": 5,
+    "stackRule": "refresh",
+    "clearOnDeath": true
+  }
+]

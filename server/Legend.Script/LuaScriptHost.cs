@@ -117,6 +117,10 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<PartyLeftEvent>(OnPartyLeftAsync);
         _eventBus.Subscribe<FriendAddedEvent>(OnFriendAddedAsync);
         _eventBus.Subscribe<WhisperSentEvent>(OnWhisperSentAsync);
+        _eventBus.Subscribe<SkillLearnedEvent>(OnSkillLearnedAsync);
+        _eventBus.Subscribe<SkillLevelUpEvent>(OnSkillLevelUpAsync);
+        _eventBus.Subscribe<BuffAppliedEvent>(OnBuffAppliedAsync);
+        _eventBus.Subscribe<BuffExpiredEvent>(OnBuffExpiredAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -673,5 +677,90 @@ public sealed class LuaScriptHost
         }
         return Task.CompletedTask;
     }
+
+    private Task OnSkillLearnedAsync(SkillLearnedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_learn_skill");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.SkillId, evt.Level);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_learn_skill failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnSkillLevelUpAsync(SkillLevelUpEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_skill_level_up");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.SkillId, evt.OldLevel, evt.NewLevel);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_skill_level_up failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnBuffAppliedAsync(BuffAppliedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_buff_apply");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.BuffId, evt.DurationMs);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_buff_apply failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnBuffExpiredAsync(BuffExpiredEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_buff_expire");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.BuffId, evt.Reason);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_buff_expire failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
 
 }

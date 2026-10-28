@@ -178,6 +178,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
               quest_json TEXT NOT NULL DEFAULT '[]',
               equipment_json TEXT NOT NULL DEFAULT '[]',
               guild_id TEXT NOT NULL DEFAULT '',
+              skills_json TEXT NOT NULL DEFAULT '[]',
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
@@ -235,6 +236,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             character.QuestJson = QuestJson.Empty;
         if (string.IsNullOrEmpty(character.EquipmentJson))
             character.EquipmentJson = EquipmentJson.Empty;
+        if (string.IsNullOrEmpty(character.SkillsJson))
+            character.SkillsJson = "[]";
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
         character.CreatedAt = DateTimeOffset.UtcNow;
@@ -256,8 +259,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, created_at, updated_at)
-                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$gid,$c,$u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, skills_json, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$gid,$sj,$c,$u)
                 """;
             BindCharacter(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -387,6 +390,18 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveSkillsAsync(string characterId, string skillsJson, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET skills_json=$sj, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$sj", string.IsNullOrWhiteSpace(skillsJson) ? "[]" : skillsJson);
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord ReadCharacter(SqliteDataReader reader)
         => new()
         {
@@ -408,6 +423,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             QuestJson = reader.GetString(reader.GetOrdinal("quest_json")),
             EquipmentJson = reader.GetString(reader.GetOrdinal("equipment_json")),
             GuildId = SafeGetString(reader, "guild_id"),
+            SkillsJson = string.IsNullOrEmpty(SafeGetString(reader, "skills_json")) ? "[]" : SafeGetString(reader, "skills_json"),
             CreatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at"))),
             UpdatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")))
         };
@@ -432,9 +448,11 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$qj", c.QuestJson);
         cmd.Parameters.AddWithValue("$eqj", c.EquipmentJson);
         cmd.Parameters.AddWithValue("$gid", c.GuildId ?? "");
+        cmd.Parameters.AddWithValue("$sj", string.IsNullOrWhiteSpace(c.SkillsJson) ? "[]" : c.SkillsJson);
         cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
         cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
     }
+
     public async Task SaveGuildIdAsync(string characterId, string? guildId, CancellationToken ct = default)
     {
         await using var conn = new SqliteConnection(_cs);

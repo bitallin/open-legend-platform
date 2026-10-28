@@ -20,8 +20,8 @@ cleanup() {
 trap cleanup EXIT
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION)"
-if [[ "$PROTO_VER" != "1.8.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.8.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.9.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.9.0, got '$PROTO_VER'"
   exit 1
 fi
 
@@ -97,4 +97,4 @@ if ! grep -q "whisper" "$HOST_LOG_1"; then
 fi
 
 echo "=== M8 VERIFICATION PASSED ==="
-echo "Protocol: 1.8.0 | Storage: Sqlite at $DB_FILE"
+echo "Protocol: 1.9.0 | Storage: Sqlite at $DB_FILE"

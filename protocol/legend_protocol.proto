@@ -53,6 +53,10 @@ enum ProtocolErrorCode {
   ERR_NOT_FRIEND = 1045;
   ERR_FRIEND_NOT_FOUND = 1046;
   ERR_TARGET_OFFLINE = 1047;
+  ERR_SKILL_NOT_LEARNED = 1048;
+  ERR_SKILL_LEARN_DENIED = 1049;
+  ERR_SKILL_MAX_LEVEL = 1050;
+  ERR_BUFF_DENIED = 1051;
   ERR_INTERNAL = 1999;
 }
 
@@ -271,6 +275,8 @@ message EnterWorldResp {
   string guild_id = 19;
   string guild_name = 20;
   string guild_rank = 21;
+  repeated SkillState skills = 22;
+  repeated BuffState buffs = 23;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -831,3 +837,75 @@ message FriendListResp {
   string message = 3;
   repeated FriendInfo friends = 4;
 }
+
+// 19. Skills & Buffs (MsgId: 2801–2808)
+message SkillState {
+  string skill_id = 1;
+  string display_name = 2;
+  int32 level = 3;
+  int32 exp = 4;
+  int32 exp_to_next = 5;
+  int32 max_level = 6;
+}
+
+message LearnSkillReq {
+  string item_id = 1;   // skillbook item in inventory
+  string skill_id = 2;  // optional explicit skill id
+}
+
+message LearnSkillResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  SkillState skill = 4;
+  repeated InventoryItem inventory = 5;
+}
+
+message SkillListReq {}
+
+message SkillListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated SkillState skills = 4;
+}
+
+message SkillListNotify {
+  repeated SkillState skills = 1;
+  string reason = 2; // learn | level_up | enter
+}
+
+message SkillLevelUpNotify {
+  string skill_id = 1;
+  int32 old_level = 2;
+  int32 new_level = 3;
+  int32 exp = 4;
+  int32 exp_to_next = 5;
+}
+
+message BuffState {
+  string buff_id = 1;
+  string display_name = 2;
+  string kind = 3; // buff | debuff
+  int64 expires_at_unix_ms = 4;
+  int32 stacks = 5;
+  int32 atk_bonus_percent = 6;
+  int32 def_bonus_percent = 7;
+  int32 move_slow_percent = 8;
+}
+
+message BuffApplyNotify {
+  BuffState buff = 1;
+  string target_entity_id = 2;
+  int32 effective_atk = 3;
+  int32 effective_def = 4;
+}
+
+message BuffRemoveNotify {
+  string buff_id = 1;
+  string target_entity_id = 2;
+  string reason = 3; // expire | death | dispel | replace
+  int32 effective_atk = 4;
+  int32 effective_def = 5;
+}
+

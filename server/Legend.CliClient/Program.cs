@@ -9,6 +9,7 @@ bool levelTest = false;
 bool guildTest = false;
 bool tradeTest = false;
 bool partyTest = false;
+bool skillTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -53,10 +54,20 @@ for (int i = 0; i < args.Length; i++)
         equipTest = false;
         levelTest = false;
     }
+    else if (args[i] == "--skill")
+    {
+        skillTest = true;
+        partyTest = false;
+        tradeTest = false;
+        guildTest = false;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -79,14 +90,185 @@ if (partyTest)
     return;
 }
 
+if (skillTest)
+{
+    await RunSkillAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M9 skill/buff verification steps passed!");
+    return;
+}
+
+static async Task RunSkillAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    await using var client = new LegendTcpClient();
+    await client.ConnectAsync(host, port, ct);
+    if (!(await client.HandshakeAsync("1.9.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
+
+    string user = "m9_skill_" + Guid.NewGuid().ToString("N")[..6];
+    await client.RegisterAsync(user, "pass12345", "PC", ct);
+    var login = await client.LoginAsync(user, "pass12345", "PC", ct);
+    if (!login.Success) throw new Exception(login.Message);
+
+    string charName = "武者" + Guid.NewGuid().ToString("N")[..4];
+    var create = await client.CreateCharAsync(charName, "warrior", ct);
+    if (!create.Success) throw new Exception(create.Message);
+    string charId = create.Character.CharacterId;
+    await client.SelectCharAsync(charId, ct);
+    var realms = await client.GetRealmListAsync(ct);
+    var enter = await client.EnterWorldAsync(realms.Realms[0].RealmId, charId, ct);
+    if (!enter.Success) throw new Exception(enter.Message);
+    Console.WriteLine($"[M9.1] Entered gold={enter.Gold} skills={enter.Skills.Count} atk={enter.EffectiveAtk}");
+
+    if (enter.Skills.Any(s => s.SkillId == "fatal_strike"))
+        throw new Exception("fatal_strike should not be learned yet");
+    if (!enter.Skills.Any(s => s.SkillId == "power_strike"))
+        throw new Exception("power_strike starter skill missing");
+
+    async Task Walk(int tx, int ty)
+    {
+        int guard = 0;
+        while ((client.SelfEntity!.X != tx || client.SelfEntity.Y != ty) && guard++ < 80)
+        {
+            int nx = client.SelfEntity.X + Math.Sign(tx - client.SelfEntity.X);
+            int ny = client.SelfEntity.Y + Math.Sign(ty - client.SelfEntity.Y);
+            var m = await client.MoveAsync(nx, ny, ct: ct);
+            if (!m.Accepted) throw new Exception($"Move rejected ({nx},{ny}): {m.Reason}");
+        }
+    }
+
+    await Walk(12, 12);
+    var buyBook = await client.ShopBuyAsync("npc_village_merchant", "item_skillbook_fatal_strike", 1, ct);
+    if (!buyBook.Success) throw new Exception($"buy skillbook failed: {buyBook.Message}");
+    var buyScroll = await client.ShopBuyAsync("npc_village_merchant", "item_war_cry_scroll", 1, ct);
+    if (!buyScroll.Success) throw new Exception($"buy scroll failed: {buyScroll.Message}");
+    Console.WriteLine($"[M9.2] Bought skillbook+scroll gold={buyScroll.Gold}");
+
+    async Task<EntitySnapshot> FindMonster()
+    {
+        EntitySnapshot? m = enter.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityMonster);
+        for (int i = 0; i < 60 && m is null; i++)
+        {
+            while (client.ReceivedAoiEnters.TryDequeue(out var en))
+                if (en.Entity.Kind == EntityKind.EntityMonster) { m = en.Entity; break; }
+            while (m is null && client.ReceivedEntitySpawns.TryDequeue(out var sp))
+                if (sp.Entity.Kind == EntityKind.EntityMonster) { m = sp.Entity; break; }
+            if (m is null)
+            {
+                await Walk(25 + (i % 3), 10 + (i % 2));
+                await Task.Delay(40, ct);
+            }
+        }
+        if (m is null) throw new Exception("monster not found");
+        return m;
+    }
+
+    var monster0 = await FindMonster();
+    await Walk(Math.Max(0, monster0.X - 1), monster0.Y);
+    var (denyAtk, _) = await client.AttackAsync(monster0.EntityId, "fatal_strike", ct);
+    if (denyAtk.Success || denyAtk.ErrorCode != ProtocolErrorCode.ErrSkillNotLearned)
+        throw new Exception($"Expected ErrSkillNotLearned, got success={denyAtk.Success} code={denyAtk.ErrorCode}");
+    Console.WriteLine("[M9.3] Unlearned fatal_strike denied OK");
+
+    var learn = await client.LearnSkillAsync("item_skillbook_fatal_strike", ct: ct);
+    if (!learn.Success) throw new Exception($"LearnSkill failed: {learn.ErrorCode} {learn.Message}");
+    if (learn.Skill.SkillId != "fatal_strike" || learn.Skill.Level != 1)
+        throw new Exception($"unexpected learn state {learn.Skill.SkillId} lv{learn.Skill.Level}");
+    Console.WriteLine($"[M9.4] Learned fatal_strike lv={learn.Skill.Level}");
+
+    var list = await client.SkillListAsync(ct);
+    if (!list.Success || !list.Skills.Any(s => s.SkillId == "fatal_strike"))
+        throw new Exception("SkillList missing fatal_strike");
+
+    int dmgFatalLv1 = 0;
+    for (int attempt = 0; attempt < 8 && dmgFatalLv1 == 0; attempt++)
+    {
+        var mon = await FindMonster();
+        await Walk(Math.Max(0, mon.X - 1), mon.Y);
+        await Task.Delay(900, ct);
+        var (atk, cs) = await client.AttackAsync(mon.EntityId, "fatal_strike", ct);
+        if (atk.Success && cs != null && cs.Damage > 0)
+            dmgFatalLv1 = cs.Damage;
+        else
+            await Task.Delay(400, ct);
+    }
+    if (dmgFatalLv1 <= 0) throw new Exception("fatal_strike lv1 did not deal damage");
+    Console.WriteLine($"[M9.5] fatal_strike lv1 damage={dmgFatalLv1}");
+
+    int targetLevel = 1;
+    for (int i = 0; i < 40 && targetLevel < 2; i++)
+    {
+        var mon = await FindMonster();
+        await Walk(Math.Max(0, mon.X - 1), mon.Y);
+        await Task.Delay(900, ct);
+        var (atk, _) = await client.AttackAsync(mon.EntityId, "fatal_strike", ct);
+        if (!atk.Success)
+        {
+            await Task.Delay(400, ct);
+            continue;
+        }
+        while (client.ReceivedSkillLevelUpNotifies.TryDequeue(out var up))
+        {
+            if (up.SkillId == "fatal_strike")
+                targetLevel = Math.Max(targetLevel, up.NewLevel);
+        }
+        var sl = await client.SkillListAsync(ct);
+        var st = sl.Skills.FirstOrDefault(s => s.SkillId == "fatal_strike");
+        if (st != null) targetLevel = Math.Max(targetLevel, st.Level);
+    }
+    if (targetLevel < 2) throw new Exception($"skill did not level up (lv={targetLevel})");
+    Console.WriteLine($"[M9.6] fatal_strike leveled to {targetLevel}");
+
+    int dmgFatalLv2 = 0;
+    for (int attempt = 0; attempt < 8 && dmgFatalLv2 == 0; attempt++)
+    {
+        var mon = await FindMonster();
+        await Walk(Math.Max(0, mon.X - 1), mon.Y);
+        await Task.Delay(900, ct);
+        var (atk, cs) = await client.AttackAsync(mon.EntityId, "fatal_strike", ct);
+        if (atk.Success && cs != null && cs.Damage > 0)
+            dmgFatalLv2 = cs.Damage;
+        else
+            await Task.Delay(400, ct);
+    }
+    if (dmgFatalLv2 <= dmgFatalLv1)
+        throw new Exception($"expected lv2 dmg > lv1: {dmgFatalLv2} vs {dmgFatalLv1}");
+    Console.WriteLine($"[M9.7] fatal_strike lv{targetLevel} damage={dmgFatalLv2} > lv1={dmgFatalLv1}");
+
+    while (client.ReceivedBuffApplyNotifies.TryDequeue(out _)) { }
+    var use = await client.UseItemAsync("item_war_cry_scroll", 1, ct);
+    if (!use.Success) throw new Exception($"UseItem scroll failed: {use.Message}");
+    var buffN = await client.WaitBuffApplyAsync("buff_war_cry", 3000, ct);
+    if (buffN.EffectiveAtk <= enter.EffectiveAtk)
+        throw new Exception($"buff should raise atk: {buffN.EffectiveAtk} vs {enter.EffectiveAtk}");
+    Console.WriteLine($"[M9.8] Buff war_cry applied EffectiveAtk={buffN.EffectiveAtk} (enterAtk={enter.EffectiveAtk})");
+
+    int dmgBuffed = 0;
+    for (int attempt = 0; attempt < 8 && dmgBuffed == 0; attempt++)
+    {
+        var mon = await FindMonster();
+        await Walk(Math.Max(0, mon.X - 1), mon.Y);
+        await Task.Delay(650, ct);
+        var (atk, cs) = await client.AttackAsync(mon.EntityId, "basic_slash", ct);
+        if (atk.Success && cs != null && cs.Damage > 0)
+            dmgBuffed = cs.Damage;
+        else
+            await Task.Delay(400, ct);
+    }
+    Console.WriteLine($"[M9.9] Damaged under buff with basic_slash dmg={dmgBuffed}");
+
+    var finalList = await client.SkillListAsync(ct);
+    var fatal = finalList.Skills.First(s => s.SkillId == "fatal_strike");
+    if (fatal.Level < 2) throw new Exception("persisted skill level lost in-session");
+    Console.WriteLine($"[M9.10] SkillList OK fatal_strike lv={fatal.Level} exp={fatal.Exp}");
+}
+
 static async Task RunPartyAcceptanceAsync(string host, int port, CancellationToken ct)
 {
     await using var a = new LegendTcpClient();
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.8.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.8.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.9.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.9.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
@@ -246,8 +428,8 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.8.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.8.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync("1.9.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.9.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -393,8 +575,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.8.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.8.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.9.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.9.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -523,7 +705,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.8.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.9.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -570,7 +752,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.8.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.9.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)

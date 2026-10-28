@@ -53,7 +53,7 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.8.0";
+    public string ProtocolVersion { get; set; } = "1.9.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
@@ -70,6 +70,7 @@ public sealed class VersionPackManifest
     public string GuildConfigFile { get; set; } = "";
     public string TradeConfigFile { get; set; } = "";
     public string PartyConfigFile { get; set; } = "";
+    public string BuffsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -191,7 +192,33 @@ public sealed class SkillConfigItem
     public int CooldownMs { get; set; } = 600;
     public int Range { get; set; } = 1;
     public double DamageMultiplier { get; set; } = 1.0;
+    public double DamageMultiplierPerLevel { get; set; }
+    public int CooldownMsPerLevel { get; set; }
     public List<string> AllowedClasses { get; set; } = new();
+    public bool RequiresLearn { get; set; }
+    public int LearnRequiredLevel { get; set; } = 1;
+    public int MaxLevel { get; set; } = 1;
+    public string SkillBookItemId { get; set; } = string.Empty;
+    public int SkillExpPerCast { get; set; }
+    public int SkillExpPerKill { get; set; }
+    public List<int> ExpToNextLevel { get; set; } = new();
+    public string ApplyBuffOnCast { get; set; } = string.Empty;
+    public string ApplyDebuffOnHit { get; set; } = string.Empty;
+}
+
+public sealed class BuffConfigItem
+{
+    public string BuffId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Kind { get; set; } = "buff";
+    public int DurationMs { get; set; }
+    public int TickMs { get; set; }
+    public int AtkBonusPercent { get; set; }
+    public int DefBonusPercent { get; set; }
+    public int MoveSlowPercent { get; set; }
+    public int DotDamagePerTick { get; set; }
+    public string StackRule { get; set; } = "refresh";
+    public bool ClearOnDeath { get; set; } = true;
 }
 
 public sealed class MonsterTemplate
@@ -323,6 +350,10 @@ public sealed class ItemTemplate
     public int HealHp { get; set; }
     /// <summary>Consumable MP restore on use (0 = none).</summary>
     public int HealMp { get; set; }
+    /// <summary>Skillbook: skill id taught on use.</summary>
+    public string TeachesSkillId { get; set; } = string.Empty;
+    /// <summary>Consumable/scroll: buff id applied on use.</summary>
+    public string AppliesBuffId { get; set; } = string.Empty;
 }
 
 public sealed class LevelEntryConfig
@@ -422,6 +453,7 @@ public sealed class LoadedVersionPack
     public required IReadOnlyDictionary<string, MapConfig> Maps { get; init; }
     public required IReadOnlyDictionary<string, ClassConfigItem> Classes { get; init; }
     public required IReadOnlyDictionary<string, SkillConfigItem> Skills { get; init; }
+    public IReadOnlyDictionary<string, BuffConfigItem> Buffs { get; init; } = new Dictionary<string, BuffConfigItem>(StringComparer.OrdinalIgnoreCase);
     public required IReadOnlyDictionary<string, MonsterTemplate> Monsters { get; init; }
     public required IReadOnlyList<MonsterSpawnPoint> MonsterSpawns { get; init; }
     public required IReadOnlyDictionary<string, LootTableConfig> LootTables { get; init; }
@@ -472,3 +504,8 @@ public sealed record PartyJoinedEvent(IClientSession Session, string PlayerName,
 public sealed record PartyLeftEvent(IClientSession Session, string PlayerName, string CharacterId, string PartyId, string Reason);
 public sealed record FriendAddedEvent(IClientSession Session, string PlayerName, string CharacterId, string FriendCharacterId, string FriendName);
 public sealed record WhisperSentEvent(IClientSession Session, string FromName, string FromCharacterId, string ToName, string ToCharacterId, string Content);
+
+public sealed record SkillLearnedEvent(IClientSession Session, string PlayerName, string CharacterId, string SkillId, int Level);
+public sealed record SkillLevelUpEvent(IClientSession Session, string PlayerName, string CharacterId, string SkillId, int OldLevel, int NewLevel);
+public sealed record BuffAppliedEvent(IClientSession Session, string PlayerName, string CharacterId, string BuffId, int DurationMs);
+public sealed record BuffExpiredEvent(IClientSession Session, string PlayerName, string CharacterId, string BuffId, string Reason);

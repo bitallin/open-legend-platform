@@ -95,13 +95,49 @@
       "enhanceDefPerLevel": 1,
       "enhanceHpPerLevel": 5,
       "requiredLevel": 1
+    },
+    {
+      "itemId": "item_skillbook_fatal_strike",
+      "displayName": "技能书·致命一击",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "fatal_strike"
+    },
+    {
+      "itemId": "item_war_cry_scroll",
+      "displayName": "战吼卷轴",
+      "kind": "consumable",
+      "slot": "",
+      "healHp": 0,
+      "healMp": 0,
+      "appliesBuffId": "buff_war_cry"
     }
   ],
   "enhanceRules": [
-    { "targetLevel": 1, "costGold": 20, "successRate": 1.0 },
-    { "targetLevel": 2, "costGold": 30, "successRate": 1.0 },
-    { "targetLevel": 3, "costGold": 50, "successRate": 1.0 },
-    { "targetLevel": 4, "costGold": 80, "successRate": 0.8 },
-    { "targetLevel": 5, "costGold": 120, "successRate": 0.6 }
+    {
+      "targetLevel": 1,
+      "costGold": 20,
+      "successRate": 1.0
+    },
+    {
+      "targetLevel": 2,
+      "costGold": 30,
+      "successRate": 1.0
+    },
+    {
+      "targetLevel": 3,
+      "costGold": 50,
+      "successRate": 1.0
+    },
+    {
+      "targetLevel": 4,
+      "costGold": 80,
+      "successRate": 0.8
+    },
+    {
+      "targetLevel": 5,
+      "costGold": 120,
+      "successRate": 0.6
+    }
   ]
 }

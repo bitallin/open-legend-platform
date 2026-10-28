@@ -2,7 +2,7 @@
 
 100% original Legend protocol client for **Unity 2022 LTS** (PC + Android). No 996 / third-party engine protocol.
 
-Protocol version: **1.8.0**
+Protocol version: **1.9.0**
 
 ## Import
 
@@ -24,11 +24,12 @@ Protocol version: **1.8.0**
 9. Guild/Chat (M6): `RequestGuildCreateAsync` / `RequestGuildJoinAsync` / `RequestGuildLeaveAsync` / `RequestGuildInfoAsync` / `RequestChatAsync(channel, content)`.
 10. Stall/Trade (M7): `RequestStallListAsync` / `RequestStallBrowseAsync` / `RequestStallBuyAsync` / `RequestStallCancelAsync` + `OnStallSoldNotify`.
 11. Party/Friend/Whisper (M8): `RequestPartyInviteAsync` / `RequestPartyAcceptAsync` / `RequestPartyLeaveAsync` / `RequestPartyKickAsync` / `RequestFriendAddAsync` / `RequestFriendRemoveAsync` / `RequestFriendListAsync` / `RequestWhisperAsync`.
+12. Skills/Buff (M9): `RequestLearnSkillAsync` / `RequestSkillListAsync` / `RequestUseItemAsync`(技能书/战吼卷轴) + `OnSkillListNotify` / `OnSkillLevelUpNotify` / `OnBuffApplyNotify` / `OnBuffRemoveNotify`.
 
 ## API flow
 
 ```
-Connect → Handshake(1.8.0) → Register → Login
+Connect → Handshake(1.9.0) → Register → Login
   → CharList / CreateChar / DeleteChar / SelectChar
   → EnterWorld  // Gold + Inventory + Quests + Equipment + guildId/Name/Rank + nearby NPCs/monsters
   → MoveReq / Attack / Pickup
@@ -37,6 +38,7 @@ Connect → Handshake(1.8.0) → Register → Login
   → GuildCreate / GuildJoin / GuildLeave / GuildInfo / ChatReq
   → StallList / StallBrowse / StallBuy / StallCancel (M7)
   → PartyInvite / PartyAccept / FriendAdd / FriendList / Whisper (M8)
+  → LearnSkill / SkillList / UseItem(skillbook|buff scroll) + Buff notifies (M9)
 ```
 
 Helpers: `RequestTalkAsync`, `RequestShopBuyAsync`, `RequestQuestAcceptAsync`, `RequestQuestTurnInAsync`, `RequestEquipAsync`, `RequestUnequipAsync`, `RequestEnhanceEquipAsync`, `RequestUseItemAsync`, `RequestGuildCreateAsync`, `RequestGuildJoinAsync`, `RequestGuildLeaveAsync`, `RequestGuildInfoAsync`, `RequestChatAsync`, `RequestStallListAsync`, `RequestStallBrowseAsync`, `RequestStallBuyAsync`, `RequestStallCancelAsync`, `RequestPartyInviteAsync` / `RequestPartyAcceptAsync` / `RequestPartyLeaveAsync` / `RequestPartyKickAsync`, `RequestFriendAddAsync` / `RequestFriendRemoveAsync` / `RequestFriendListAsync`, `RequestWhisperAsync` / `RequestChatAsync(..., targetName)`.
@@ -49,7 +51,7 @@ dotnet build server/Legend.Contracts/Legend.Contracts.csproj -c Release
 cp server/Legend.Contracts/obj/Release/net8.0/LegendProtocol.cs client/unity-sdk/Runtime/LegendProtocol.cs
 ```
 
-Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId …2601–2609 stall, 2701–2716 party/friend, version 1.8.0).
+Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId …2601–2609 stall, 2701–2716 party/friend, version 1.9.0).
 
 ## Notes
 

@@ -33,6 +33,10 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<StallSoldNotify> ReceivedStallSoldNotifies { get; } = new();
     public ConcurrentQueue<PartyInfoNotify> ReceivedPartyInfoNotifies { get; } = new();
     public ConcurrentQueue<PartyInviteNotify> ReceivedPartyInviteNotifies { get; } = new();
+    public ConcurrentQueue<SkillListNotify> ReceivedSkillListNotifies { get; } = new();
+    public ConcurrentQueue<SkillLevelUpNotify> ReceivedSkillLevelUpNotifies { get; } = new();
+    public ConcurrentQueue<BuffApplyNotify> ReceivedBuffApplyNotifies { get; } = new();
+    public ConcurrentQueue<BuffRemoveNotify> ReceivedBuffRemoveNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -203,6 +207,26 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     {
                         var inv = PartyInviteNotify.Parser.ParseFrom(frame.Payload);
                         ReceivedPartyInviteNotifies.Enqueue(inv);
+                        break;
+                    }
+                    case MsgId.SkillListNotify:
+                    {
+                        ReceivedSkillListNotifies.Enqueue(SkillListNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.SkillLevelUpNotify:
+                    {
+                        ReceivedSkillLevelUpNotifies.Enqueue(SkillLevelUpNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.BuffApplyNotify:
+                    {
+                        ReceivedBuffApplyNotifies.Enqueue(BuffApplyNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.BuffRemoveNotify:
+                    {
+                        ReceivedBuffRemoveNotifies.Enqueue(BuffRemoveNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
                     case MsgId.StallSoldNotify:
@@ -768,6 +792,49 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task WhisperAsync(string targetName, string content, CancellationToken ct = default)
         => await ChatAsync(ChatChannel.ChatWhisper, content, targetName, ct);
+
+
+    public async Task<LearnSkillResp> LearnSkillAsync(string itemId, string skillId = "", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.LearnSkillReq, new LearnSkillReq { ItemId = itemId, SkillId = skillId }, ct);
+        return LearnSkillResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<SkillListResp> SkillListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SkillListReq, new SkillListReq(), ct);
+        return SkillListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<BuffApplyNotify> WaitBuffApplyAsync(string? buffId = null, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            while (ReceivedBuffApplyNotifies.TryDequeue(out var n))
+            {
+                if (buffId is null || string.Equals(n.Buff.BuffId, buffId, StringComparison.OrdinalIgnoreCase))
+                    return n;
+            }
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("BuffApplyNotify not received in time");
+    }
+
+    public async Task<SkillLevelUpNotify> WaitSkillLevelUpAsync(string? skillId = null, int timeoutMs = 8000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            while (ReceivedSkillLevelUpNotifies.TryDequeue(out var n))
+            {
+                if (skillId is null || string.Equals(n.SkillId, skillId, StringComparison.OrdinalIgnoreCase))
+                    return n;
+            }
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("SkillLevelUpNotify not received in time");
+    }
 
     public async ValueTask DisposeAsync()
     {

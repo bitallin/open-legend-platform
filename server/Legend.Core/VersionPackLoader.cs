@@ -282,6 +282,26 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 ?? throw new InvalidDataException("Failed to deserialize party.json");
         }
 
+
+        // Buffs
+        var buffDict = new Dictionary<string, BuffConfigItem>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.BuffsConfigFile))
+        {
+            string buffsPath = Path.Combine(baseDir, manifest.BuffsConfigFile);
+            if (!File.Exists(buffsPath))
+                throw new FileNotFoundException($"Buffs config not found: {buffsPath}");
+            string buffsJson = File.ReadAllText(buffsPath, Encoding.UTF8);
+            hashInput.Append(buffsJson);
+            var buffs = JsonSerializer.Deserialize<List<BuffConfigItem>>(buffsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize buffs.json");
+            foreach (var b in buffs)
+            {
+                if (string.IsNullOrWhiteSpace(b.BuffId))
+                    throw new InvalidDataException("BuffConfigItem.BuffId cannot be empty.");
+                buffDict[b.BuffId] = b;
+            }
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -318,6 +338,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 mapCount = maps.Count,
                 classCount = classDict.Count,
                 skillCount = skillDict.Count,
+                buffCount = buffDict.Count,
                 monsterCount = monsterDict.Count,
                 lootTableCount = lootDict.Count,
                 npcCount = npcDict.Count,
@@ -338,6 +359,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Maps = maps,
             Classes = classDict,
             Skills = skillDict,
+            Buffs = buffDict,
             Monsters = monsterDict,
             MonsterSpawns = spawnList,
             LootTables = lootDict,
