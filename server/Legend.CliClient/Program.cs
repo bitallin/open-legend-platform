@@ -7,6 +7,7 @@ bool combat = true;
 bool equipTest = false;
 bool levelTest = false;
 bool guildTest = false;
+bool tradeTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -34,10 +35,18 @@ for (int i = 0; i < args.Length; i++)
         equipTest = false;
         levelTest = false;
     }
+    else if (args[i] == "--trade")
+    {
+        tradeTest = true;
+        guildTest = false;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(guildTest ? 90 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds((guildTest || tradeTest) ? 90 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -46,14 +55,168 @@ if (guildTest)
     return;
 }
 
+if (tradeTest)
+{
+    await RunTradeAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M7 stall/trade verification steps passed!");
+    return;
+}
+
+static async Task RunTradeAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    await using var seller = new LegendTcpClient();
+    await using var buyer = new LegendTcpClient();
+    await seller.ConnectAsync(host, port, ct);
+    await buyer.ConnectAsync(host, port, ct);
+    if (!(await seller.HandshakeAsync("1.7.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.7.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+
+    await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
+    var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
+    if (!loginS.Success) throw new Exception(loginS.Message);
+    await buyer.RegisterAsync("m7_buyer", "pass12345", "PC", ct);
+    var loginB = await buyer.LoginAsync("m7_buyer", "pass12345", "PC", ct);
+    if (!loginB.Success) throw new Exception(loginB.Message);
+
+    async Task<string> EnsureChar(LegendTcpClient c, string name, string cls)
+    {
+        var create = await c.CreateCharAsync(name, cls, ct);
+        if (create.Success) return create.Character.CharacterId;
+        var list = await c.CharListAsync(ct);
+        var existing = list.Characters.FirstOrDefault(x => x.Name == name) ?? list.Characters.FirstOrDefault();
+        if (existing is null) throw new Exception($"no char for {name}: {create.Message}");
+        return existing.CharacterId;
+    }
+
+    string idS = await EnsureChar(seller, "摊主老王", "warrior");
+    string idB = await EnsureChar(buyer, "顾客小李", "mage");
+    await seller.SelectCharAsync(idS, ct);
+    await buyer.SelectCharAsync(idB, ct);
+    var realms = await seller.GetRealmListAsync(ct);
+    string realm = realms.Realms[0].RealmId;
+    var enterS = await seller.EnterWorldAsync(realm, idS, ct);
+    var enterB = await buyer.EnterWorldAsync(realm, idB, ct);
+    if (!enterS.Success || !enterB.Success) throw new Exception("enter failed");
+    Console.WriteLine($"[M7.1] Entered world sellerGold={enterS.Gold} buyerGold={enterB.Gold}");
+
+    async Task Walk(LegendTcpClient c, int tx, int ty)
+    {
+        while (c.SelfEntity!.X != tx || c.SelfEntity.Y != ty)
+        {
+            int nx = c.SelfEntity.X + Math.Sign(tx - c.SelfEntity.X);
+            int ny = c.SelfEntity.Y + Math.Sign(ty - c.SelfEntity.Y);
+            var m = await c.MoveAsync(nx, ny, ct: ct);
+            if (!m.Accepted) throw new Exception($"Move rejected to ({nx},{ny})");
+        }
+    }
+
+    // Check if there is an existing active listing from seller (post-restart verification)
+    var browse0 = await buyer.StallBrowseAsync("item_hp_potion", ct);
+    if (!browse0.Success) throw new Exception($"browse0 failed: {browse0.Message}");
+    var persistedListing = browse0.Listings.FirstOrDefault(l => l.SellerCharacterId == idS);
+    if (persistedListing != null)
+    {
+        Console.WriteLine($"[M7.2] Found persisted listing after Host restart: id={persistedListing.ListingId} item={persistedListing.ItemId}x{persistedListing.Count} price={persistedListing.TotalPriceGold}");
+        int sellerGoldBefore = seller.Gold;
+        int buyerGoldBefore = buyer.Gold;
+        var buyP = await buyer.StallBuyAsync(persistedListing.ListingId, ct);
+        if (!buyP.Success) throw new Exception($"buy persisted failed: {buyP.ErrorCode} {buyP.Message}");
+        var soldN = await seller.WaitStallSoldAsync(n => n.ListingId == persistedListing.ListingId, 3000, ct);
+        if (buyer.Gold != buyerGoldBefore - persistedListing.TotalPriceGold)
+            throw new Exception($"buyer gold mismatch: expected {buyerGoldBefore - persistedListing.TotalPriceGold}, got {buyer.Gold}");
+        if (soldN.NewGold != sellerGoldBefore + persistedListing.TotalPriceGold)
+            throw new Exception($"seller gold mismatch: expected {sellerGoldBefore + persistedListing.TotalPriceGold}, got {soldN.NewGold}");
+        Console.WriteLine($"[M7.3] Purchased persisted listing OK: buyerGold={buyer.Gold}, sellerGold={soldN.NewGold}");
+        return;
+    }
+
+    // Ensure seller is in safe zone (10,10) and has at least 3 potions from NPC shop
+    await Walk(seller, 12, 12);
+    var npc = enterS.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+    if (npc is null)
+    {
+        for (int i = 0; i < 20 && npc is null; i++)
+        {
+            while (seller.ReceivedEntitySpawns.TryDequeue(out var sp))
+                if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
+            await Task.Delay(25, ct);
+        }
+    }
+    if (npc is null) throw new Exception("NPC not found for seller shop purchase");
+    await Walk(seller, npc.X, npc.Y);
+    var shopBuy = await seller.ShopBuyAsync(npc.EntityId, "item_hp_potion", 3, ct);
+    if (!shopBuy.Success) throw new Exception($"Seller ShopBuy failed: {shopBuy.Message}");
+    int potionsAfterShop = shopBuy.Inventory.FirstOrDefault(i => i.ItemId == "item_hp_potion")?.Count ?? 0;
+    Console.WriteLine($"[M7.2] Seller bought 3 potions from NPC: bagPotions={potionsAfterShop}, gold={seller.Gold}");
+
+    // Test safe-zone enforcement: walk outside safe zone (20,10) -> list should be rejected with ErrSafeZone
+    await Walk(seller, 20, 10);
+    var listOutside = await seller.StallListAsync("item_hp_potion", 1, 15, ct);
+    if (listOutside.Success || listOutside.ErrorCode != ProtocolErrorCode.ErrSafeZone)
+        throw new Exception($"Expected ErrSafeZone outside safe zone, got success={listOutside.Success} code={listOutside.ErrorCode}");
+    Console.WriteLine($"[M7.3] Safe-zone check OK: listing outside safe zone rejected ({listOutside.ErrorCode})");
+
+    // Walk back into safe zone (10,10) and list 3 listings:
+    // #1: to be bought now
+    // #2: to be cancelled now
+    // #3: left active so post-restart run can verify persistence and buy it!
+    await Walk(seller, 10, 10);
+    var list1 = await seller.StallListAsync("item_hp_potion", 1, 15, ct);
+    if (!list1.Success) throw new Exception($"list1 failed: {list1.Message}");
+    var list2 = await seller.StallListAsync("item_hp_potion", 1, 20, ct);
+    if (!list2.Success) throw new Exception($"list2 failed: {list2.Message}");
+    var list3 = await seller.StallListAsync("item_hp_potion", 1, 12, ct);
+    if (!list3.Success) throw new Exception($"list3 failed: {list3.Message}");
+    int potionsAfterList = list3.Inventory.FirstOrDefault(i => i.ItemId == "item_hp_potion")?.Count ?? 0;
+    if (potionsAfterList != potionsAfterShop - 3)
+        throw new Exception($"Expected seller bag potions {potionsAfterShop - 3}, got {potionsAfterList}");
+    Console.WriteLine($"[M7.4] Seller listed 3 stalls in safe zone; bagPotions={potionsAfterList}");
+
+    // Seller cancels listing #2 -> item returned to bag
+    var cancel2 = await seller.StallCancelAsync(list2.Listing.ListingId, ct);
+    if (!cancel2.Success) throw new Exception($"cancel2 failed: {cancel2.Message}");
+    int potionsAfterCancel = cancel2.Inventory.FirstOrDefault(i => i.ItemId == "item_hp_potion")?.Count ?? 0;
+    if (potionsAfterCancel != potionsAfterList + 1)
+        throw new Exception($"Expected seller bag potions {potionsAfterList + 1} after cancel, got {potionsAfterCancel}");
+    Console.WriteLine($"[M7.5] Seller cancelled listing {list2.Listing.ListingId}; bagPotions={potionsAfterCancel}");
+
+    // Self-buy rejected
+    var selfBuy = await seller.StallBuyAsync(list1.Listing.ListingId, ct);
+    if (selfBuy.Success || selfBuy.ErrorCode != ProtocolErrorCode.ErrSelfBuyDenied)
+        throw new Exception($"Expected ErrSelfBuyDenied, got {selfBuy.ErrorCode}");
+
+    // Buyer browses active listings and buys listing #1
+    var browse = await buyer.StallBrowseAsync("item_hp_potion", ct);
+    if (!browse.Success || !browse.Listings.Any(l => l.ListingId == list1.Listing.ListingId))
+        throw new Exception("Buyer browse did not find listing #1");
+    Console.WriteLine($"[M7.6] Buyer browsed {browse.Listings.Count} active listings");
+
+    int sellerGoldBeforeBuy = seller.Gold;
+    int buyerGoldBeforeBuy = buyer.Gold;
+    int buyerPotionsBefore = enterB.Inventory.FirstOrDefault(i => i.ItemId == "item_hp_potion")?.Count ?? 0;
+
+    var buy1 = await buyer.StallBuyAsync(list1.Listing.ListingId, ct);
+    if (!buy1.Success) throw new Exception($"buy1 failed: {buy1.ErrorCode} {buy1.Message}");
+    int buyerPotionsAfter = buy1.Inventory.FirstOrDefault(i => i.ItemId == "item_hp_potion")?.Count ?? 0;
+    if (buyerPotionsAfter != buyerPotionsBefore + 1)
+        throw new Exception($"Expected buyer potions {buyerPotionsBefore + 1}, got {buyerPotionsAfter}");
+    if (buy1.Gold != buyerGoldBeforeBuy - 15)
+        throw new Exception($"Expected buyer gold {buyerGoldBeforeBuy - 15}, got {buy1.Gold}");
+
+    var soldNotify = await seller.WaitStallSoldAsync(n => n.ListingId == list1.Listing.ListingId, 3000, ct);
+    if (soldNotify.NewGold != sellerGoldBeforeBuy + 15)
+        throw new Exception($"Expected seller gold {sellerGoldBeforeBuy + 15}, got {soldNotify.NewGold}");
+    Console.WriteLine($"[M7.7] Buyer purchased listing {list1.Listing.ListingId}: buyerGold={buy1.Gold}, sellerGold={soldNotify.NewGold}, remainingActiveListing={list3.Listing.ListingId}");
+}
+
 static async Task RunGuildAcceptanceAsync(string host, int port, CancellationToken ct)
 {
     await using var a = new LegendTcpClient();
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.6.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.6.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.7.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.7.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -182,7 +345,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.6.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.7.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -229,7 +392,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.6.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.7.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)

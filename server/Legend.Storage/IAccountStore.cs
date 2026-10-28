@@ -35,6 +35,17 @@ public interface IGuildStore
     Task DeleteAsync(string guildId, CancellationToken ct = default);
 }
 
+public interface ITradeStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<TradeListingRecord?> GetByIdAsync(string listingId, CancellationToken ct = default);
+    Task<IReadOnlyList<TradeListingRecord>> ListActiveAsync(string? itemIdFilter = null, CancellationToken ct = default);
+    Task<int> CountActiveBySellerAsync(string sellerCharacterId, CancellationToken ct = default);
+    Task<TradeListingRecord> CreateAsync(TradeListingRecord listing, CancellationToken ct = default);
+    Task<(bool Ok, string? Error, TradeListingRecord? Listing)> TryClaimSoldAsync(string listingId, string buyerCharacterId, string buyerName, CancellationToken ct = default);
+    Task<(bool Ok, string? Error, TradeListingRecord? Listing)> TryCancelAsync(string listingId, string sellerCharacterId, CancellationToken ct = default);
+}
+
 
 
 public interface ISessionStore
@@ -54,6 +65,7 @@ public interface ILegendStorage : IAsyncDisposable
     ICharacterStore Characters { get; }
     ISessionStore Sessions { get; }
     IGuildStore Guilds { get; }
+    ITradeStore Trades { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
 }

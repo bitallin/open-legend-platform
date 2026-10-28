@@ -1,7 +1,7 @@
 {
-  "versionId": "sample-classic-1.6.0",
+  "versionId": "sample-classic-1.7.0",
   "displayName": "自研经典复古规则包 (Sample Classic)",
-  "protocolVersion": "1.6.0",
+  "protocolVersion": "1.7.0",
   "realmId": "realm-classic-01",
   "realmName": "自研先锋一区",
   "defaultMapFile": "maps/novice_plain.json",
@@ -23,9 +23,11 @@
     "scripts/npc_quest.lua",
     "scripts/equip.lua",
     "scripts/level.lua",
-    "scripts/guild.lua"
+    "scripts/guild.lua",
+    "scripts/trade.lua"
   ],
   "maxCharactersPerAccount": 3,
   "levelsConfigFile": "configs/levels.json",
-  "guildConfigFile": "configs/guild.json"
+  "guildConfigFile": "configs/guild.json",
+  "tradeConfigFile": "configs/trade.json"
 }

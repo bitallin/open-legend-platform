@@ -8,11 +8,13 @@ public sealed class InMemoryStorage : ILegendStorage
     private readonly InMemoryCharacterStore _characters = new();
     private readonly InMemorySessionStore _sessions = new();
     private readonly InMemoryGuildStore _guilds = new();
+    private readonly InMemoryTradeStore _trades = new();
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
     public ISessionStore Sessions => _sessions;
     public IGuildStore Guilds => _guilds;
+    public ITradeStore Trades => _trades;
     public string BackendName => "InMemory";
 
     public Task InitializeAsync(CancellationToken ct = default)

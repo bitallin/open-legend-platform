@@ -1,0 +1,7 @@
+{
+  "maxListingsPerChar": 10,
+  "minUnitPriceGold": 1,
+  "maxUnitPriceGold": 100000,
+  "taxRatePercent": 0,
+  "requireSafeZone": true
+}

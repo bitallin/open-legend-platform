@@ -30,6 +30,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<ExpGainNotify> ReceivedExpGains { get; } = new();
     public ConcurrentQueue<LevelUpNotify> ReceivedLevelUps { get; } = new();
     public ConcurrentQueue<ChatNotify> ReceivedChatNotifies { get; } = new();
+    public ConcurrentQueue<StallSoldNotify> ReceivedStallSoldNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -188,6 +189,13 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     {
                         var ch = ChatNotify.Parser.ParseFrom(frame.Payload);
                         ReceivedChatNotifies.Enqueue(ch);
+                        break;
+                    }
+                    case MsgId.StallSoldNotify:
+                    {
+                        var sold = StallSoldNotify.Parser.ParseFrom(frame.Payload);
+                        Gold = sold.NewGold;
+                        ReceivedStallSoldNotifies.Enqueue(sold);
                         break;
                     }
                 }
@@ -594,6 +602,72 @@ public sealed class LegendTcpClient : IAsyncDisposable
         {
             foreach (var n in held)
                 ReceivedChatNotifies.Enqueue(n);
+        }
+    }
+
+        public async Task<StallListResp> StallListAsync(string itemId, int count, int unitPriceGold, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StallListReq, new StallListReq
+        {
+            ItemId = itemId,
+            Count = count,
+            UnitPriceGold = unitPriceGold
+        }, ct);
+        return StallListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<StallBrowseResp> StallBrowseAsync(string itemIdFilter = "", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StallBrowseReq, new StallBrowseReq
+        {
+            ItemIdFilter = itemIdFilter ?? ""
+        }, ct);
+        return StallBrowseResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<StallBuyResp> StallBuyAsync(string listingId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StallBuyReq, new StallBuyReq
+        {
+            ListingId = listingId
+        }, ct);
+        var resp = StallBuyResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
+    public async Task<StallCancelResp> StallCancelAsync(string listingId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StallCancelReq, new StallCancelReq
+        {
+            ListingId = listingId
+        }, ct);
+        return StallCancelResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<StallSoldNotify> WaitStallSoldAsync(Func<StallSoldNotify, bool> pred, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var held = new List<StallSoldNotify>();
+        try
+        {
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                while (ReceivedStallSoldNotifies.TryDequeue(out var n))
+                {
+                    if (pred(n))
+                        return n;
+                    held.Add(n);
+                }
+                await Task.Delay(20, ct);
+            }
+            throw new TimeoutException("StallSoldNotify not received in time");
+        }
+        finally
+        {
+            foreach (var n in held)
+                ReceivedStallSoldNotifies.Enqueue(n);
         }
     }
 

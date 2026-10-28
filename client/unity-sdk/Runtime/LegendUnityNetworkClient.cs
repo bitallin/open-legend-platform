@@ -45,6 +45,7 @@ namespace Legend.UnitySdk
         public event Action<ExpGainNotify>? OnExpGain;
         public event Action<LevelUpNotify>? OnLevelUp;
         public event Action<ChatNotify>? OnChatNotify;
+        public event Action<StallSoldNotify>? OnStallSoldNotify;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -388,7 +389,48 @@ namespace Legend.UnitySdk
             }, ct).ConfigureAwait(false);
         }
 
-public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
+        public async Task<StallListResp> RequestStallListAsync(string itemId, int count, int unitPriceGold, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.StallListReq, new StallListReq
+            {
+                ItemId = itemId,
+                Count = count,
+                UnitPriceGold = unitPriceGold
+            }, ct).ConfigureAwait(false);
+            return StallListResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<StallBrowseResp> RequestStallBrowseAsync(string itemIdFilter = "", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.StallBrowseReq, new StallBrowseReq
+            {
+                ItemIdFilter = itemIdFilter ?? ""
+            }, ct).ConfigureAwait(false);
+            return StallBrowseResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<StallBuyResp> RequestStallBuyAsync(string listingId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.StallBuyReq, new StallBuyReq
+            {
+                ListingId = listingId
+            }, ct).ConfigureAwait(false);
+            var resp = StallBuyResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+                Gold = resp.Gold;
+            return resp;
+        }
+
+        public async Task<StallCancelResp> RequestStallCancelAsync(string listingId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.StallCancelReq, new StallCancelReq
+            {
+                ListingId = listingId
+            }, ct).ConfigureAwait(false);
+            return StallCancelResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
             // Ignore stale MoveSync if a portal already changed our map.
             string? mapBefore = SelfEntity?.MapId;

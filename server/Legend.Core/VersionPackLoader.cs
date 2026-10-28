@@ -258,6 +258,18 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 ?? throw new InvalidDataException("Failed to deserialize guild.json");
         }
 
+        var tradeConfig = new TradeConfig();
+        if (!string.IsNullOrWhiteSpace(manifest.TradeConfigFile))
+        {
+            string tradePath = Path.Combine(baseDir, manifest.TradeConfigFile);
+            if (!File.Exists(tradePath))
+                throw new FileNotFoundException($"Trade config not found: {tradePath}");
+            string tradeJson = File.ReadAllText(tradePath, Encoding.UTF8);
+            hashInput.Append(tradeJson);
+            tradeConfig = JsonSerializer.Deserialize<TradeConfig>(tradeJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize trade.json");
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -324,6 +336,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             EnhanceRules = enhanceRuleDict,
             Levels = levelsConfig,
             Guild = guildConfig,
+            Trade = tradeConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

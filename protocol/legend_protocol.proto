@@ -39,6 +39,10 @@ enum ProtocolErrorCode {
   ERR_ALREADY_IN_GUILD = 1031;
   ERR_GUILD_FULL = 1032;
   ERR_NOT_IN_GUILD = 1033;
+  ERR_TRADE_DENIED = 1034;
+  ERR_LISTING_NOT_FOUND = 1035;
+  ERR_LISTING_LIMIT = 1036;
+  ERR_SELF_BUY_DENIED = 1037;
   ERR_INTERNAL = 1999;
 }
 
@@ -633,4 +637,78 @@ message ServerNotice {
   string content = 3;
   string granted_item_id = 4;
   int32 granted_item_count = 5;
+}
+
+// 16. Stall / Player Trade Market (MsgId: 2601–2609)
+message StallListingInfo {
+  string listing_id = 1;
+  string seller_character_id = 2;
+  string seller_name = 3;
+  string item_id = 4;
+  int32 count = 5;
+  int32 unit_price_gold = 6;
+  int32 total_price_gold = 7;
+  int64 created_unix_ms = 8;
+}
+
+message StallListReq {
+  string item_id = 1;
+  int32 count = 2;
+  int32 unit_price_gold = 3;
+}
+
+message StallListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  StallListingInfo listing = 4;
+  repeated InventoryItem inventory = 5;
+}
+
+message StallBrowseReq {
+  string item_id_filter = 1;
+}
+
+message StallBrowseResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated StallListingInfo listings = 4;
+}
+
+message StallBuyReq {
+  string listing_id = 1;
+}
+
+message StallBuyResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  StallListingInfo purchased = 4;
+  int32 gold = 5;
+  repeated InventoryItem inventory = 6;
+}
+
+message StallCancelReq {
+  string listing_id = 1;
+}
+
+message StallCancelResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string listing_id = 4;
+  repeated InventoryItem inventory = 5;
+}
+
+message StallSoldNotify {
+  string listing_id = 1;
+  string buyer_character_id = 2;
+  string buyer_name = 3;
+  string item_id = 4;
+  int32 count = 5;
+  int32 gross_gold = 6;
+  int32 tax_gold = 7;
+  int32 net_gold = 8;
+  int32 new_gold = 9;
 }

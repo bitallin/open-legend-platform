@@ -72,13 +72,22 @@ namespace Legend.Contracts
         GuildInfoResp = 2508,
         ChatReq = 2509,
         ChatNotify = 2510,
+        StallListReq = 2601,
+        StallListResp = 2602,
+        StallBrowseReq = 2603,
+        StallBrowseResp = 2604,
+        StallBuyReq = 2605,
+        StallBuyResp = 2606,
+        StallCancelReq = 2607,
+        StallCancelResp = 2608,
+        StallSoldNotify = 2609,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.6.0";
-        public const string MinCompatibleVersion = "1.6.0";
+        public const string CurrentVersion = "1.7.0";
+        public const string MinCompatibleVersion = "1.7.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

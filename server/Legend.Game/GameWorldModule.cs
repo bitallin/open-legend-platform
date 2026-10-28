@@ -68,7 +68,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
         MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq or
         MsgId.GuildCreateReq or MsgId.GuildJoinReq or MsgId.GuildLeaveReq or MsgId.GuildInfoReq or
-        MsgId.ChatReq;
+        MsgId.ChatReq or
+        MsgId.StallListReq or MsgId.StallBrowseReq or MsgId.StallBuyReq or MsgId.StallCancelReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -194,6 +195,18 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.ChatReq:
                 await HandleChatAsync(session, frame, ct);
+                break;
+            case MsgId.StallListReq:
+                await HandleStallListAsync(session, frame, ct);
+                break;
+            case MsgId.StallBrowseReq:
+                await HandleStallBrowseAsync(session, frame, ct);
+                break;
+            case MsgId.StallBuyReq:
+                await HandleStallBuyAsync(session, frame, ct);
+                break;
+            case MsgId.StallCancelReq:
+                await HandleStallCancelAsync(session, frame, ct);
                 break;
         }
     }

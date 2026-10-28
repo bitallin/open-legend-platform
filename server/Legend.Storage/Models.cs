@@ -107,3 +107,36 @@ public sealed class GuildRecord
         CreatedAt = CreatedAt
     };
 }
+
+public sealed class TradeListingRecord
+{
+    public string ListingId { get; set; } = string.Empty;
+    public string SellerCharacterId { get; set; } = string.Empty;
+    public string SellerName { get; set; } = string.Empty;
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public int UnitPriceGold { get; set; }
+    public int TotalPriceGold { get; set; }
+    /// <summary>active | sold | cancelled</summary>
+    public string Status { get; set; } = "active";
+    public string BuyerCharacterId { get; set; } = string.Empty;
+    public string BuyerName { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public TradeListingRecord Clone() => new()
+    {
+        ListingId = ListingId,
+        SellerCharacterId = SellerCharacterId,
+        SellerName = SellerName,
+        ItemId = ItemId,
+        Count = Count,
+        UnitPriceGold = UnitPriceGold,
+        TotalPriceGold = TotalPriceGold,
+        Status = Status,
+        BuyerCharacterId = BuyerCharacterId,
+        BuyerName = BuyerName,
+        CreatedAt = CreatedAt,
+        UpdatedAt = UpdatedAt
+    };
+}

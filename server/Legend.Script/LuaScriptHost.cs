@@ -110,6 +110,9 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<GuildCreatedEvent>(OnGuildCreatedAsync);
         _eventBus.Subscribe<GuildJoinedEvent>(OnGuildJoinedAsync);
         _eventBus.Subscribe<GuildLeftEvent>(OnGuildLeftAsync);
+        _eventBus.Subscribe<StallListedEvent>(OnStallListedAsync);
+        _eventBus.Subscribe<StallBoughtEvent>(OnStallBoughtAsync);
+        _eventBus.Subscribe<StallCancelledEvent>(OnStallCancelledAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -516,6 +519,69 @@ public sealed class LuaScriptHost
         catch (Exception ex)
         {
             StructuredLogger.Error("LuaSandbox", $"on_guild_leave failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnStallListedAsync(StallListedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_stall_list");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.SellerName, evt.ItemId, evt.Count, evt.TotalPriceGold);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_stall_list failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnStallBoughtAsync(StallBoughtEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_stall_buy");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.BuyerName, evt.SellerName, evt.ItemId, evt.Count, evt.TotalPriceGold);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_stall_buy failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnStallCancelledAsync(StallCancelledEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_stall_cancel");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.SellerName, evt.ItemId, evt.Count);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_stall_cancel failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }
