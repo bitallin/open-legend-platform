@@ -52,6 +52,8 @@ namespace Legend.UnitySdk
         public event Action<BuffRemoveNotify>? OnBuffRemoveNotify;
         public event Action<SiegeStateNotify>? OnSiegeStateNotify;
         public event Action<MailNotify>? OnMailNotify;
+        public event Action<DungeonProgressNotify>? OnDungeonProgress;
+        public event Action<DungeonCompleteNotify>? OnDungeonComplete;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -525,6 +527,19 @@ namespace Legend.UnitySdk
             return MailListResp.Parser.ParseFrom(frame.Payload);
         }
 
+        public async Task<DungeonEnterResp> RequestDungeonEnterAsync(string dungeonId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.DungeonEnterReq, new DungeonEnterReq { DungeonId = dungeonId }, ct);
+            return DungeonEnterResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<DungeonLeaveResp> RequestDungeonLeaveAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.DungeonLeaveReq, new DungeonLeaveReq(), ct);
+            return DungeonLeaveResp.Parser.ParseFrom(frame.Payload);
+        }
+
+
         public async Task<MailReadResp> RequestMailReadAsync(string mailId, CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.MailReadReq, new MailReadReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
@@ -701,6 +716,14 @@ namespace Legend.UnitySdk
                         case MsgId.MailNotify:
                             var mn = MailNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnMailNotify?.Invoke(mn));
+                            break;
+                        case MsgId.DungeonProgressNotify:
+                            var dp = DungeonProgressNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnDungeonProgress?.Invoke(dp));
+                            break;
+                        case MsgId.DungeonCompleteNotify:
+                            var dc = DungeonCompleteNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnDungeonComplete?.Invoke(dc));
                             break;
                         case MsgId.ChatNotify:
                             var chat = ChatNotify.Parser.ParseFrom(frame.Payload);

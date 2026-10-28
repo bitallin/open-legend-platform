@@ -121,13 +121,19 @@ public enum MsgId : ushort
     MailDeleteResp = 3108,
     MailNotify = 3109,
     MailSendReq = 3110,
-    MailSendResp = 3111
+    MailSendResp = 3111,
+    DungeonEnterReq = 3201,
+    DungeonEnterResp = 3202,
+    DungeonProgressNotify = 3203,
+    DungeonCompleteNotify = 3204,
+    DungeonLeaveReq = 3205,
+    DungeonLeaveResp = 3206
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.11.0";
-    public const string MinCompatibleVersion = "1.11.0";
+    public const string CurrentVersion = "1.12.0";
+    public const string MinCompatibleVersion = "1.12.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

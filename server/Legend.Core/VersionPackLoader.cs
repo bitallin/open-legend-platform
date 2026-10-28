@@ -384,6 +384,27 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 mailConfig.MaxInventorySlots = 40;
         }
 
+
+        var dungeonsConfig = new DungeonsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.DungeonsConfigFile))
+        {
+            string dungeonPath = Path.Combine(baseDir, manifest.DungeonsConfigFile);
+            if (!File.Exists(dungeonPath))
+                throw new FileNotFoundException($"Dungeons config not found: {dungeonPath}");
+            string dungeonJson = File.ReadAllText(dungeonPath);
+            dungeonsConfig = JsonSerializer.Deserialize<DungeonsConfigFile>(dungeonJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to parse dungeons.json");
+            foreach (var d in dungeonsConfig.Dungeons)
+            {
+                if (string.IsNullOrWhiteSpace(d.DungeonId))
+                    throw new InvalidDataException("Dungeon missing dungeonId");
+                if (!maps.ContainsKey(d.TemplateMapId))
+                    throw new InvalidDataException($"Dungeon '{d.DungeonId}' templateMapId '{d.TemplateMapId}' not in version pack.");
+                if (!maps.ContainsKey(d.ExitMapId) && !string.Equals(d.ExitMapId, defaultMap.MapId, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException($"Dungeon '{d.DungeonId}' exitMapId '{d.ExitMapId}' not in version pack.");
+            }
+        }
+
         return new LoadedVersionPack
         {
             Manifest = manifest,
@@ -407,6 +428,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Party = partyConfig,
             Siege = siegeConfig,
             Mail = mailConfig,
+            Dungeons = dungeonsConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

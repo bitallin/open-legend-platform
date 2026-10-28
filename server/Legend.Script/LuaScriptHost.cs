@@ -126,6 +126,9 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<SiegeEndedEvent>(OnSiegeEndedAsync);
         _eventBus.Subscribe<MailSentEvent>(OnMailSentAsync);
         _eventBus.Subscribe<MailClaimedEvent>(OnMailClaimedAsync);
+        _eventBus.Subscribe<DungeonEnteredEvent>(OnDungeonEnteredAsync);
+        _eventBus.Subscribe<DungeonCompletedEvent>(OnDungeonCompletedAsync);
+        _eventBus.Subscribe<DungeonLeftEvent>(OnDungeonLeftAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -871,6 +874,69 @@ public sealed class LuaScriptHost
         catch (Exception ex)
         {
             StructuredLogger.Error("LuaSandbox", $"on_mail_claim failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnDungeonEnteredAsync(DungeonEnteredEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_dungeon_enter");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.DungeonId, evt.InstanceId);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_dungeon_enter failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnDungeonCompletedAsync(DungeonCompletedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_dungeon_complete");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.DungeonId, evt.RewardGold);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_dungeon_complete failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnDungeonLeftAsync(DungeonLeftEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_dungeon_leave");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.DungeonId, evt.Completed);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_dungeon_leave failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }

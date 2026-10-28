@@ -27,12 +27,50 @@
       "respawnMs": 12000,
       "ai": "stationary",
       "expReward": 60
+    },
+    {
+      "monsterId": "slime_cave",
+      "displayName": "洞窟史莱姆",
+      "maxHp": 18,
+      "atk": 4,
+      "def": 0,
+      "aggroRange": 4,
+      "attackRange": 1,
+      "attackCooldownMs": 1500,
+      "lootTableId": "slime_basic",
+      "respawnMs": 0,
+      "ai": "chase",
+      "expReward": 15
     }
   ],
   "spawns": [
-    { "monsterId": "slime_green", "mapId": "novice_plain", "x": 25, "y": 10, "count": 2 },
-    { "monsterId": "slime_green", "mapId": "novice_plain", "x": 28, "y": 12, "count": 1 },
-    { "monsterId": "boar_wild", "mapId": "novice_plain", "x": 32, "y": 14, "count": 1 },
-    { "monsterId": "slime_green", "mapId": "dark_forest", "x": 12, "y": 12, "count": 2 }
+    {
+      "monsterId": "slime_green",
+      "mapId": "novice_plain",
+      "x": 25,
+      "y": 10,
+      "count": 2
+    },
+    {
+      "monsterId": "slime_green",
+      "mapId": "novice_plain",
+      "x": 28,
+      "y": 12,
+      "count": 1
+    },
+    {
+      "monsterId": "boar_wild",
+      "mapId": "novice_plain",
+      "x": 32,
+      "y": 14,
+      "count": 1
+    },
+    {
+      "monsterId": "slime_green",
+      "mapId": "dark_forest",
+      "x": 12,
+      "y": 12,
+      "count": 2
+    }
   ]
 }

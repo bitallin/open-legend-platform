@@ -39,6 +39,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<BuffRemoveNotify> ReceivedBuffRemoveNotifies { get; } = new();
     public ConcurrentQueue<SiegeStateNotify> ReceivedSiegeStateNotifies { get; } = new();
     public ConcurrentQueue<MailNotify> ReceivedMailNotifies { get; } = new();
+    public ConcurrentQueue<DungeonProgressNotify> ReceivedDungeonProgress { get; } = new();
+    public ConcurrentQueue<DungeonCompleteNotify> ReceivedDungeonCompletes { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -252,6 +254,19 @@ public sealed class LegendTcpClient : IAsyncDisposable
                         var sold = StallSoldNotify.Parser.ParseFrom(frame.Payload);
                         Gold = sold.NewGold;
                         ReceivedStallSoldNotifies.Enqueue(sold);
+                        break;
+                    }
+                    case MsgId.DungeonProgressNotify:
+                    {
+                        var dp = DungeonProgressNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedDungeonProgress.Enqueue(dp);
+                        break;
+                    }
+                    case MsgId.DungeonCompleteNotify:
+                    {
+                        var dc = DungeonCompleteNotify.Parser.ParseFrom(frame.Payload);
+                        Gold = dc.Gold;
+                        ReceivedDungeonCompletes.Enqueue(dc);
                         break;
                     }
                 }
@@ -934,6 +949,46 @@ public sealed class LegendTcpClient : IAsyncDisposable
             await Task.Delay(20, ct);
         }
         throw new TimeoutException("MailNotify not received in time");
+    }
+
+
+    public async Task<DungeonEnterResp> DungeonEnterAsync(string dungeonId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.DungeonEnterReq, new DungeonEnterReq { DungeonId = dungeonId }, ct);
+        var resp = DungeonEnterResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
+    public async Task<DungeonLeaveResp> DungeonLeaveAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.DungeonLeaveReq, new DungeonLeaveReq(), ct);
+        return DungeonLeaveResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<DungeonProgressNotify> WaitDungeonProgressAsync(int timeoutMs = 5000, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (ReceivedDungeonProgress.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("DungeonProgressNotify not received");
+    }
+
+    public async Task<DungeonCompleteNotify> WaitDungeonCompleteAsync(int timeoutMs = 30000, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (ReceivedDungeonCompletes.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("DungeonCompleteNotify not received");
     }
 
     public async ValueTask DisposeAsync()

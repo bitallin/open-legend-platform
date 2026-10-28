@@ -73,6 +73,7 @@ public sealed class VersionPackManifest
     public string BuffsConfigFile { get; set; } = "";
     public string SiegeConfigFile { get; set; } = "";
     public string MailConfigFile { get; set; } = "";
+    public string DungeonsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -419,6 +420,46 @@ public sealed class SiegeConfig
     public int WinnerRewardGold { get; set; } = 100;
 }
 
+
+public sealed class DungeonSpawnConfig
+{
+    public string MonsterId { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Count { get; set; } = 1;
+}
+
+public sealed class DungeonRewardItemConfig
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; } = 1;
+}
+
+public sealed class DungeonDefinition
+{
+    public string DungeonId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string TemplateMapId { get; set; } = string.Empty;
+    public int MinLevel { get; set; } = 1;
+    public int EntryCostGold { get; set; }
+    public int DailyLimit { get; set; }
+    public int EnterX { get; set; }
+    public int EnterY { get; set; }
+    public string ExitMapId { get; set; } = "novice_plain";
+    public int ExitX { get; set; } = 10;
+    public int ExitY { get; set; } = 10;
+    /// <summary>kill_all | kill_boss</summary>
+    public string Objective { get; set; } = "kill_all";
+    public List<DungeonSpawnConfig> Spawns { get; set; } = new();
+    public int RewardGold { get; set; }
+    public List<DungeonRewardItemConfig> RewardItems { get; set; } = new();
+}
+
+public sealed class DungeonsConfigFile
+{
+    public List<DungeonDefinition> Dungeons { get; set; } = new();
+}
+
 public sealed class MailConfig
 {
     public int MaxMailsPerCharacter { get; set; } = 50;
@@ -504,6 +545,7 @@ public sealed class LoadedVersionPack
     public PartyConfig Party { get; init; } = new();
     public SiegeConfig Siege { get; init; } = new();
     public MailConfig Mail { get; init; } = new();
+    public DungeonsConfigFile Dungeons { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -553,3 +595,7 @@ public sealed record SiegeEndedEvent(string CastleId, string OwnerGuildId, strin
 
 public sealed record MailSentEvent(string ToCharacterId, string ToName, string MailId, string FromName, string Subject, int AttachGold);
 public sealed record MailClaimedEvent(IClientSession Session, string PlayerName, string CharacterId, string MailId, int ClaimedGold);
+
+public sealed record DungeonEnteredEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId);
+public sealed record DungeonCompletedEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId, int RewardGold);
+public sealed record DungeonLeftEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId, bool Completed);

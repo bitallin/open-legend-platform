@@ -1,0 +1,44 @@
+{
+  "dungeons": [
+    {
+      "dungeonId": "dungeon_slime_cave",
+      "displayName": "史莱姆洞窟",
+      "templateMapId": "dungeon_slime_cave",
+      "minLevel": 1,
+      "entryCostGold": 10,
+      "dailyLimit": 0,
+      "enterX": 5,
+      "enterY": 5,
+      "exitMapId": "novice_plain",
+      "exitX": 10,
+      "exitY": 10,
+      "objective": "kill_all",
+      "spawns": [
+        { "monsterId": "slime_cave", "x": 14, "y": 12, "count": 2 }
+      ],
+      "rewardGold": 50,
+      "rewardItems": [
+        { "itemId": "item_hp_potion", "count": 2 }
+      ]
+    },
+    {
+      "dungeonId": "dungeon_level_gate",
+      "displayName": "等级门槛测试本",
+      "templateMapId": "dungeon_slime_cave",
+      "minLevel": 99,
+      "entryCostGold": 0,
+      "dailyLimit": 0,
+      "enterX": 5,
+      "enterY": 5,
+      "exitMapId": "novice_plain",
+      "exitX": 10,
+      "exitY": 10,
+      "objective": "kill_all",
+      "spawns": [
+        { "monsterId": "slime_cave", "x": 14, "y": 12, "count": 1 }
+      ],
+      "rewardGold": 1,
+      "rewardItems": []
+    }
+  ]
+}

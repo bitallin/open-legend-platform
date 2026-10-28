@@ -1,13 +1,14 @@
 {
-  "versionId": "sample-classic-1.11.0",
+  "versionId": "sample-classic-1.12.0",
   "displayName": "自研经典复古规则包 (Sample Classic)",
-  "protocolVersion": "1.11.0",
+  "protocolVersion": "1.12.0",
   "realmId": "realm-classic-01",
   "realmName": "自研先锋一区",
   "defaultMapFile": "maps/novice_plain.json",
   "mapFiles": [
     "maps/novice_plain.json",
-    "maps/dark_forest.json"
+    "maps/dark_forest.json",
+    "maps/dungeon_slime_cave.json"
   ],
   "classesConfigFile": "configs/classes.json",
   "skillsConfigFile": "configs/skills.json",
@@ -30,7 +31,8 @@
     "scripts/skills.lua",
     "scripts/buffs.lua",
     "scripts/siege.lua",
-    "scripts/mail.lua"
+    "scripts/mail.lua",
+    "scripts/dungeon.lua"
   ],
   "maxCharactersPerAccount": 3,
   "levelsConfigFile": "configs/levels.json",
@@ -39,5 +41,6 @@
   "partyConfigFile": "configs/party.json",
   "buffsConfigFile": "configs/buffs.json",
   "siegeConfigFile": "configs/siege.json",
-  "mailConfigFile": "configs/mail.json"
+  "mailConfigFile": "configs/mail.json",
+  "dungeonsConfigFile": "configs/dungeons.json"
 }

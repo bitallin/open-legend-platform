@@ -40,6 +40,9 @@ public sealed class WorldPlayerEntity
     public string PartyId { get; set; } = string.Empty;
     public List<LearnedSkillState> LearnedSkills { get; set; } = new();
     public List<ActiveBuffState> ActiveBuffs { get; set; } = new();
+    public string? DungeonId { get; set; }
+    public string? DungeonInstanceId { get; set; }
+    public bool DungeonCompleted { get; set; }
 
     public EntitySnapshot ToSnapshot() => new()
     {

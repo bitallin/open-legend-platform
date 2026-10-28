@@ -12,6 +12,7 @@ bool partyTest = false;
 bool skillTest = false;
 bool siegeTest = false;
 bool mailTest = false;
+bool dungeonTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -89,10 +90,23 @@ for (int i = 0; i < args.Length; i++)
         equipTest = false;
         levelTest = false;
     }
+    else if (args[i] == "--dungeon")
+    {
+        dungeonTest = true;
+        mailTest = false;
+        siegeTest = false;
+        skillTest = false;
+        partyTest = false;
+        tradeTest = false;
+        guildTest = false;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(mailTest ? 180 : siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(mailTest ? "M11 mail/offline payout" : siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dungeonTest ? 240 : mailTest ? 180 : siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(dungeonTest ? "M12 dungeon instance" : mailTest ? "M11 mail/offline payout" : siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -122,6 +136,13 @@ if (skillTest)
     return;
 }
 
+if (dungeonTest)
+{
+    await RunDungeonAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M12 dungeon verification steps passed!");
+    return;
+}
+
 if (mailTest)
 {
     await RunMailAcceptanceAsync(host, port, cts.Token);
@@ -137,6 +158,167 @@ if (siegeTest)
 }
 
 
+
+static async Task RunDungeonAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    string suffix = Guid.NewGuid().ToString("N")[..6];
+    string marker = "/tmp/legend-m12-dungeon-marker.txt";
+    bool restartPass = File.Exists(marker);
+
+    await using var hero = new LegendTcpClient();
+    await using var other = new LegendTcpClient();
+    await hero.ConnectAsync(host, port, ct);
+    await other.ConnectAsync(host, port, ct);
+    if (!(await hero.HandshakeAsync("1.12.0", "pc-m12-h", ct)).Accepted) throw new Exception("hero handshake failed");
+    if (!(await other.HandshakeAsync("1.12.0", "pc-m12-o", ct)).Accepted) throw new Exception("other handshake failed");
+
+    string userH = restartPass ? File.ReadAllLines(marker)[0] : $"m12_h_{suffix}";
+    string userO = restartPass ? File.ReadAllLines(marker)[1] : $"m12_o_{suffix}";
+    string nameH = restartPass ? File.ReadAllLines(marker)[2] : $"洞主{suffix}";
+    string nameO = restartPass ? File.ReadAllLines(marker)[3] : $"路人{suffix}";
+
+    async Task EnsureAccount(LegendTcpClient c, string user)
+    {
+        await c.RegisterAsync(user, "pass12345", "PC", ct);
+        var login = await c.LoginAsync(user, "pass12345", "PC", ct);
+        if (!login.Success) throw new Exception($"login {user}: {login.Message}");
+    }
+
+    await EnsureAccount(hero, userH);
+    await EnsureAccount(other, userO);
+
+    async Task<string> EnsureChar(LegendTcpClient c, string name, string cls)
+    {
+        var create = await c.CreateCharAsync(name, cls, ct);
+        if (create.Success) return create.Character.CharacterId;
+        var list = await c.CharListAsync(ct);
+        var existing = list.Characters.FirstOrDefault(x => x.Name == name) ?? list.Characters.FirstOrDefault();
+        if (existing is null) throw new Exception($"no char for {name}: {create.Message}");
+        return existing.CharacterId;
+    }
+
+    string idH = await EnsureChar(hero, nameH, "warrior");
+    string idO = await EnsureChar(other, nameO, "mage");
+    await hero.SelectCharAsync(idH, ct);
+    await other.SelectCharAsync(idO, ct);
+    var realms = await hero.GetRealmListAsync(ct);
+    string realm = realms.Realms[0].RealmId;
+
+    if (restartPass)
+    {
+        var enterR = await hero.EnterWorldAsync(realm, idH, ct);
+        if (!enterR.Success) throw new Exception("restart enter failed: " + enterR.Message);
+        if (enterR.SelfEntity.MapId.StartsWith("inst_", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("After Host restart, character must not remain in lost instance map: " + enterR.SelfEntity.MapId);
+        if (!string.Equals(enterR.SelfEntity.MapId, "novice_plain", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine($"[M12.R] WARN map={enterR.SelfEntity.MapId} (expected novice_plain-ish town)");
+        Console.WriteLine($"[M12.R] Restart safe: map={enterR.SelfEntity.MapId} pos=({enterR.SelfEntity.X},{enterR.SelfEntity.Y})");
+        try { File.Delete(marker); } catch { }
+        return;
+    }
+
+    var enterH = await hero.EnterWorldAsync(realm, idH, ct);
+    var enterO = await other.EnterWorldAsync(realm, idO, ct);
+    if (!enterH.Success || !enterO.Success) throw new Exception("enter failed");
+    Console.WriteLine($"[M12.1] Entered town gold={enterH.Gold} level={enterH.Level} map={enterH.SelfEntity?.MapId}");
+
+    async Task Walk(LegendTcpClient c, int tx, int ty)
+    {
+        while (c.SelfEntity!.X != tx || c.SelfEntity.Y != ty)
+        {
+            int nx = c.SelfEntity.X + Math.Sign(tx - c.SelfEntity.X);
+            int ny = c.SelfEntity.Y + Math.Sign(ty - c.SelfEntity.Y);
+            var m = await c.MoveAsync(nx, ny, ct: ct);
+            if (!m.Accepted) throw new Exception($"Move rejected to ({nx},{ny})");
+        }
+    }
+
+    // Level gate via dedicated high-minLevel dungeon
+    var deny = await hero.DungeonEnterAsync("dungeon_level_gate", ct);
+    if (deny.Success || deny.ErrorCode != ProtocolErrorCode.ErrDungeonLevel)
+        throw new Exception($"Expected ErrDungeonLevel, got success={deny.Success} code={deny.ErrorCode} msg={deny.Message}");
+    Console.WriteLine("[M12.2] Level gate OK (ErrDungeonLevel)");
+
+    int goldBefore = hero.Gold;
+    var enterDungeon = await hero.DungeonEnterAsync("dungeon_slime_cave", ct);
+    if (!enterDungeon.Success)
+        throw new Exception($"DungeonEnter failed after grind: {enterDungeon.ErrorCode} {enterDungeon.Message}");
+    if (!enterDungeon.MapId.StartsWith("inst_", StringComparison.OrdinalIgnoreCase))
+        throw new Exception("Expected instance mapId, got " + enterDungeon.MapId);
+    if (enterDungeon.Gold != goldBefore - 10)
+        throw new Exception($"entry cost not applied: before={goldBefore} after={enterDungeon.Gold}");
+    Console.WriteLine($"[M12.4] Entered dungeon inst={enterDungeon.InstanceId} map={enterDungeon.MapId} gold={enterDungeon.Gold} rem={enterDungeon.RemainingKills}");
+
+    // Isolation: other player on town should not see hero
+    await Walk(other, 10, 10);
+    await Task.Delay(200, ct);
+    bool sawHero = false;
+    while (other.ReceivedAoiEnters.TryDequeue(out var ae))
+    {
+        if (ae.Entity.EntityId == hero.SelfEntity!.EntityId) sawHero = true;
+    }
+    // Also check other nearby from moves - if hero entity appears in other's view incorrectly
+    if (sawHero) throw new Exception("Isolation broken: town player saw dungeon hero via AOI");
+    Console.WriteLine("[M12.5] Instance isolation OK (other did not see hero)");
+
+    // Clear dungeon mobs
+    var dungeonMobs = new List<EntitySnapshot>();
+    // From MapChange nearby + spawns
+    while (hero.ReceivedMapChanges.TryDequeue(out var mc))
+    {
+        foreach (var e in mc.NearbyEntities)
+            if (e.Kind == EntityKind.EntityMonster) dungeonMobs.Add(e);
+    }
+    for (int i = 0; i < 30; i++)
+    {
+        while (hero.ReceivedEntitySpawns.TryDequeue(out var sp))
+            if (sp.Entity.Kind == EntityKind.EntityMonster) dungeonMobs.Add(sp.Entity);
+        if (dungeonMobs.Count >= enterDungeon.TargetKills) break;
+        await Task.Delay(50, ct);
+    }
+    dungeonMobs = dungeonMobs.GroupBy(m => m.EntityId).Select(g => g.First()).ToList();
+    if (dungeonMobs.Count == 0) throw new Exception("No dungeon monsters visible");
+    Console.WriteLine($"[M12.6] Dungeon mobs visible: {dungeonMobs.Count}");
+
+    int goldBeforeComplete = hero.Gold;
+    foreach (var mob in dungeonMobs)
+    {
+        await Walk(hero, mob.X, mob.Y);
+        for (int swing = 0; swing < 30; swing++)
+        {
+            var (ar, combat) = await hero.AttackAsync(mob.EntityId, "basic_slash", ct);
+            if (!ar.Success) { await Task.Delay(80, ct); continue; }
+            if (combat?.TargetDied == true || (combat != null && combat.TargetHp <= 0))
+                break;
+            await Task.Delay(40, ct);
+        }
+    }
+
+    var complete = await hero.WaitDungeonCompleteAsync(20000, ct);
+    Console.WriteLine($"[M12.7] Complete rewardGold={complete.RewardGold} mailed={complete.RewardsMailed} gold={complete.Gold} exit={complete.ExitMapId}");
+    if (complete.RewardGold <= 0) throw new Exception("expected reward gold");
+    if (!string.Equals(hero.SelfEntity?.MapId, complete.ExitMapId, StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(hero.SelfEntity?.MapId, "novice_plain", StringComparison.OrdinalIgnoreCase))
+        throw new Exception($"Expected back in town, map={hero.SelfEntity?.MapId}");
+    Console.WriteLine($"[M12.8] Back in town map={hero.SelfEntity?.MapId} gold={hero.Gold}");
+
+    // Leave flow: re-enter and leave without clearing
+    var enter2 = await hero.DungeonEnterAsync("dungeon_slime_cave", ct);
+    if (!enter2.Success) throw new Exception("re-enter failed: " + enter2.Message);
+    var leave = await hero.DungeonLeaveAsync(ct);
+    if (!leave.Success) throw new Exception("leave failed: " + leave.Message);
+    if (leave.MapId.StartsWith("inst_", StringComparison.OrdinalIgnoreCase))
+        throw new Exception("Leave did not exit instance");
+    Console.WriteLine($"[M12.9] Active leave OK -> {leave.MapId} ({leave.X},{leave.Y})");
+
+    // Marker for restart persistence of safe town position: enter dungeon then disconnect (Host kill)
+    var enter3 = await hero.DungeonEnterAsync("dungeon_slime_cave", ct);
+    if (!enter3.Success) throw new Exception("enter3 failed: " + enter3.Message);
+    File.WriteAllLines(marker, new[] { userH, userO, nameH, nameO, enter3.InstanceId, enter3.MapId });
+    Console.WriteLine($"[M12.10] Left hero inside dungeon for Host restart safety check inst={enter3.InstanceId}");
+}
+
+
 static async Task RunMailAcceptanceAsync(string host, int port, CancellationToken ct)
 {
     string suffix = Guid.NewGuid().ToString("N")[..6];
@@ -147,8 +329,8 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
     await using var bob = new LegendTcpClient();
     await alice.ConnectAsync(host, port, ct);
     await bob.ConnectAsync(host, port, ct);
-    if (!(await alice.HandshakeAsync("1.11.0", "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
-    if (!(await bob.HandshakeAsync("1.11.0", "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
+    if (!(await alice.HandshakeAsync("1.12.0", "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
+    if (!(await bob.HandshakeAsync("1.12.0", "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
 
     string userA = $"m11_a_{suffix}";
     string userB = $"m11_b_{suffix}";
@@ -297,7 +479,7 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
 
     await using var bob2 = new LegendTcpClient();
     await bob2.ConnectAsync(host, port, ct);
-    if (!(await bob2.HandshakeAsync("1.11.0", "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
+    if (!(await bob2.HandshakeAsync("1.12.0", "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
     await EnsureAccount(bob2, userB);
     await bob2.SelectCharAsync(idB, ct);
     var enterB2 = await bob2.EnterWorldAsync(realm, idB, ct);
@@ -330,7 +512,7 @@ static async Task RunSiegeAcceptanceAsync(string host, int port, CancellationTok
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.11.0", "pc-m10", ct)).Accepted)
+        if (!(await c.HandshakeAsync("1.12.0", "pc-m10", ct)).Accepted)
             throw new Exception("Handshake failed");
         await c.RegisterAsync(user, "pass12345", "PC", ct);
         var login = await c.LoginAsync(user, "pass12345", "PC", ct);
@@ -456,7 +638,7 @@ static async Task RunSkillAcceptanceAsync(string host, int port, CancellationTok
 {
     await using var client = new LegendTcpClient();
     await client.ConnectAsync(host, port, ct);
-    if (!(await client.HandshakeAsync("1.11.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
+    if (!(await client.HandshakeAsync("1.12.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
 
     string user = "m9_skill_" + Guid.NewGuid().ToString("N")[..6];
     await client.RegisterAsync(user, "pass12345", "PC", ct);
@@ -622,8 +804,8 @@ static async Task RunPartyAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.11.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.11.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.12.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.12.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
@@ -783,8 +965,8 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.11.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.11.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync("1.12.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.12.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -930,8 +1112,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.11.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.11.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.12.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.12.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -1060,7 +1242,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.11.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.12.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -1107,7 +1289,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.11.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.12.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)

@@ -74,12 +74,15 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.FriendAddReq or MsgId.FriendRemoveReq or MsgId.FriendListReq or
         MsgId.LearnSkillReq or MsgId.SkillListReq or
         MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq or
-        MsgId.MailListReq or MsgId.MailReadReq or MsgId.MailClaimAttachmentReq or MsgId.MailDeleteReq or MsgId.MailSendReq;
+        MsgId.MailListReq or MsgId.MailReadReq or MsgId.MailClaimAttachmentReq or MsgId.MailDeleteReq or MsgId.MailSendReq or
+        MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
         if (_maps.TryGetValue(mapId, out var aoi))
             return aoi;
+        if (_instanceMapConfigs.TryGetValue(mapId, out var instMap))
+            return _maps.GetOrAdd(mapId, _ => new GridAoiManager(instMap));
         var map = _versionPack.GetMap(mapId);
         return _maps.GetOrAdd(map.MapId, _ => new GridAoiManager(map));
     }
@@ -267,6 +270,12 @@ public sealed partial class GameWorldModule : IGameModule
             case MsgId.MailSendReq:
                 await HandleMailSendAsync(session, frame, ct);
                 break;
+            case MsgId.DungeonEnterReq:
+                await HandleDungeonEnterAsync(session, frame, ct);
+                break;
+            case MsgId.DungeonLeaveReq:
+                await HandleDungeonLeaveAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -312,6 +321,14 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
+        string mapBeforeSanitize = character.MapId;
+        SanitizeCharacterMapIfStaleInstance(character);
+        if (!string.Equals(mapBeforeSanitize, character.MapId, StringComparison.OrdinalIgnoreCase))
+        {
+            await _storage.Characters.SavePositionAsync(
+                character.CharacterId, character.MapId, character.X, character.Y, character.Hp, character.Mp, ct);
+        }
+
         if (!string.IsNullOrEmpty(session.EntityId))
         {
             foreach (var aoi in _maps.Values)
@@ -336,7 +353,7 @@ public sealed partial class GameWorldModule : IGameModule
 
         await _storage.Sessions.BindCharacterAsync(req.SessionToken, character.CharacterId, ct);
 
-        var map = _versionPack.GetMap(character.MapId);
+        var map = ResolveMapConfig(character.MapId);
         int x = character.X;
         int y = character.Y;
         if (map.IsBlocked(x, y))
@@ -785,6 +802,9 @@ public sealed partial class GameWorldModule : IGameModule
                 monster.EntityId, monster.Name, monster.MonsterId, monster.MapId, monster.X, monster.Y), ct);
 
             await UpdateQuestKillProgressAsync(attacker, monster.MonsterId, ct);
+            if (monster.NoRespawn || !string.IsNullOrEmpty(monster.InstanceId))
+                monster.RespawnAtUnixMs = 0;
+            await OnDungeonMonsterKilledAsync(attacker, monster, ct);
         }
     }
 
@@ -1015,6 +1035,8 @@ public sealed partial class GameWorldModule : IGameModule
         {
             if (!monster.Alive)
             {
+                if (monster.NoRespawn)
+                    continue;
                 if (monster.RespawnAtUnixMs > 0 && now >= monster.RespawnAtUnixMs)
                 {
                     monster.Alive = true;
@@ -1757,6 +1779,7 @@ public sealed partial class GameWorldModule : IGameModule
                 entity.CharacterId, EquipmentHelper.Serialize(entity.Equipment), ct);
 
             await CleanupPartyOnDisconnectAsync(entity, ct);
+            await OnDungeonPlayerDisconnectedAsync(entity, ct);
 
             var viewers = aoi.RemoveEntity(session.EntityId);
             var leaveMsg = new EntityLeaveAoi { EntityId = session.EntityId, Reason = "Disconnected" };

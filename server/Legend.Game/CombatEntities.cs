@@ -21,6 +21,8 @@ public sealed class MonsterEntity
     public string? TargetEntityId { get; set; }
     public long NextAttackUnixMs { get; set; }
     public long RespawnAtUnixMs { get; set; }
+    public string? InstanceId { get; set; }
+    public bool NoRespawn { get; set; }
 
     public EntitySnapshot ToSnapshot() => new()
     {

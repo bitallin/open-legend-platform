@@ -67,6 +67,11 @@ enum ProtocolErrorCode {
   ERR_MAIL_ALREADY_CLAIMED = 1059;
   ERR_MAIL_BAG_FULL = 1060;
   ERR_MAIL_FULL = 1061;
+  ERR_DUNGEON_DENIED = 1062;
+  ERR_DUNGEON_LEVEL = 1063;
+  ERR_DUNGEON_COST = 1064;
+  ERR_DUNGEON_NOT_IN = 1065;
+  ERR_DUNGEON_FULL = 1066;
   ERR_INTERNAL = 1999;
 }
 
@@ -1075,4 +1080,54 @@ message MailSendResp {
   ProtocolErrorCode error_code = 2;
   string message = 3;
   string mail_id = 4;
+}
+
+// ========== M12 Dungeon Instance ==========
+message DungeonEnterReq {
+  string dungeon_id = 1;
+}
+
+message DungeonEnterResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string dungeon_id = 4;
+  string instance_id = 5;
+  string map_id = 6;
+  int32 x = 7;
+  int32 y = 8;
+  int32 remaining_kills = 9;
+  int32 target_kills = 10;
+  int32 gold = 11;
+}
+
+message DungeonProgressNotify {
+  string dungeon_id = 1;
+  string instance_id = 2;
+  int32 remaining_kills = 3;
+  int32 target_kills = 4;
+  int32 killed = 5;
+}
+
+message DungeonCompleteNotify {
+  string dungeon_id = 1;
+  string instance_id = 2;
+  int32 reward_gold = 3;
+  repeated InventoryItem reward_items = 4;
+  bool rewards_mailed = 5;
+  int32 gold = 6;
+  string exit_map_id = 7;
+  int32 exit_x = 8;
+  int32 exit_y = 9;
+}
+
+message DungeonLeaveReq {}
+
+message DungeonLeaveResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string map_id = 4;
+  int32 x = 5;
+  int32 y = 6;
 }
