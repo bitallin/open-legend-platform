@@ -140,3 +140,19 @@ public sealed class TradeListingRecord
         UpdatedAt = UpdatedAt
     };
 }
+
+public sealed class FriendRecord
+{
+    public string OwnerCharacterId { get; set; } = string.Empty;
+    public string FriendCharacterId { get; set; } = string.Empty;
+    public string FriendName { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public FriendRecord Clone() => new()
+    {
+        OwnerCharacterId = OwnerCharacterId,
+        FriendCharacterId = FriendCharacterId,
+        FriendName = FriendName,
+        CreatedAt = CreatedAt
+    };
+}

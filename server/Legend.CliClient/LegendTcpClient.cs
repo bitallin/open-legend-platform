@@ -31,6 +31,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<LevelUpNotify> ReceivedLevelUps { get; } = new();
     public ConcurrentQueue<ChatNotify> ReceivedChatNotifies { get; } = new();
     public ConcurrentQueue<StallSoldNotify> ReceivedStallSoldNotifies { get; } = new();
+    public ConcurrentQueue<PartyInfoNotify> ReceivedPartyInfoNotifies { get; } = new();
+    public ConcurrentQueue<PartyInviteNotify> ReceivedPartyInviteNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -189,6 +191,18 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     {
                         var ch = ChatNotify.Parser.ParseFrom(frame.Payload);
                         ReceivedChatNotifies.Enqueue(ch);
+                        break;
+                    }
+                    case MsgId.PartyInfoNotify:
+                    {
+                        var pi = PartyInfoNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedPartyInfoNotifies.Enqueue(pi);
+                        break;
+                    }
+                    case MsgId.PartyInviteNotify:
+                    {
+                        var inv = PartyInviteNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedPartyInviteNotifies.Enqueue(inv);
                         break;
                     }
                     case MsgId.StallSoldNotify:
@@ -563,7 +577,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return GuildInfoResp.Parser.ParseFrom(frame.Payload);
     }
 
-    public async Task ChatAsync(ChatChannel channel, string content, CancellationToken ct = default)
+    public async Task ChatAsync(ChatChannel channel, string content, string targetName = "", CancellationToken ct = default)
     {
         // fire-and-forget request; replies arrive as ChatNotify (seq may not match)
         if (_stream == null)
@@ -576,7 +590,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
         await PacketCodec.WriteFrameAsync(_stream, MsgId.ChatReq, seq, new ChatReq
         {
             Channel = channel,
-            Content = content
+            Content = content,
+            TargetName = targetName ?? ""
         }, ct);
     }
 
@@ -670,6 +685,89 @@ public sealed class LegendTcpClient : IAsyncDisposable
                 ReceivedStallSoldNotifies.Enqueue(n);
         }
     }
+
+
+    public async Task<PartyInviteResp> PartyInviteAsync(string targetName, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyInviteReq, new PartyInviteReq { TargetName = targetName }, ct);
+        return PartyInviteResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PartyAcceptResp> PartyAcceptAsync(string partyId, bool accept = true, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyAcceptReq, new PartyAcceptReq { PartyId = partyId, Accept = accept }, ct);
+        return PartyAcceptResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PartyLeaveResp> PartyLeaveAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyLeaveReq, new PartyLeaveReq(), ct);
+        return PartyLeaveResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PartyKickResp> PartyKickAsync(string targetCharacterId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyKickReq, new PartyKickReq { TargetCharacterId = targetCharacterId }, ct);
+        return PartyKickResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PartyInviteNotify> WaitPartyInviteAsync(int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            if (ReceivedPartyInviteNotifies.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("PartyInviteNotify not received in time");
+    }
+
+    public async Task<PartyInfoNotify> WaitPartyInfoAsync(Func<PartyInfoNotify, bool> pred, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var held = new List<PartyInfoNotify>();
+        try
+        {
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                while (ReceivedPartyInfoNotifies.TryDequeue(out var n))
+                {
+                    if (pred(n))
+                        return n;
+                    held.Add(n);
+                }
+                await Task.Delay(20, ct);
+            }
+            throw new TimeoutException("PartyInfoNotify not received in time");
+        }
+        finally
+        {
+            foreach (var n in held)
+                ReceivedPartyInfoNotifies.Enqueue(n);
+        }
+    }
+
+    public async Task<FriendAddResp> FriendAddAsync(string friendName, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.FriendAddReq, new FriendAddReq { FriendName = friendName }, ct);
+        return FriendAddResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<FriendRemoveResp> FriendRemoveAsync(string friendCharacterId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.FriendRemoveReq, new FriendRemoveReq { FriendCharacterId = friendCharacterId }, ct);
+        return FriendRemoveResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<FriendListResp> FriendListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.FriendListReq, new FriendListReq(), ct);
+        return FriendListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task WhisperAsync(string targetName, string content, CancellationToken ct = default)
+        => await ChatAsync(ChatChannel.ChatWhisper, content, targetName, ct);
 
     public async ValueTask DisposeAsync()
     {

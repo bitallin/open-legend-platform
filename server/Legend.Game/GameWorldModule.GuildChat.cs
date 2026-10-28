@@ -383,6 +383,72 @@ public sealed partial class GameWorldModule
             return;
         }
 
+        if (req.Channel == ChatChannel.ChatWhisper)
+        {
+            string targetName = (req.TargetName ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(targetName))
+            {
+                await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+                {
+                    NoticeType = "chat_denied",
+                    Title = "私聊",
+                    Content = "私聊需要目标角色名"
+                }, ct);
+                return;
+            }
+            if (string.Equals(targetName, player.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+                {
+                    NoticeType = "chat_denied",
+                    Title = "私聊",
+                    Content = "不能私聊自己"
+                }, ct);
+                return;
+            }
+            var target = FindOnlineByName(targetName);
+            if (target is null)
+            {
+                await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+                {
+                    NoticeType = "chat_denied",
+                    Title = "私聊",
+                    Content = "目标不在线"
+                }, ct);
+                return;
+            }
+            if (PartyCfg.WhisperRequiresFriend)
+            {
+                bool isFriend = await _storage.Friends.IsFriendAsync(player.CharacterId, target.CharacterId, ct);
+                if (!isFriend)
+                {
+                    await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+                    {
+                        NoticeType = "chat_denied",
+                        Title = "私聊",
+                        Content = "需要先添加好友才能私聊"
+                    }, ct);
+                    return;
+                }
+            }
+
+            var whisperNotify = new ChatNotify
+            {
+                Channel = ChatChannel.ChatWhisper,
+                SenderEntityId = player.EntityId,
+                SenderName = player.Name,
+                Content = content,
+                GuildId = player.GuildId ?? string.Empty,
+                UnixMs = now,
+                TargetName = target.Name
+            };
+            await target.Session.SendAsync(MsgId.ChatNotify, 0, whisperNotify, ct);
+            await player.Session.SendAsync(MsgId.ChatNotify, 0, whisperNotify, ct);
+            await _eventBus.PublishAsync(new WhisperSentEvent(
+                session, player.Name, player.CharacterId, target.Name, target.CharacterId, content), ct);
+            return;
+        }
+
         var notify = new ChatNotify
         {
             Channel = req.Channel,

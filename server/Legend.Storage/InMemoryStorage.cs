@@ -9,12 +9,14 @@ public sealed class InMemoryStorage : ILegendStorage
     private readonly InMemorySessionStore _sessions = new();
     private readonly InMemoryGuildStore _guilds = new();
     private readonly InMemoryTradeStore _trades = new();
+    private readonly InMemoryFriendStore _friends = new();
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
     public ISessionStore Sessions => _sessions;
     public IGuildStore Guilds => _guilds;
     public ITradeStore Trades => _trades;
+    public IFriendStore Friends => _friends;
     public string BackendName => "InMemory";
 
     public Task InitializeAsync(CancellationToken ct = default)
@@ -129,6 +131,19 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
     {
         if (_byId.TryGetValue(characterId, out var c))
             return Task.FromResult<CharacterRecord?>(c.Clone());
+        return Task.FromResult<CharacterRecord?>(null);
+    }
+
+    public Task<CharacterRecord?> GetByNameAsync(string name, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return Task.FromResult<CharacterRecord?>(null);
+        string n = name.Trim();
+        foreach (var c in _byId.Values)
+        {
+            if (string.Equals(c.Name, n, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<CharacterRecord?>(c.Clone());
+        }
         return Task.FromResult<CharacterRecord?>(null);
     }
 

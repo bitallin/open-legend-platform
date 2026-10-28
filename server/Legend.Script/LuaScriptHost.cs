@@ -113,6 +113,10 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<StallListedEvent>(OnStallListedAsync);
         _eventBus.Subscribe<StallBoughtEvent>(OnStallBoughtAsync);
         _eventBus.Subscribe<StallCancelledEvent>(OnStallCancelledAsync);
+        _eventBus.Subscribe<PartyJoinedEvent>(OnPartyJoinedAsync);
+        _eventBus.Subscribe<PartyLeftEvent>(OnPartyLeftAsync);
+        _eventBus.Subscribe<FriendAddedEvent>(OnFriendAddedAsync);
+        _eventBus.Subscribe<WhisperSentEvent>(OnWhisperSentAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -585,4 +589,89 @@ public sealed class LuaScriptHost
         }
         return Task.CompletedTask;
     }
+
+    private Task OnPartyJoinedAsync(PartyJoinedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_party_join");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.PartyId, evt.LeaderName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_party_join failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnPartyLeftAsync(PartyLeftEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_party_leave");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.PartyId, evt.Reason);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_party_leave failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnFriendAddedAsync(FriendAddedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_friend_add");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.FriendName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_friend_add failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnWhisperSentAsync(WhisperSentEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_whisper");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.FromName, evt.ToName, evt.Content);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_whisper failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
 }

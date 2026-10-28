@@ -77,13 +77,29 @@ public enum MsgId : ushort
     StallCancelReq = 2607,
     StallCancelResp = 2608,
     StallSoldNotify = 2609,
+    PartyInviteReq = 2701,
+    PartyInviteResp = 2702,
+    PartyAcceptReq = 2703,
+    PartyAcceptResp = 2704,
+    PartyLeaveReq = 2705,
+    PartyLeaveResp = 2706,
+    PartyKickReq = 2707,
+    PartyKickResp = 2708,
+    PartyInfoNotify = 2709,
+    PartyInviteNotify = 2710,
+    FriendAddReq = 2711,
+    FriendAddResp = 2712,
+    FriendRemoveReq = 2713,
+    FriendRemoveResp = 2714,
+    FriendListReq = 2715,
+    FriendListResp = 2716,
     ServerNotice = 3001
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.7.0";
-    public const string MinCompatibleVersion = "1.7.0";
+    public const string CurrentVersion = "1.8.0";
+    public const string MinCompatibleVersion = "1.8.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

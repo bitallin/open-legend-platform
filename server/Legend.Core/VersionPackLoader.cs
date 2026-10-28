@@ -270,6 +270,18 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 ?? throw new InvalidDataException("Failed to deserialize trade.json");
         }
 
+        var partyConfig = new PartyConfig();
+        if (!string.IsNullOrWhiteSpace(manifest.PartyConfigFile))
+        {
+            string partyPath = Path.Combine(baseDir, manifest.PartyConfigFile);
+            if (!File.Exists(partyPath))
+                throw new FileNotFoundException($"Party config not found: {partyPath}");
+            string partyJson = File.ReadAllText(partyPath, Encoding.UTF8);
+            hashInput.Append(partyJson);
+            partyConfig = JsonSerializer.Deserialize<PartyConfig>(partyJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize party.json");
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -337,6 +349,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Levels = levelsConfig,
             Guild = guildConfig,
             Trade = tradeConfig,
+            Party = partyConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

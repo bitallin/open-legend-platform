@@ -9,6 +9,7 @@ public sealed class SqliteStorage : ILegendStorage
     private readonly SqliteCharacterStore _characters;
     private readonly SqliteGuildStore _guilds;
     private readonly SqliteTradeStore _trades;
+    private readonly SqliteFriendStore _friends;
     private readonly InMemorySessionStore _sessions = new();
 
     public SqliteStorage(string databasePath)
@@ -24,6 +25,7 @@ public sealed class SqliteStorage : ILegendStorage
         _characters = new SqliteCharacterStore(_connectionString);
         _guilds = new SqliteGuildStore(_connectionString);
         _trades = new SqliteTradeStore(_connectionString);
+        _friends = new SqliteFriendStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -31,6 +33,7 @@ public sealed class SqliteStorage : ILegendStorage
     public ISessionStore Sessions => _sessions;
     public IGuildStore Guilds => _guilds;
     public ITradeStore Trades => _trades;
+    public IFriendStore Friends => _friends;
     public string BackendName => "Sqlite";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -39,6 +42,7 @@ public sealed class SqliteStorage : ILegendStorage
         await _characters.EnsureSchemaAsync(ct);
         await _guilds.EnsureSchemaAsync(ct);
         await _trades.EnsureSchemaAsync(ct);
+        await _friends.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 
@@ -284,6 +288,20 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT * FROM characters WHERE character_id = $id";
         cmd.Parameters.AddWithValue("$id", characterId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return ReadCharacter(reader);
+    }
+
+    public async Task<CharacterRecord?> GetByNameAsync(string name, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM characters WHERE LOWER(name) = LOWER($n) LIMIT 1";
+        cmd.Parameters.AddWithValue("$n", name.Trim());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
             return null;

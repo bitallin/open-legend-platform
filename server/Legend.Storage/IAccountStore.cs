@@ -22,6 +22,7 @@ public interface ICharacterStore
     Task SaveEquipmentAsync(string characterId, string equipmentJson, CancellationToken ct = default);
     Task SaveLevelExpAsync(string characterId, int level, int exp, int maxHp, int maxMp, CancellationToken ct = default);
     Task SaveGuildIdAsync(string characterId, string? guildId, CancellationToken ct = default);
+    Task<CharacterRecord?> GetByNameAsync(string name, CancellationToken ct = default);
 }
 
 public interface IGuildStore
@@ -33,6 +34,16 @@ public interface IGuildStore
     Task<(bool Ok, string? Error, GuildRecord? Guild)> AddMemberAsync(string guildId, string characterId, CancellationToken ct = default);
     Task<(bool Ok, string? Error)> RemoveMemberAsync(string guildId, string characterId, CancellationToken ct = default);
     Task DeleteAsync(string guildId, CancellationToken ct = default);
+}
+
+public interface IFriendStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<FriendRecord>> ListByOwnerAsync(string ownerCharacterId, CancellationToken ct = default);
+    Task<int> CountByOwnerAsync(string ownerCharacterId, CancellationToken ct = default);
+    Task<bool> IsFriendAsync(string ownerCharacterId, string friendCharacterId, CancellationToken ct = default);
+    Task<(bool Ok, string? Error, FriendRecord? Friend)> AddAsync(string ownerCharacterId, string friendCharacterId, string friendName, CancellationToken ct = default);
+    Task<(bool Ok, string? Error)> RemoveAsync(string ownerCharacterId, string friendCharacterId, CancellationToken ct = default);
 }
 
 public interface ITradeStore
@@ -66,6 +77,7 @@ public interface ILegendStorage : IAsyncDisposable
     ISessionStore Sessions { get; }
     IGuildStore Guilds { get; }
     ITradeStore Trades { get; }
+    IFriendStore Friends { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
 }

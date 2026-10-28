@@ -8,6 +8,7 @@ bool equipTest = false;
 bool levelTest = false;
 bool guildTest = false;
 bool tradeTest = false;
+bool partyTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -43,10 +44,19 @@ for (int i = 0; i < args.Length; i++)
         equipTest = false;
         levelTest = false;
     }
+    else if (args[i] == "--party")
+    {
+        partyTest = true;
+        tradeTest = false;
+        guildTest = false;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds((guildTest || tradeTest) ? 90 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -62,14 +72,182 @@ if (tradeTest)
     return;
 }
 
+if (partyTest)
+{
+    await RunPartyAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M8 party/friend/whisper verification steps passed!");
+    return;
+}
+
+static async Task RunPartyAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    await using var a = new LegendTcpClient();
+    await using var b = new LegendTcpClient();
+    await a.ConnectAsync(host, port, ct);
+    await b.ConnectAsync(host, port, ct);
+    if (!(await a.HandshakeAsync("1.8.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.8.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+
+    await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
+    var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
+    if (!loginA.Success) throw new Exception(loginA.Message);
+    await b.RegisterAsync("m8_member", "pass12345", "PC", ct);
+    var loginB = await b.LoginAsync("m8_member", "pass12345", "PC", ct);
+    if (!loginB.Success) throw new Exception(loginB.Message);
+
+    async Task<string> EnsureChar(LegendTcpClient c, string name, string cls)
+    {
+        var create = await c.CreateCharAsync(name, cls, ct);
+        if (create.Success) return create.Character.CharacterId;
+        var list = await c.CharListAsync(ct);
+        var existing = list.Characters.FirstOrDefault(x => x.Name == name) ?? list.Characters.FirstOrDefault();
+        if (existing is null) throw new Exception($"no char for {name}: {create.Message}");
+        return existing.CharacterId;
+    }
+
+    string idA = await EnsureChar(a, "队长甲", "warrior");
+    string idB = await EnsureChar(b, "队员乙", "mage");
+    await a.SelectCharAsync(idA, ct);
+    await b.SelectCharAsync(idB, ct);
+    var realms = await a.GetRealmListAsync(ct);
+    string realm = realms.Realms[0].RealmId;
+    var enterA = await a.EnterWorldAsync(realm, idA, ct);
+    var enterB = await b.EnterWorldAsync(realm, idB, ct);
+    if (!enterA.Success || !enterB.Success) throw new Exception("enter failed");
+    Console.WriteLine($"[M8.1] Entered world A={enterA.SelfEntity.Name} B={enterB.SelfEntity.Name}");
+
+    // Friend: unidirectional add. Across host restart the list must already contain B (persistence).
+    var fl0 = await a.FriendListAsync(ct);
+    if (!fl0.Success) throw new Exception(fl0.Message);
+    bool alreadyFriend = fl0.Friends.Any(f => f.CharacterId == idB || f.Name == "队员乙");
+    if (alreadyFriend)
+        Console.WriteLine($"[M8.2] Friend list persisted after Host restart ({fl0.Friends.Count} friends)");
+
+    var selfAdd = await a.FriendAddAsync("队长甲", ct);
+    if (selfAdd.Success || selfAdd.ErrorCode != ProtocolErrorCode.ErrFriendDenied)
+        throw new Exception($"Expected ErrFriendDenied for self-add, got {selfAdd.ErrorCode}");
+
+    // Ensure Lua on_friend_add fires every run: remove then re-add when already present
+    if (alreadyFriend)
+    {
+        var rm = await a.FriendRemoveAsync(idB, ct);
+        if (!rm.Success) throw new Exception($"FriendRemove before re-add failed: {rm.Message}");
+    }
+    var add = await a.FriendAddAsync("队员乙", ct);
+    if (!add.Success) throw new Exception($"FriendAdd failed: {add.ErrorCode} {add.Message}");
+    Console.WriteLine($"[M8.2b] FriendAdd OK: {add.Friend.Name} (persistedBefore={alreadyFriend})");
+
+    // Whisper requires friend
+    while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
+    while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
+    await a.WhisperAsync("队员乙", "m8-hello", ct);
+    await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatWhisper && n.Content == "m8-hello", 3000, ct);
+    await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatWhisper && n.Content == "m8-hello" && n.SenderName == "队长甲", 3000, ct);
+    Console.WriteLine("[M8.3] Whisper (friend) OK");
+
+    while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
+    await b.WhisperAsync("队长甲", "should-deny", ct);
+    await Task.Delay(250, ct);
+    if (a.ReceivedChatNotifies.Any(n => n.Content == "should-deny"))
+        throw new Exception("Non-friend whisper should be denied");
+    Console.WriteLine("[M8.4] Non-friend whisper denied OK");
+
+    // Party invite -> accept
+    var inv = await a.PartyInviteAsync("队员乙", ct);
+    if (!inv.Success) throw new Exception($"PartyInvite failed: {inv.ErrorCode} {inv.Message}");
+    var pin = await b.WaitPartyInviteAsync(3000, ct);
+    if (pin.PartyId != inv.PartyId) throw new Exception("invite party id mismatch");
+    var acc = await b.PartyAcceptAsync(pin.PartyId, true, ct);
+    if (!acc.Success) throw new Exception($"PartyAccept failed: {acc.ErrorCode} {acc.Message}");
+    var info = await a.WaitPartyInfoAsync(n => n.Members.Count == 2, 3000, ct);
+    if (info.Members.Count != 2) throw new Exception("expected 2 party members");
+    Console.WriteLine($"[M8.5] Party formed: id={info.PartyId} members={info.Members.Count}");
+
+    async Task Walk(LegendTcpClient c, int tx, int ty)
+    {
+        int guard = 0;
+        while ((c.SelfEntity!.X != tx || c.SelfEntity.Y != ty) && guard++ < 80)
+        {
+            int nx = c.SelfEntity.X + Math.Sign(tx - c.SelfEntity.X);
+            int ny = c.SelfEntity.Y + Math.Sign(ty - c.SelfEntity.Y);
+            var m = await c.MoveAsync(nx, ny, ct: ct);
+            if (!m.Accepted) throw new Exception($"Move rejected to ({nx},{ny}): {m.Reason}");
+        }
+    }
+
+    while (a.ReceivedExpGains.TryDequeue(out _)) { }
+    while (b.ReceivedExpGains.TryDequeue(out _)) { }
+
+    async Task<EntitySnapshot> FindMonsterAsync(LegendTcpClient c, EnterWorldResp enter)
+    {
+        EntitySnapshot? m = enter.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityMonster);
+        for (int i = 0; i < 80 && m is null; i++)
+        {
+            while (c.ReceivedAoiEnters.TryDequeue(out var en))
+                if (en.Entity.Kind == EntityKind.EntityMonster) { m = en.Entity; break; }
+            while (m is null && c.ReceivedEntitySpawns.TryDequeue(out var sp))
+                if (sp.Entity.Kind == EntityKind.EntityMonster) { m = sp.Entity; break; }
+            if (m is null)
+            {
+                await Walk(c, 25 + (i % 3), 10 + (i % 2));
+                await Task.Delay(50, ct);
+            }
+        }
+        if (m is null) throw new Exception("monster not found for shared exp");
+        return m;
+    }
+
+    ExpGainNotify? expA = null, expB = null;
+    for (int attempt = 0; attempt < 5 && (expA is null || expB is null); attempt++)
+    {
+        var monster = await FindMonsterAsync(a, enterA);
+        await Walk(a, Math.Max(0, monster.X - 1), monster.Y);
+        await Walk(b, Math.Max(0, monster.X - 1), Math.Min(monster.Y + 1, 40));
+        for (int hit = 0; hit < 30 && (expA is null || expB is null); hit++)
+        {
+            await Task.Delay(650, ct);
+            var (atk, cs) = await a.AttackAsync(monster.EntityId, "basic_slash", ct);
+            if (!atk.Success)
+            {
+                await Task.Delay(400, ct);
+                continue;
+            }
+            while (a.ReceivedExpGains.TryDequeue(out var e))
+                if (e.GainedExp > 0) expA = e;
+            while (b.ReceivedExpGains.TryDequeue(out var e))
+                if (e.GainedExp > 0) expB = e;
+            if (cs?.TargetDied == true)
+                break;
+        }
+    }
+    if (expA is null || expB is null)
+        throw new Exception($"shared exp missing: A={expA?.GainedExp} B={expB?.GainedExp}");
+    Console.WriteLine($"[M8.6] Shared exp OK: A+{expA.GainedExp} B+{expB.GainedExp}");
+
+    var leave = await b.PartyLeaveAsync(ct);
+    if (!leave.Success) throw new Exception($"PartyLeave failed: {leave.Message}");
+    Console.WriteLine("[M8.7] Member left party OK");
+
+    // Kick path
+    var inv2 = await a.PartyInviteAsync("队员乙", ct);
+    if (!inv2.Success) throw new Exception($"re-invite failed: {inv2.Message}");
+    var pin2 = await b.WaitPartyInviteAsync(3000, ct);
+    if (!(await b.PartyAcceptAsync(pin2.PartyId, true, ct)).Success)
+        throw new Exception("re-accept failed");
+    await a.WaitPartyInfoAsync(n => n.Members.Count == 2, 3000, ct);
+    var kick = await a.PartyKickAsync(idB, ct);
+    if (!kick.Success) throw new Exception($"PartyKick failed: {kick.Message}");
+    Console.WriteLine("[M8.8] Leader kick OK");
+}
+
 static async Task RunTradeAcceptanceAsync(string host, int port, CancellationToken ct)
 {
     await using var seller = new LegendTcpClient();
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.7.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.7.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync("1.8.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.8.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -215,8 +393,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.7.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.7.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.8.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.8.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -293,7 +471,7 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     // World chat
     while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
     while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
-    await a.ChatAsync(ChatChannel.ChatWorld, "hello-world", ct);
+    await a.ChatAsync(ChatChannel.ChatWorld, "hello-world", ct: ct);
     await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatWorld && n.Content == "hello-world", 3000, ct);
     await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatWorld && n.Content == "hello-world", 3000, ct);
     Console.WriteLine("[M6.5] World chat OK (A+B received)");
@@ -302,7 +480,7 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     // Nearby
     while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
     while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
-    await a.ChatAsync(ChatChannel.ChatNearby, "hello-near", ct);
+    await a.ChatAsync(ChatChannel.ChatNearby, "hello-near", ct: ct);
     await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatNearby && n.Content == "hello-near", 3000, ct);
     await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatNearby && n.Content == "hello-near", 3000, ct);
     Console.WriteLine("[M6.6] Nearby chat OK");
@@ -311,7 +489,7 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     // Guild
     while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
     while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
-    await a.ChatAsync(ChatChannel.ChatGuild, "hello-guild", ct);
+    await a.ChatAsync(ChatChannel.ChatGuild, "hello-guild", ct: ct);
     await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatGuild && n.Content == "hello-guild", 3000, ct);
     await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatGuild && n.Content == "hello-guild", 3000, ct);
     Console.WriteLine("[M6.7] Guild chat OK");
@@ -320,7 +498,7 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     var leaveB = await b.GuildLeaveAsync(ct);
     if (!leaveB.Success) throw new Exception(leaveB.Message);
     while (b.ReceivedServerNotices.TryDequeue(out _)) { }
-    await b.ChatAsync(ChatChannel.ChatGuild, "should-fail", ct);
+    await b.ChatAsync(ChatChannel.ChatGuild, "should-fail", ct: ct);
     bool denied = false;
     for (int i = 0; i < 40; i++)
     {
@@ -345,7 +523,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.7.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.8.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -392,7 +570,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.7.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.8.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)

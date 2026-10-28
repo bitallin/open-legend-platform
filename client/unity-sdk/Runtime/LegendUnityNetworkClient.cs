@@ -378,15 +378,61 @@ namespace Legend.UnitySdk
             return GuildInfoResp.Parser.ParseFrom(frame.Payload);
         }
 
-        public async Task RequestChatAsync(ChatChannel channel, string content, CancellationToken ct = default)
+        public async Task RequestChatAsync(ChatChannel channel, string content, string targetName = "", CancellationToken ct = default)
         {
             if (_stream == null) throw new InvalidOperationException("Not connected");
             uint seq = System.Threading.Interlocked.Increment(ref _seq);
             await PacketCodec.WriteFrameAsync(_stream, MsgId.ChatReq, seq, new ChatReq
             {
                 Channel = channel,
-                Content = content
+                Content = content,
+                TargetName = targetName ?? ""
             }, ct).ConfigureAwait(false);
+        }
+
+        public Task RequestWhisperAsync(string targetName, string content, CancellationToken ct = default)
+            => RequestChatAsync(ChatChannel.ChatWhisper, content, targetName, ct);
+
+        public async Task<PartyInviteResp> RequestPartyInviteAsync(string targetName, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PartyInviteReq, new PartyInviteReq { TargetName = targetName }, ct).ConfigureAwait(false);
+            return PartyInviteResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<PartyAcceptResp> RequestPartyAcceptAsync(string partyId, bool accept = true, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PartyAcceptReq, new PartyAcceptReq { PartyId = partyId, Accept = accept }, ct).ConfigureAwait(false);
+            return PartyAcceptResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<PartyLeaveResp> RequestPartyLeaveAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PartyLeaveReq, new PartyLeaveReq(), ct).ConfigureAwait(false);
+            return PartyLeaveResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<PartyKickResp> RequestPartyKickAsync(string targetCharacterId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PartyKickReq, new PartyKickReq { TargetCharacterId = targetCharacterId }, ct).ConfigureAwait(false);
+            return PartyKickResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<FriendAddResp> RequestFriendAddAsync(string friendName, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.FriendAddReq, new FriendAddReq { FriendName = friendName }, ct).ConfigureAwait(false);
+            return FriendAddResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<FriendRemoveResp> RequestFriendRemoveAsync(string friendCharacterId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.FriendRemoveReq, new FriendRemoveReq { FriendCharacterId = friendCharacterId }, ct).ConfigureAwait(false);
+            return FriendRemoveResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<FriendListResp> RequestFriendListAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.FriendListReq, new FriendListReq(), ct).ConfigureAwait(false);
+            return FriendListResp.Parser.ParseFrom(frame.Payload);
         }
 
         public async Task<StallListResp> RequestStallListAsync(string itemId, int count, int unitPriceGold, CancellationToken ct = default)

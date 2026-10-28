@@ -69,7 +69,9 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq or
         MsgId.GuildCreateReq or MsgId.GuildJoinReq or MsgId.GuildLeaveReq or MsgId.GuildInfoReq or
         MsgId.ChatReq or
-        MsgId.StallListReq or MsgId.StallBrowseReq or MsgId.StallBuyReq or MsgId.StallCancelReq;
+        MsgId.StallListReq or MsgId.StallBrowseReq or MsgId.StallBuyReq or MsgId.StallCancelReq or
+        MsgId.PartyInviteReq or MsgId.PartyAcceptReq or MsgId.PartyLeaveReq or MsgId.PartyKickReq or
+        MsgId.FriendAddReq or MsgId.FriendRemoveReq or MsgId.FriendListReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -207,6 +209,27 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.StallCancelReq:
                 await HandleStallCancelAsync(session, frame, ct);
+                break;
+            case MsgId.PartyInviteReq:
+                await HandlePartyInviteAsync(session, frame, ct);
+                break;
+            case MsgId.PartyAcceptReq:
+                await HandlePartyAcceptAsync(session, frame, ct);
+                break;
+            case MsgId.PartyLeaveReq:
+                await HandlePartyLeaveAsync(session, frame, ct);
+                break;
+            case MsgId.PartyKickReq:
+                await HandlePartyKickAsync(session, frame, ct);
+                break;
+            case MsgId.FriendAddReq:
+                await HandleFriendAddAsync(session, frame, ct);
+                break;
+            case MsgId.FriendRemoveReq:
+                await HandleFriendRemoveAsync(session, frame, ct);
+                break;
+            case MsgId.FriendListReq:
+                await HandleFriendListAsync(session, frame, ct);
                 break;
         }
     }
@@ -1650,6 +1673,8 @@ public sealed partial class GameWorldModule : IGameModule
             await _storage.Characters.SaveEquipmentAsync(
                 entity.CharacterId, EquipmentHelper.Serialize(entity.Equipment), ct);
 
+            await CleanupPartyOnDisconnectAsync(entity, ct);
+
             var viewers = aoi.RemoveEntity(session.EntityId);
             var leaveMsg = new EntityLeaveAoi { EntityId = session.EntityId, Reason = "Disconnected" };
             foreach (var viewer in viewers)
@@ -1969,87 +1994,104 @@ public sealed partial class GameWorldModule : IGameModule
         if (reward <= 0)
             return;
 
-        int maxLv = LevelCurve.MaxLevel(_versionPack.Levels);
-        if (killer.Level >= maxLv)
+        var recipients = GetPartyExpShareRecipients(killer);
+        var cfg = PartyCfg;
+        int pool = reward;
+        if (recipients.Count > 1 && cfg.ExpBonusPercent > 0)
+            pool = reward + (reward * cfg.ExpBonusPercent) / 100;
+        int share = Math.Max(1, pool / recipients.Count);
+        int remainder = pool - share * recipients.Count;
+
+        for (int i = 0; i < recipients.Count; i++)
         {
-            await killer.Session.SendAsync(MsgId.ExpGainNotify, 0, new ExpGainNotify
+            int gained = share + (i == 0 ? remainder : 0); // remainder to killer (index 0)
+            await ApplyExpGainAsync(recipients[i], gained, monster.MonsterId, ct);
+        }
+    }
+
+    private async Task ApplyExpGainAsync(WorldPlayerEntity player, int reward, string source, CancellationToken ct)
+    {
+        int maxLv = LevelCurve.MaxLevel(_versionPack.Levels);
+        if (player.Level >= maxLv)
+        {
+            await player.Session.SendAsync(MsgId.ExpGainNotify, 0, new ExpGainNotify
             {
                 GainedExp = 0,
-                TotalExp = killer.Exp,
-                Level = killer.Level,
+                TotalExp = player.Exp,
+                Level = player.Level,
                 ExpToNext = 0,
-                Source = monster.MonsterId
+                Source = source
             }, ct);
             return;
         }
 
-        killer.Exp += reward;
-        await killer.Session.SendAsync(MsgId.ExpGainNotify, 0, new ExpGainNotify
+        player.Exp += reward;
+        await player.Session.SendAsync(MsgId.ExpGainNotify, 0, new ExpGainNotify
         {
             GainedExp = reward,
-            TotalExp = killer.Exp,
-            Level = killer.Level,
-            ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, killer.Level),
-            Source = monster.MonsterId
+            TotalExp = player.Exp,
+            Level = player.Level,
+            ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, player.Level),
+            Source = source
         }, ct);
 
         bool leveled = false;
-        int oldLevel = killer.Level;
-        while (killer.Level < maxLv)
+        int oldLevel = player.Level;
+        while (player.Level < maxLv)
         {
-            int need = LevelCurve.ExpToNext(_versionPack.Levels, killer.Level);
-            if (need <= 0 || killer.Exp < need)
+            int need = LevelCurve.ExpToNext(_versionPack.Levels, player.Level);
+            if (need <= 0 || player.Exp < need)
                 break;
-            killer.Exp -= need;
-            killer.Level++;
+            player.Exp -= need;
+            player.Level++;
             leveled = true;
         }
 
         if (leveled)
         {
-            if (!_versionPack.Classes.TryGetValue(killer.ClassId, out var cls))
+            if (!_versionPack.Classes.TryGetValue(player.ClassId, out var cls))
             {
                 cls = new ClassConfigItem
                 {
-                    ClassId = killer.ClassId,
-                    BaseAtk = killer.BaseAtk,
-                    BaseDef = killer.BaseDef,
-                    BaseHp = killer.BaseMaxHp,
-                    BaseMp = killer.BaseMaxMp
+                    ClassId = player.ClassId,
+                    BaseAtk = player.BaseAtk,
+                    BaseDef = player.BaseDef,
+                    BaseHp = player.BaseMaxHp,
+                    BaseMp = player.BaseMaxMp
                 };
             }
-            LevelCurve.ApplyBaseStats(killer, cls, _versionPack.Levels);
-            EquipmentHelper.RecalculateStats(killer, _versionPack.Items);
-            killer.Hp = killer.MaxHp;
-            killer.Mp = killer.MaxMp;
+            LevelCurve.ApplyBaseStats(player, cls, _versionPack.Levels);
+            EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+            player.Hp = player.MaxHp;
+            player.Mp = player.MaxMp;
 
             var notify = new LevelUpNotify
             {
                 OldLevel = oldLevel,
-                NewLevel = killer.Level,
-                Exp = killer.Exp,
-                ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, killer.Level),
-                BaseAtk = killer.BaseAtk,
-                BaseDef = killer.BaseDef,
-                BaseMaxHp = killer.BaseMaxHp,
-                BaseMaxMp = killer.BaseMaxMp,
-                EffectiveAtk = killer.Atk,
-                EffectiveDef = killer.Def,
-                EffectiveMaxHp = killer.MaxHp,
-                Hp = killer.Hp,
-                Mp = killer.Mp
+                NewLevel = player.Level,
+                Exp = player.Exp,
+                ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, player.Level),
+                BaseAtk = player.BaseAtk,
+                BaseDef = player.BaseDef,
+                BaseMaxHp = player.BaseMaxHp,
+                BaseMaxMp = player.BaseMaxMp,
+                EffectiveAtk = player.Atk,
+                EffectiveDef = player.Def,
+                EffectiveMaxHp = player.MaxHp,
+                Hp = player.Hp,
+                Mp = player.Mp
             };
-            await killer.Session.SendAsync(MsgId.LevelUpNotify, 0, notify, ct);
+            await player.Session.SendAsync(MsgId.LevelUpNotify, 0, notify, ct);
 
             await _eventBus.PublishAsync(new PlayerLeveledUpEvent(
-                killer.Session, killer.Name, killer.CharacterId, oldLevel, killer.Level,
-                killer.Exp, killer.Atk, killer.Def, killer.MaxHp), ct);
+                player.Session, player.Name, player.CharacterId, oldLevel, player.Level,
+                player.Exp, player.Atk, player.Def, player.MaxHp), ct);
         }
 
         await _storage.Characters.SaveLevelExpAsync(
-            killer.CharacterId, killer.Level, killer.Exp, killer.MaxHp, killer.MaxMp, ct);
+            player.CharacterId, player.Level, player.Exp, player.MaxHp, player.MaxMp, ct);
         await _storage.Characters.SavePositionAsync(
-            killer.CharacterId, killer.MapId, killer.X, killer.Y, killer.Hp, killer.Mp, ct);
+            player.CharacterId, player.MapId, player.X, player.Y, player.Hp, player.Mp, ct);
     }
 
     private async Task HandleUseItemAsync(IClientSession session, PacketFrame frame, CancellationToken ct)

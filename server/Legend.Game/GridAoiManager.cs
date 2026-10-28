@@ -37,6 +37,7 @@ public sealed class WorldPlayerEntity
     public string GuildId { get; set; } = string.Empty;
     public string GuildName { get; set; } = string.Empty;
     public string GuildRank { get; set; } = string.Empty;
+    public string PartyId { get; set; } = string.Empty;
 
     public EntitySnapshot ToSnapshot() => new()
     {

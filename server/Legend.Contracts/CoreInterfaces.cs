@@ -53,7 +53,7 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.7.0";
+    public string ProtocolVersion { get; set; } = "1.8.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
@@ -69,6 +69,7 @@ public sealed class VersionPackManifest
     public string LevelsConfigFile { get; set; } = "";
     public string GuildConfigFile { get; set; } = "";
     public string TradeConfigFile { get; set; } = "";
+    public string PartyConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -359,6 +360,15 @@ public sealed class TradeConfig
     public bool RequireSafeZone { get; set; } = true;
 }
 
+public sealed class PartyConfig
+{
+    public int MaxMembers { get; set; } = 5;
+    public bool ExpShareSameMapOnly { get; set; } = true;
+    public int ExpBonusPercent { get; set; } = 10;
+    public int MaxFriends { get; set; } = 50;
+    public bool WhisperRequiresFriend { get; set; } = true;
+}
+
 public sealed class LevelsConfigFile
 {
     public int MaxLevel { get; set; } = 10;
@@ -423,6 +433,7 @@ public sealed class LoadedVersionPack
     public LevelsConfigFile Levels { get; init; } = new();
     public GuildConfig Guild { get; init; } = new();
     public TradeConfig Trade { get; init; } = new();
+    public PartyConfig Party { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -456,3 +467,8 @@ public sealed record GuildLeftEvent(IClientSession Session, string PlayerName, s
 public sealed record StallListedEvent(IClientSession Session, string SellerName, string SellerCharacterId, string ListingId, string ItemId, int Count, int UnitPriceGold, int TotalPriceGold);
 public sealed record StallBoughtEvent(IClientSession Session, string BuyerName, string BuyerCharacterId, string SellerName, string SellerCharacterId, string ListingId, string ItemId, int Count, int TotalPriceGold, int NetSellerGold);
 public sealed record StallCancelledEvent(IClientSession Session, string SellerName, string SellerCharacterId, string ListingId, string ItemId, int Count);
+
+public sealed record PartyJoinedEvent(IClientSession Session, string PlayerName, string CharacterId, string PartyId, string LeaderName);
+public sealed record PartyLeftEvent(IClientSession Session, string PlayerName, string CharacterId, string PartyId, string Reason);
+public sealed record FriendAddedEvent(IClientSession Session, string PlayerName, string CharacterId, string FriendCharacterId, string FriendName);
+public sealed record WhisperSentEvent(IClientSession Session, string FromName, string FromCharacterId, string ToName, string ToCharacterId, string Content);

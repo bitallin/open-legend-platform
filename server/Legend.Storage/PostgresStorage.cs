@@ -10,6 +10,7 @@ public sealed class PostgresStorage : ILegendStorage
     private readonly PostgresCharacterStore _characters;
     private readonly PostgresGuildStore _guilds;
     private readonly PostgresTradeStore _trades;
+    private readonly PostgresFriendStore _friends;
 
     public PostgresStorage(string connectionString, ISessionStore sessions)
     {
@@ -19,6 +20,7 @@ public sealed class PostgresStorage : ILegendStorage
         _characters = new PostgresCharacterStore(_connectionString);
         _guilds = new PostgresGuildStore(_connectionString);
         _trades = new PostgresTradeStore(_connectionString);
+        _friends = new PostgresFriendStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -26,6 +28,7 @@ public sealed class PostgresStorage : ILegendStorage
     public ISessionStore Sessions => _sessions;
     public IGuildStore Guilds => _guilds;
     public ITradeStore Trades => _trades;
+    public IFriendStore Friends => _friends;
     public string BackendName => "PostgreSQL";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -34,6 +37,7 @@ public sealed class PostgresStorage : ILegendStorage
         await _characters.EnsureSchemaAsync(ct);
         await _guilds.EnsureSchemaAsync(ct);
         await _trades.EnsureSchemaAsync(ct);
+        await _friends.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 
@@ -259,6 +263,20 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var cmd = new NpgsqlCommand(
             "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), created_at, updated_at FROM characters WHERE character_id=@id", conn);
         cmd.Parameters.AddWithValue("id", characterId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return Read(reader);
+    }
+
+    public async Task<CharacterRecord?> GetByNameAsync(string name, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), created_at, updated_at FROM characters WHERE LOWER(name)=LOWER(@n) LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("n", name.Trim());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
             return null;

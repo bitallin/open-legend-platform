@@ -43,6 +43,16 @@ enum ProtocolErrorCode {
   ERR_LISTING_NOT_FOUND = 1035;
   ERR_LISTING_LIMIT = 1036;
   ERR_SELF_BUY_DENIED = 1037;
+  ERR_PARTY_DENIED = 1038;
+  ERR_PARTY_FULL = 1039;
+  ERR_ALREADY_IN_PARTY = 1040;
+  ERR_NOT_IN_PARTY = 1041;
+  ERR_PARTY_NOT_FOUND = 1042;
+  ERR_FRIEND_DENIED = 1043;
+  ERR_FRIEND_LIMIT = 1044;
+  ERR_NOT_FRIEND = 1045;
+  ERR_FRIEND_NOT_FOUND = 1046;
+  ERR_TARGET_OFFLINE = 1047;
   ERR_INTERNAL = 1999;
 }
 
@@ -71,6 +81,7 @@ enum ChatChannel {
   CHAT_WORLD = 0;
   CHAT_NEARBY = 1;
   CHAT_GUILD = 2;
+  CHAT_WHISPER = 3;
 }
 
 // 1. Handshake (MsgId: 1001 / 1002)
@@ -619,6 +630,8 @@ message GuildInfoResp {
 message ChatReq {
   ChatChannel channel = 1;
   string content = 2;
+  // Whisper target character name (required when channel == CHAT_WHISPER)
+  string target_name = 3;
 }
 
 message ChatNotify {
@@ -628,6 +641,7 @@ message ChatNotify {
   string content = 4;
   string guild_id = 5;
   int64 unix_ms = 6;
+  string target_name = 7;
 }
 
 // 15. Server / Lua Notice (MsgId: 3001)
@@ -711,4 +725,109 @@ message StallSoldNotify {
   int32 tax_gold = 7;
   int32 net_gold = 8;
   int32 new_gold = 9;
+}
+
+// 17. Party (MsgId: 2701–2710)
+message PartyMemberInfo {
+  string character_id = 1;
+  string name = 2;
+  string entity_id = 3;
+  int32 level = 4;
+  string map_id = 5;
+  bool is_leader = 6;
+  bool online = 7;
+}
+
+message PartyInviteReq {
+  string target_name = 1;
+}
+
+message PartyInviteResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string party_id = 4;
+  string target_name = 5;
+}
+
+message PartyInviteNotify {
+  string party_id = 1;
+  string inviter_character_id = 2;
+  string inviter_name = 3;
+}
+
+message PartyAcceptReq {
+  string party_id = 1;
+  bool accept = 2;
+}
+
+message PartyAcceptResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string party_id = 4;
+}
+
+message PartyLeaveReq {}
+
+message PartyLeaveResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message PartyKickReq {
+  string target_character_id = 1;
+}
+
+message PartyKickResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string kicked_character_id = 4;
+}
+
+message PartyInfoNotify {
+  string party_id = 1;
+  string leader_character_id = 2;
+  repeated PartyMemberInfo members = 3;
+  string reason = 4;
+}
+
+// 18. Friends (MsgId: 2711–2716)
+message FriendInfo {
+  string character_id = 1;
+  string name = 2;
+  bool online = 3;
+}
+
+message FriendAddReq {
+  string friend_name = 1;
+}
+
+message FriendAddResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  FriendInfo friend = 4;
+}
+
+message FriendRemoveReq {
+  string friend_character_id = 1;
+}
+
+message FriendRemoveResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string friend_character_id = 4;
+}
+
+message FriendListReq {}
+
+message FriendListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated FriendInfo friends = 4;
 }

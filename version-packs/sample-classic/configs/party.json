@@ -1,0 +1,7 @@
+{
+  "maxMembers": 5,
+  "expShareSameMapOnly": true,
+  "expBonusPercent": 10,
+  "maxFriends": 50,
+  "whisperRequiresFriend": true
+}
