@@ -39,13 +39,22 @@ public enum MsgId : ushort
     PickupReq = 2107,
     PickupResp = 2108,
     InventoryNotify = 2109,
+    TalkReq = 2201,
+    TalkResp = 2202,
+    ShopBuyReq = 2203,
+    ShopBuyResp = 2204,
+    QuestAcceptReq = 2205,
+    QuestAcceptResp = 2206,
+    QuestTurnInReq = 2207,
+    QuestTurnInResp = 2208,
+    QuestProgressNotify = 2209,
     ServerNotice = 3001
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.2.0";
-    public const string MinCompatibleVersion = "1.2.0";
+    public const string CurrentVersion = "1.3.0";
+    public const string MinCompatibleVersion = "1.3.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

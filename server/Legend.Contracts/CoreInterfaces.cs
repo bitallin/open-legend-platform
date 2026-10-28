@@ -53,7 +53,7 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.2.0";
+    public string ProtocolVersion { get; set; } = "1.3.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
@@ -62,6 +62,9 @@ public sealed class VersionPackManifest
     public string SkillsConfigFile { get; set; } = "";
     public string MonstersConfigFile { get; set; } = "";
     public string LootTablesConfigFile { get; set; } = "";
+    public string NpcsConfigFile { get; set; } = "";
+    public string ShopsConfigFile { get; set; } = "";
+    public string QuestsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -236,6 +239,63 @@ public sealed class InventorySlot
     public int Count { get; set; }
 }
 
+
+public sealed class NpcTemplate
+{
+    public string NpcId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string MapId { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string ShopId { get; set; } = string.Empty;
+    public string Dialogue { get; set; } = string.Empty;
+    public List<string> QuestIds { get; set; } = new();
+}
+
+public sealed class ShopOfferConfig
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int PriceGold { get; set; }
+    /// <summary>-1 = unlimited</summary>
+    public int Stock { get; set; } = -1;
+}
+
+public sealed class ShopConfig
+{
+    public string ShopId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public List<ShopOfferConfig> Offers { get; set; } = new();
+}
+
+public sealed class QuestRewardItem
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; } = 1;
+}
+
+public sealed class QuestTemplate
+{
+    public string QuestId { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string AcceptNpcId { get; set; } = string.Empty;
+    public string TurnInNpcId { get; set; } = string.Empty;
+    /// <summary>kill | gather (M3 uses kill)</summary>
+    public string ObjectiveType { get; set; } = "kill";
+    public string TargetMonsterId { get; set; } = string.Empty;
+    public int TargetCount { get; set; } = 1;
+    public int RewardGold { get; set; }
+    public List<QuestRewardItem> RewardItems { get; set; } = new();
+}
+
+public sealed class QuestProgressState
+{
+    public string QuestId { get; set; } = string.Empty;
+    /// <summary>active | ready | completed</summary>
+    public string Status { get; set; } = "active";
+    public int Progress { get; set; }
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -247,6 +307,9 @@ public sealed class LoadedVersionPack
     public required IReadOnlyDictionary<string, MonsterTemplate> Monsters { get; init; }
     public required IReadOnlyList<MonsterSpawnPoint> MonsterSpawns { get; init; }
     public required IReadOnlyDictionary<string, LootTableConfig> LootTables { get; init; }
+    public required IReadOnlyDictionary<string, NpcTemplate> Npcs { get; init; }
+    public required IReadOnlyDictionary<string, ShopConfig> Shops { get; init; }
+    public required IReadOnlyDictionary<string, QuestTemplate> Quests { get; init; }
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -265,4 +328,8 @@ public sealed record PlayerMovedEvent(string EntityId, string CharacterName, str
 public sealed record ZoneLoadedEvent(string VersionId, string RealmId, string PackHash);
 public sealed record MonsterKilledEvent(IClientSession? KillerSession, string KillerEntityId, string KillerName, string KillerCharacterId, string VictimEntityId, string VictimName, string MonsterId, string MapId, int X, int Y);
 public sealed record LootPickedEvent(IClientSession Session, string PickerName, string CharacterId, string ItemId, int Count, string LootEntityId, string MapId);
+public sealed record NpcTalkedEvent(IClientSession Session, string PlayerName, string CharacterId, string NpcId, string NpcName, string MapId);
+public sealed record ShopBoughtEvent(IClientSession Session, string PlayerName, string CharacterId, string NpcId, string ItemId, int Count, int PricePaid, int GoldRemaining);
+public sealed record QuestAcceptedEvent(IClientSession Session, string PlayerName, string CharacterId, string QuestId, string QuestTitle);
+public sealed record QuestCompletedEvent(IClientSession Session, string PlayerName, string CharacterId, string QuestId, string QuestTitle, int RewardGold);
 

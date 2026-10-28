@@ -261,7 +261,8 @@ public sealed class LoginModule : IGameModule
         Hp = c.Hp,
         MaxHp = c.MaxHp,
         Mp = c.Mp,
-        MaxMp = c.MaxMp
+        MaxMp = c.MaxMp,
+        Gold = c.Gold
     };
 
     private async Task HandleCharListAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
@@ -332,7 +333,9 @@ public sealed class LoginModule : IGameModule
             MaxHp = classConfig.BaseHp,
             Mp = classConfig.BaseMp,
             MaxMp = classConfig.BaseMp,
-            InventoryJson = InventoryJson.Empty
+            InventoryJson = InventoryJson.Empty,
+            Gold = QuestJson.StartingGold,
+            QuestJson = QuestJson.Empty
         };
 
         int maxChars = _versionPack.Manifest.MaxCharactersPerAccount > 0

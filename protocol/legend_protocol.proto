@@ -24,6 +24,11 @@ enum ProtocolErrorCode {
   ERR_INVALID_TARGET = 1016;
   ERR_LOOT_DENIED = 1017;
   ERR_DEAD = 1018;
+  ERR_NOT_ENOUGH_GOLD = 1019;
+  ERR_SHOP_DENIED = 1020;
+  ERR_QUEST_DENIED = 1021;
+  ERR_NPC_TOO_FAR = 1022;
+  ERR_UNKNOWN_NPC = 1023;
   ERR_INTERNAL = 1999;
 }
 
@@ -31,6 +36,7 @@ enum EntityKind {
   ENTITY_PLAYER = 0;
   ENTITY_MONSTER = 1;
   ENTITY_LOOT = 2;
+  ENTITY_NPC = 3;
 }
 
 enum CombatResultKind {
@@ -38,6 +44,13 @@ enum CombatResultKind {
   COMBAT_MISS = 1;
   COMBAT_HEAL = 2;
   COMBAT_KILL = 3;
+}
+
+enum QuestStatus {
+  QUEST_NONE = 0;
+  QUEST_ACTIVE = 1;
+  QUEST_READY = 2;
+  QUEST_COMPLETED = 3;
 }
 
 // 1. Handshake (MsgId: 1001 / 1002)
@@ -130,6 +143,7 @@ message CharacterSummary {
   int32 max_hp = 9;
   int32 mp = 10;
   int32 max_mp = 11;
+  int32 gold = 12;
 }
 
 message CharListReq {
@@ -212,6 +226,8 @@ message EnterWorldResp {
   string message = 6;
   bool in_safe_zone = 7;
   repeated InventoryItem inventory = 8;
+  int32 gold = 9;
+  repeated QuestProgress quests = 10;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -319,9 +335,93 @@ message InventoryNotify {
   string character_id = 1;
   repeated InventoryItem items = 2;
   string reason = 3;
+  int32 gold = 4;
 }
 
-// 10. Server / Lua Notice (MsgId: 3001)
+// 10. NPC Shop & Quests (MsgId: 2201–2209)
+message ShopOffer {
+  string item_id = 1;
+  int32 price_gold = 2;
+  int32 stock = 3;
+}
+
+message QuestProgress {
+  string quest_id = 1;
+  string title = 2;
+  QuestStatus status = 3;
+  int32 progress = 4;
+  int32 target_count = 5;
+  string target_monster_id = 6;
+  string description = 7;
+}
+
+message TalkReq {
+  string npc_entity_id = 1;
+}
+
+message TalkResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string npc_id = 4;
+  string npc_name = 5;
+  string dialogue = 6;
+  string shop_id = 7;
+  repeated ShopOffer shop_offers = 8;
+  repeated QuestProgress quests = 9;
+  int32 gold = 10;
+}
+
+message ShopBuyReq {
+  string npc_entity_id = 1;
+  string item_id = 2;
+  int32 count = 3;
+}
+
+message ShopBuyResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  InventoryItem purchased = 4;
+  repeated InventoryItem inventory = 5;
+  int32 gold = 6;
+}
+
+message QuestAcceptReq {
+  string npc_entity_id = 1;
+  string quest_id = 2;
+}
+
+message QuestAcceptResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  QuestProgress quest = 4;
+}
+
+message QuestTurnInReq {
+  string npc_entity_id = 1;
+  string quest_id = 2;
+}
+
+message QuestTurnInResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  QuestProgress quest = 4;
+  int32 gold_reward = 5;
+  repeated InventoryItem item_rewards = 6;
+  int32 gold = 7;
+  repeated InventoryItem inventory = 8;
+}
+
+message QuestProgressNotify {
+  string character_id = 1;
+  QuestProgress quest = 2;
+  string reason = 3;
+}
+
+// 11. Server / Lua Notice (MsgId: 3001)
 message ServerNotice {
   string notice_type = 1;
   string title = 2;

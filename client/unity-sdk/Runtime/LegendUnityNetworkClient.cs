@@ -12,7 +12,7 @@ namespace Legend.UnitySdk
 {
     /// <summary>
     /// Unity 2022 LTS pure C# TCP client (PC + Android). PumpMainThreadEvents() in Update().
-    /// Flow: Handshake → Register/Login → CharList/Create/Select → EnterWorld → Move / Attack / Pickup.
+    /// Flow: Handshake → Register/Login → CharList/Create/Select → EnterWorld → Move / Attack / Pickup / Talk / Shop / Quest.
     /// </summary>
     public sealed class LegendUnityNetworkClient : IDisposable
     {
@@ -41,6 +41,8 @@ namespace Legend.UnitySdk
         public event Action<string, string>? OnEntityDespawn; // entityId, reason
         public event Action<LootDropNotify>? OnLootDrop;
         public event Action<InventoryNotify>? OnInventoryNotify;
+        public event Action<QuestProgressNotify>? OnQuestProgress;
+        public int Gold { get; private set; }
 
         public void PumpMainThreadEvents()
         {
@@ -163,6 +165,7 @@ namespace Legend.UnitySdk
             if (!enter.Success)
                 throw new InvalidOperationException($"EnterWorld failed: {enter.Message}");
             SelfEntity = enter.SelfEntity;
+            Gold = enter.Gold;
             _mainThreadActions.Enqueue(() =>
             {
                 OnSelfEnteredWorld?.Invoke(enter.SelfEntity);
@@ -194,6 +197,77 @@ namespace Legend.UnitySdk
 
             await SelectCharAsync(chosen.CharacterId, ct).ConfigureAwait(false);
             await EnterWorldAsync("realm-classic-01", chosen.CharacterId, ct).ConfigureAwait(false);
+        }
+
+
+        public async Task<(AttackResp Resp, CombatSync? Combat)> RequestAttackAsync(string targetEntityId, string skillId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.AttackReq, new AttackReq
+            {
+                TargetEntityId = targetEntityId,
+                SkillId = skillId
+            }, ct).ConfigureAwait(false);
+            var resp = AttackResp.Parser.ParseFrom(frame.Payload);
+            // CombatSync usually arrives as a push; caller may also wait on OnCombatSync.
+            return (resp, null);
+        }
+
+        public async Task<PickupResp> RequestPickupAsync(string lootEntityId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PickupReq, new PickupReq
+            {
+                LootEntityId = lootEntityId
+            }, ct).ConfigureAwait(false);
+            return PickupResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<TalkResp> RequestTalkAsync(string npcEntityId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.TalkReq, new TalkReq
+            {
+                NpcEntityId = npcEntityId
+            }, ct).ConfigureAwait(false);
+            var resp = TalkResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+                Gold = resp.Gold;
+            return resp;
+        }
+
+        public async Task<ShopBuyResp> RequestShopBuyAsync(string npcEntityId, string itemId, int count = 1, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.ShopBuyReq, new ShopBuyReq
+            {
+                NpcEntityId = npcEntityId,
+                ItemId = itemId,
+                Count = count
+            }, ct).ConfigureAwait(false);
+            var resp = ShopBuyResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+                Gold = resp.Gold;
+            return resp;
+        }
+
+        public async Task<QuestAcceptResp> RequestQuestAcceptAsync(string npcEntityId, string questId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.QuestAcceptReq, new QuestAcceptReq
+            {
+                NpcEntityId = npcEntityId,
+                QuestId = questId
+            }, ct).ConfigureAwait(false);
+            return QuestAcceptResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<QuestTurnInResp> RequestQuestTurnInAsync(string npcEntityId, string questId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.QuestTurnInReq, new QuestTurnInReq
+            {
+                NpcEntityId = npcEntityId,
+                QuestId = questId
+            }, ct).ConfigureAwait(false);
+            var resp = QuestTurnInResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+                Gold = resp.Gold;
+            return resp;
         }
 
         public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
@@ -287,7 +361,12 @@ namespace Legend.UnitySdk
                             break;
                         case MsgId.InventoryNotify:
                             var inv = InventoryNotify.Parser.ParseFrom(frame.Payload);
+                            Gold = inv.Gold;
                             _mainThreadActions.Enqueue(() => OnInventoryNotify?.Invoke(inv));
+                            break;
+                        case MsgId.QuestProgressNotify:
+                            var qp = QuestProgressNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnQuestProgress?.Invoke(qp));
                             break;
                     }
                 }

@@ -61,7 +61,7 @@ public sealed class M1IntegrationTests
         await using var clientB = new LegendTcpClient();
 
         await clientA.ConnectAsync("127.0.0.1", engine.BoundPort);
-        Assert.True((await clientA.HandshakeAsync("1.2.0", "pc-test")).Accepted);
+        Assert.True((await clientA.HandshakeAsync("1.3.0", "pc-test")).Accepted);
 
         Assert.True((await clientA.RegisterAsync("player_alpha", "secret1", "PC")).Success);
         var loginA = await clientA.LoginAsync("player_alpha", "secret1", "PC");
@@ -95,7 +95,7 @@ public sealed class M1IntegrationTests
         Assert.Equal("LUA_HOOK", notice.NoticeType);
 
         await clientB.ConnectAsync("127.0.0.1", engine.BoundPort);
-        Assert.True((await clientB.HandshakeAsync("1.2.0", "android-test")).Accepted);
+        Assert.True((await clientB.HandshakeAsync("1.3.0", "android-test")).Accepted);
         Assert.True((await clientB.RegisterAsync("player_beta", "secret2", "Android")).Success);
         Assert.True((await clientB.LoginAsync("player_beta", "secret2", "Android")).Success);
         await EnsureCharAsync(clientB, "BetaMage", "mage");
@@ -136,7 +136,7 @@ public sealed class M1IntegrationTests
 
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.2.0");
+        await client.HandshakeAsync("1.3.0");
         Assert.True((await client.RegisterAsync("cls_user", "secret1")).Success);
         Assert.True((await client.LoginAsync("cls_user", "secret1")).Success);
 
@@ -162,7 +162,7 @@ public sealed class M1IntegrationTests
 
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.2.0");
+        await client.HandshakeAsync("1.3.0");
         await client.RegisterAndLoginAsync("portal_user", "secret1");
         var created = await client.CreateCharAsync("PortalWalker", "warrior");
         Assert.True(created.Success);
@@ -205,7 +205,7 @@ public sealed class M1IntegrationTests
         {
             await using var client = new LegendTcpClient();
             await client.ConnectAsync("127.0.0.1", port1);
-            await client.HandshakeAsync("1.2.0");
+            await client.HandshakeAsync("1.3.0");
             await client.RegisterAndLoginAsync("persist_user", "secret1");
             var created = await client.CreateCharAsync("PersistHero", "mage");
             Assert.True(created.Success);
@@ -232,7 +232,7 @@ public sealed class M1IntegrationTests
         {
             await using var client2 = new LegendTcpClient();
             await client2.ConnectAsync("127.0.0.1", engine2.BoundPort);
-            await client2.HandshakeAsync("1.2.0");
+            await client2.HandshakeAsync("1.3.0");
             var login = await client2.LoginAsync("persist_user", "secret1");
             Assert.True(login.Success);
 
@@ -325,7 +325,7 @@ public sealed class M1IntegrationTests
 
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.2.0");
+        await client.HandshakeAsync("1.3.0");
         await client.RegisterAndLoginAsync("user1", "pass12");
         Assert.Equal(1, audit.LoginCount);
 
@@ -351,7 +351,7 @@ public sealed class M1IntegrationTests
 
         await using var client2 = new LegendTcpClient();
         await client2.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client2.HandshakeAsync("1.2.0");
+        await client2.HandshakeAsync("1.3.0");
         await client2.RegisterAndLoginAsync("hot_user", "pass12");
         var c = await client2.CreateCharAsync("HotReloadHero", "taoist");
         Assert.True(c.Success);
@@ -401,7 +401,7 @@ public sealed class M1IntegrationTests
         string user = $"pg_user_{Guid.NewGuid():N}"[..20];
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.2.0");
+        await client.HandshakeAsync("1.3.0");
         Assert.True((await client.RegisterAsync(user, "secret1")).Success);
         Assert.True((await client.LoginAsync(user, "secret1")).Success);
         var created = await client.CreateCharAsync("PgHero", "warrior");

@@ -57,7 +57,7 @@ public class M2IntegrationTests
 
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        Assert.True((await client.HandshakeAsync("1.2.0")).Accepted);
+        Assert.True((await client.HandshakeAsync("1.3.0")).Accepted);
         await client.RegisterAndLoginAsync("m2_hunter", "secret1");
         var create = await client.CreateCharAsync("猎手甲", "warrior");
         Assert.True(create.Success, create.Message);
@@ -144,7 +144,7 @@ public class M2IntegrationTests
         await engine2.StartAsync();
         await using var client2 = new LegendTcpClient();
         await client2.ConnectAsync("127.0.0.1", engine2.BoundPort);
-        await client2.HandshakeAsync("1.2.0");
+        await client2.HandshakeAsync("1.3.0");
         await client2.LoginAsync("m2_hunter", "secret1");
         await client2.SelectCharAsync(charId);
         var enter2 = await client2.EnterWorldAsync("realm-classic-01", charId);
@@ -161,7 +161,7 @@ public class M2IntegrationTests
         await engine.StartAsync();
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.2.0");
+        await client.HandshakeAsync("1.3.0");
         await client.RegisterAndLoginAsync("safe_user", "secret1");
         var create = await client.CreateCharAsync("安全员", "warrior");
         await client.SelectCharAsync(create.Character.CharacterId);
@@ -180,7 +180,7 @@ public class M2IntegrationTests
         await engine.StartAsync();
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.2.0");
+        await client.HandshakeAsync("1.3.0");
         await client.RegisterAndLoginAsync("cd_user", "secret1");
         var create = await client.CreateCharAsync("冷却侠", "warrior");
         await client.SelectCharAsync(create.Character.CharacterId);
@@ -226,7 +226,7 @@ public class M2IntegrationTests
         Assert.True(pack.Monsters.ContainsKey("slime_green"));
         Assert.True(pack.LootTables.ContainsKey("slime_basic"));
         Assert.NotEmpty(pack.MonsterSpawns);
-        Assert.Equal("1.2.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.3.0", pack.Manifest.ProtocolVersion);
     }
 
     [Fact]

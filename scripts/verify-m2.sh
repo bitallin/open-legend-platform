@@ -9,8 +9,8 @@ echo " Legend Platform — Phase A (M2) Combat / Loot / Inventory"
 echo "=================================================================="
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION || true)"
-if [[ "$PROTO_VER" != "1.2.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.2.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.3.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.3.0, got '$PROTO_VER'"
   exit 1
 fi
 
@@ -120,6 +120,6 @@ echo "--- Host log (restart) ---"
 tail -n 40 "$HOST_LOG2"
 echo "-----------------------------------------"
 echo "✅ Phase A (M2) Verification PASSED"
-echo "Protocol: 1.2.0 | Storage: Sqlite at $SQLITE_DB"
+echo "Protocol: 1.3.0 | Storage: Sqlite at $SQLITE_DB"
 echo "Rules: safe-zone bans ALL attacks; killer loot lock 15s then FFA; pickup range≤2"
 echo "Manual fight: leave safe (5..18), walk to slime ~ (25,10), Attack power_strike, Pickup"

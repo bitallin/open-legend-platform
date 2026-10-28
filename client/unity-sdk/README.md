@@ -2,7 +2,7 @@
 
 100% original Legend protocol client for **Unity 2022 LTS** (PC + Android). No 996 / third-party engine protocol.
 
-Protocol version: **1.2.0**
+Protocol version: **1.3.0**
 
 ## Import
 
@@ -18,41 +18,33 @@ Protocol version: **1.2.0**
 3. Set `Host` / `Port` to your `Legend.Host` (default `127.0.0.1:7100`).
 4. Optional: fill `DebugBlockedCells` / `DebugSafeZones` from map JSON so Scene view Gizmos show walls (red) and safe zones (green).
 5. Enter Play Mode → IMGUI panel: Login → Create/Select character → WASD / left-side virtual stick to move.
-6. Combat (M2): leave the green safe zone (x/y 5–18), walk toward slime spawns around (25,10), call `RequestAttackAsync(monsterEntityId, "basic_slash"|"power_strike")`, then `RequestPickupAsync(lootEntityId)`.
+6. Combat (M2): leave safe zone, `RequestAttackAsync` / `RequestPickupAsync`.
+7. Shop/Quest (M3): near NPC `npc_village_merchant`, `RequestTalkAsync` → `RequestShopBuyAsync` / `RequestQuestAcceptAsync` / `RequestQuestTurnInAsync`.
 
 ## API flow
 
 ```
-Connect → Handshake(1.2.0) → Register → Login
+Connect → Handshake(1.3.0) → Register → Login
   → CharList / CreateChar / DeleteChar / SelectChar
-  → EnterWorld(character_id)  // includes Inventory + nearby monsters
-  → MoveReq / MoveSync + MapChangeNotify (portals)
-  → AttackReq / CombatSync / EntitySpawn|Despawn
-  → LootDropNotify / PickupReq / InventoryNotify
+  → EnterWorld  // Gold + Inventory + Quests + nearby NPCs/monsters
+  → MoveReq / Attack / Pickup
+  → TalkReq / ShopBuyReq / QuestAcceptReq / QuestTurnInReq
+  → QuestProgressNotify
 ```
 
-High-level helper: `LegendUnityNetworkClient.ConnectLoginSelectEnterAsync(...)`.
-
-Combat helpers: `RequestAttackAsync`, `RequestPickupAsync`. Events: `OnCombatSync`, `OnEntitySpawn`, `OnLootDrop`, `OnInventoryNotify`.
-
-Input abstraction:
-
-- `KeyboardWasdInput` — PC
-- `VirtualJoystickInput` — touch / on-screen stick (`LegendWorldDemoBehaviour` wires left-half screen)
+Helpers: `RequestTalkAsync`, `RequestShopBuyAsync`, `RequestQuestAcceptAsync`, `RequestQuestTurnInAsync`.
+Property: `Gold`. Event: `OnQuestProgress`.
 
 ## Regenerating protocol stubs
-
-After editing `protocol/legend_protocol.proto` on the server:
 
 ```bash
 dotnet build server/Legend.Contracts/Legend.Contracts.csproj -c Release
 cp server/Legend.Contracts/obj/Release/net8.0/LegendProtocol.cs client/unity-sdk/Runtime/LegendProtocol.cs
 ```
 
-Also keep `Runtime/ProtocolConstants.cs` `MsgId` / version in sync with `server/Legend.Contracts/ProtocolConstants.cs`.
+Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId 2201–2209, version 1.3.0).
 
 ## Notes
 
-- Network callbacks are marshalled to the Unity main thread via `PumpMainThreadEvents()` in `Update()`.
-- Blocking / safe-zone Gizmos are **debug aids only**; authority remains on the server.
-- Safe zone: **all attacks banned**. Loot: killer-owned 15s then FFA; pickup range Chebyshev ≤ 2.
+- Network callbacks via `PumpMainThreadEvents()` in `Update()`.
+- Safe zone: all attacks banned. NPC interact Chebyshev ≤ 3. Shop purchase authoritative + persisted.

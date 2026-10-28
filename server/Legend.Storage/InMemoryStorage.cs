@@ -99,6 +99,10 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         character.UpdatedAt = character.CreatedAt;
         if (string.IsNullOrEmpty(character.InventoryJson))
             character.InventoryJson = InventoryJson.Empty;
+        if (string.IsNullOrEmpty(character.QuestJson))
+            character.QuestJson = QuestJson.Empty;
+        if (character.Gold < 0)
+            character.Gold = QuestJson.StartingGold;
 
         if (!_names.TryAdd(character.Name, 0))
             return Task.FromResult<(bool, string?, CharacterRecord?)>((false, "角色名已存在", null));
@@ -141,6 +145,26 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         if (_byId.TryGetValue(characterId, out var c))
         {
             c.InventoryJson = string.IsNullOrWhiteSpace(inventoryJson) ? InventoryJson.Empty : inventoryJson;
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task SaveGoldAsync(string characterId, int gold, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.Gold = Math.Max(0, gold);
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task SaveQuestsAsync(string characterId, string questJson, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.QuestJson = string.IsNullOrWhiteSpace(questJson) ? QuestJson.Empty : questJson;
             c.UpdatedAt = DateTimeOffset.UtcNow;
         }
         return Task.CompletedTask;

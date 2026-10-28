@@ -1,0 +1,16 @@
+[
+  {
+    "questId": "quest_slime_hunt",
+    "title": "清理绿史莱姆",
+    "description": "击杀 2 只绿史莱姆后回来找阿福领取奖励。",
+    "acceptNpcId": "npc_village_merchant",
+    "turnInNpcId": "npc_village_merchant",
+    "objectiveType": "kill",
+    "targetMonsterId": "slime_green",
+    "targetCount": 2,
+    "rewardGold": 50,
+    "rewardItems": [
+      { "itemId": "item_hp_potion", "count": 3 }
+    ]
+  }
+]

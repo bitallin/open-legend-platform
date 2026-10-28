@@ -1,0 +1,11 @@
+[
+  {
+    "shopId": "shop_novice_general",
+    "displayName": "新手杂货铺",
+    "offers": [
+      { "itemId": "item_hp_potion", "priceGold": 10, "stock": -1 },
+      { "itemId": "item_mp_potion", "priceGold": 12, "stock": -1 },
+      { "itemId": "item_dried_meat", "priceGold": 5, "stock": -1 }
+    ]
+  }
+]

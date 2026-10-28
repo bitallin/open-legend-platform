@@ -26,6 +26,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<EntityDespawn> ReceivedEntityDespawns { get; } = new();
     public ConcurrentQueue<LootDropNotify> ReceivedLootDrops { get; } = new();
     public ConcurrentQueue<InventoryNotify> ReceivedInventoryNotifies { get; } = new();
+    public ConcurrentQueue<QuestProgressNotify> ReceivedQuestProgress { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -39,6 +40,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public string? AccountId { get; private set; }
     public string? CharacterId { get; private set; }
     public EntitySnapshot? SelfEntity { get; private set; }
+    public int Gold { get; private set; }
 
     public async Task ConnectAsync(string host, int port, CancellationToken ct = default)
     {
@@ -155,6 +157,13 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     {
                         var inv = InventoryNotify.Parser.ParseFrom(frame.Payload);
                         ReceivedInventoryNotifies.Enqueue(inv);
+                        Gold = inv.Gold;
+                        break;
+                    }
+                    case MsgId.QuestProgressNotify:
+                    {
+                        var qp = QuestProgressNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedQuestProgress.Enqueue(qp);
                         break;
                     }
                 }
@@ -189,7 +198,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task<HandshakeResp> HandshakeAsync(
         string protocolVersion = ProtocolConstants.CurrentVersion,
-        string clientBuild = "pc-cli-1.2.0",
+        string clientBuild = "pc-cli-1.3.0",
         CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.HandshakeReq, new HandshakeReq
@@ -301,6 +310,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
         var resp = EnterWorldResp.Parser.ParseFrom(frame.Payload);
         if (resp.Success)
+            Gold = resp.Gold;
+        if (resp.Success)
             SelfEntity = resp.SelfEntity;
         return resp;
     }
@@ -375,6 +386,53 @@ public sealed class LegendTcpClient : IAsyncDisposable
         }, ct);
         return PickupResp.Parser.ParseFrom(frame.Payload);
     }
+
+    public async Task<TalkResp> TalkAsync(string npcEntityId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.TalkReq, new TalkReq { NpcEntityId = npcEntityId }, ct);
+        var resp = TalkResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
+    public async Task<ShopBuyResp> ShopBuyAsync(string npcEntityId, string itemId, int count = 1, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.ShopBuyReq, new ShopBuyReq
+        {
+            NpcEntityId = npcEntityId,
+            ItemId = itemId,
+            Count = count
+        }, ct);
+        var resp = ShopBuyResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
+    public async Task<QuestAcceptResp> QuestAcceptAsync(string npcEntityId, string questId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.QuestAcceptReq, new QuestAcceptReq
+        {
+            NpcEntityId = npcEntityId,
+            QuestId = questId
+        }, ct);
+        return QuestAcceptResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<QuestTurnInResp> QuestTurnInAsync(string npcEntityId, string questId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.QuestTurnInReq, new QuestTurnInReq
+        {
+            NpcEntityId = npcEntityId,
+            QuestId = questId
+        }, ct);
+        var resp = QuestTurnInResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
 
     public async ValueTask DisposeAsync()
     {

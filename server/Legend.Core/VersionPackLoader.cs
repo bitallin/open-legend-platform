@@ -141,6 +141,82 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        // NPCs
+        var npcDict = new Dictionary<string, NpcTemplate>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.NpcsConfigFile))
+        {
+            string npcsPath = Path.Combine(baseDir, manifest.NpcsConfigFile);
+            if (!File.Exists(npcsPath))
+                throw new FileNotFoundException($"NPCs config not found: {npcsPath}");
+            string npcsJson = File.ReadAllText(npcsPath, Encoding.UTF8);
+            hashInput.Append(npcsJson);
+            var npcs = JsonSerializer.Deserialize<List<NpcTemplate>>(npcsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize npcs.json");
+            foreach (var n in npcs)
+            {
+                if (string.IsNullOrWhiteSpace(n.NpcId))
+                    throw new InvalidDataException("NpcTemplate.NpcId cannot be empty.");
+                if (!maps.ContainsKey(n.MapId))
+                    throw new InvalidDataException($"NPC '{n.NpcId}' map '{n.MapId}' not in version pack.");
+                npcDict[n.NpcId] = n;
+            }
+        }
+
+        // Shops
+        var shopDict = new Dictionary<string, ShopConfig>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.ShopsConfigFile))
+        {
+            string shopsPath = Path.Combine(baseDir, manifest.ShopsConfigFile);
+            if (!File.Exists(shopsPath))
+                throw new FileNotFoundException($"Shops config not found: {shopsPath}");
+            string shopsJson = File.ReadAllText(shopsPath, Encoding.UTF8);
+            hashInput.Append(shopsJson);
+            var shops = JsonSerializer.Deserialize<List<ShopConfig>>(shopsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize shops.json");
+            foreach (var s in shops)
+            {
+                if (string.IsNullOrWhiteSpace(s.ShopId))
+                    throw new InvalidDataException("ShopConfig.ShopId cannot be empty.");
+                shopDict[s.ShopId] = s;
+            }
+        }
+
+        // Quests
+        var questDict = new Dictionary<string, QuestTemplate>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.QuestsConfigFile))
+        {
+            string questsPath = Path.Combine(baseDir, manifest.QuestsConfigFile);
+            if (!File.Exists(questsPath))
+                throw new FileNotFoundException($"Quests config not found: {questsPath}");
+            string questsJson = File.ReadAllText(questsPath, Encoding.UTF8);
+            hashInput.Append(questsJson);
+            var quests = JsonSerializer.Deserialize<List<QuestTemplate>>(questsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize quests.json");
+            foreach (var q in quests)
+            {
+                if (string.IsNullOrWhiteSpace(q.QuestId))
+                    throw new InvalidDataException("QuestTemplate.QuestId cannot be empty.");
+                if (!string.IsNullOrEmpty(q.AcceptNpcId) && !npcDict.ContainsKey(q.AcceptNpcId))
+                    throw new InvalidDataException($"Quest '{q.QuestId}' acceptNpcId '{q.AcceptNpcId}' unknown.");
+                if (!string.IsNullOrEmpty(q.TurnInNpcId) && !npcDict.ContainsKey(q.TurnInNpcId))
+                    throw new InvalidDataException($"Quest '{q.QuestId}' turnInNpcId '{q.TurnInNpcId}' unknown.");
+                questDict[q.QuestId] = q;
+            }
+        }
+
+        // Cross-check NPC shop / quest refs
+        foreach (var n in npcDict.Values)
+        {
+            if (!string.IsNullOrEmpty(n.ShopId) && !shopDict.ContainsKey(n.ShopId))
+                throw new InvalidDataException($"NPC '{n.NpcId}' shopId '{n.ShopId}' unknown.");
+            foreach (var qid in n.QuestIds)
+            {
+                if (!questDict.ContainsKey(qid))
+                    throw new InvalidDataException($"NPC '{n.NpcId}' questId '{qid}' unknown.");
+            }
+        }
+
         var luaScripts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (string relScript in manifest.ScriptFiles)
         {
@@ -167,6 +243,9 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 skillCount = skillDict.Count,
                 monsterCount = monsterDict.Count,
                 lootTableCount = lootDict.Count,
+                npcCount = npcDict.Count,
+                shopCount = shopDict.Count,
+                questCount = questDict.Count,
                 scriptCount = luaScripts.Count,
                 packHash
             });
@@ -182,6 +261,9 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Monsters = monsterDict,
             MonsterSpawns = spawnList,
             LootTables = lootDict,
+            Npcs = npcDict,
+            Shops = shopDict,
+            Quests = questDict,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

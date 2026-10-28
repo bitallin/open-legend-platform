@@ -161,12 +161,33 @@ internal sealed class SqliteCharacterStore : ICharacterStore
               max_hp INTEGER NOT NULL,
               max_mp INTEGER NOT NULL,
               inventory_json TEXT NOT NULL,
+              gold INTEGER NOT NULL DEFAULT 100,
+              quest_json TEXT NOT NULL DEFAULT '[]',
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_characters_account ON characters(account_id);
             """;
         await cmd.ExecuteNonQueryAsync(ct);
+
+        // Migrate older DBs created before M3
+        foreach (string alter in new[]
+                 {
+                     "ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 100",
+                     "ALTER TABLE characters ADD COLUMN quest_json TEXT NOT NULL DEFAULT '[]'"
+                 })
+        {
+            try
+            {
+                await using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = alter;
+                await alterCmd.ExecuteNonQueryAsync(ct);
+            }
+            catch (SqliteException)
+            {
+                // column already exists
+            }
+        }
     }
 
     public async Task<IReadOnlyList<CharacterRecord>> ListByAccountAsync(string accountId, CancellationToken ct = default)
@@ -192,6 +213,10 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             character.CharacterId = Guid.NewGuid().ToString("N");
         if (string.IsNullOrEmpty(character.InventoryJson))
             character.InventoryJson = InventoryJson.Empty;
+        if (string.IsNullOrEmpty(character.QuestJson))
+            character.QuestJson = QuestJson.Empty;
+        if (character.Gold < 0)
+            character.Gold = QuestJson.StartingGold;
         character.CreatedAt = DateTimeOffset.UtcNow;
         character.UpdatedAt = character.CreatedAt;
 
@@ -211,8 +236,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, created_at, updated_at)
-                VALUES($cid,$aid,$n,$cl,$lv,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$c,$u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$c,$u)
                 """;
             BindCharacter(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -277,6 +302,30 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveGoldAsync(string characterId, int gold, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET gold=$g, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$g", Math.Max(0, gold));
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task SaveQuestsAsync(string characterId, string questJson, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET quest_json=$qj, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$qj", string.IsNullOrWhiteSpace(questJson) ? QuestJson.Empty : questJson);
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord ReadCharacter(SqliteDataReader reader)
         => new()
         {
@@ -293,6 +342,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             MaxHp = reader.GetInt32(reader.GetOrdinal("max_hp")),
             MaxMp = reader.GetInt32(reader.GetOrdinal("max_mp")),
             InventoryJson = reader.GetString(reader.GetOrdinal("inventory_json")),
+            Gold = reader.GetInt32(reader.GetOrdinal("gold")),
+            QuestJson = reader.GetString(reader.GetOrdinal("quest_json")),
             CreatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at"))),
             UpdatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")))
         };
@@ -312,6 +363,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$mhp", c.MaxHp);
         cmd.Parameters.AddWithValue("$mmp", c.MaxMp);
         cmd.Parameters.AddWithValue("$inv", c.InventoryJson);
+        cmd.Parameters.AddWithValue("$gold", c.Gold);
+        cmd.Parameters.AddWithValue("$qj", c.QuestJson);
         cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
         cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
     }

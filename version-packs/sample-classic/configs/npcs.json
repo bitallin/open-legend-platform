@@ -1,0 +1,12 @@
+[
+  {
+    "npcId": "npc_village_merchant",
+    "displayName": "杂货商人阿福",
+    "mapId": "novice_plain",
+    "x": 12,
+    "y": 12,
+    "shopId": "shop_novice_general",
+    "dialogue": "欢迎来到曙光平原！我这儿有药水和干粮。村口的绿史莱姆最近闹得凶，愿意帮忙清理吗？",
+    "questIds": ["quest_slime_hunt"]
+  }
+]

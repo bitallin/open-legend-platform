@@ -16,13 +16,13 @@ for (int i = 0; i < args.Length; i++)
 }
 
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-Console.WriteLine($"[CliClient] M2 full-chain smoke against {host}:{port}...");
+Console.WriteLine($"[CliClient] M3 full-chain smoke (shop/quest + combat) against {host}:{port}...");
 
 await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.2.0", "pc-smoke-1.2.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.3.0", "pc-smoke-1.3.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -69,7 +69,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.2.0", "android-smoke-1.2.0", cts.Token);
+await clientB.HandshakeAsync("1.3.0", "android-smoke-1.3.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)
@@ -123,24 +123,72 @@ else
 var pong = await clientA.PingAsync(cts.Token);
 Console.WriteLine($"[Step 10] Ping/Pong OK RTT~{(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - pong.ClientTimeUnixMs)}ms");
 
+
+
+async Task Walk(int tx, int ty)
+{
+    int x = clientA.SelfEntity!.X, y = clientA.SelfEntity.Y;
+    int guard = 0;
+    while ((x != tx || y != ty) && guard++ < 80)
+    {
+        int nx = x, ny = y;
+        if (x != tx) nx = x + Math.Clamp(tx - x, -2, 2);
+        else ny = y + Math.Clamp(ty - y, -2, 2);
+        var s = await clientA.MoveAsync(nx, ny, ct: cts.Token);
+        if (!s.Accepted) throw new Exception($"Walk failed ({nx},{ny}): {s.Reason}");
+        x = s.ToX; y = s.ToY;
+    }
+}
+
+// --- M3: NPC shop + quest ---
+{
+    var npc = enterA.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+    if (npc is null)
+    {
+        await Walk(12, 12);
+        for (int i = 0; i < 25 && npc is null; i++)
+        {
+            while (clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
+            {
+                if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
+            }
+            await Task.Delay(30, cts.Token);
+        }
+    }
+    if (npc is null)
+        throw new Exception("No NPC found for M3 shop/quest");
+    await Walk(npc.X, npc.Y);
+    var talk = await clientA.TalkAsync(npc.EntityId, cts.Token);
+    if (!talk.Success)
+        throw new Exception($"Talk failed: {talk.ErrorCode} {talk.Message}");
+    Console.WriteLine($"[Step M3.1] Talk OK: {talk.NpcName} shop={talk.ShopId} offers={talk.ShopOffers.Count} gold={talk.Gold}");
+
+    int goldBefore = talk.Gold;
+    var buy = await clientA.ShopBuyAsync(npc.EntityId, "item_hp_potion", 1, cts.Token);
+    if (!buy.Success)
+        throw new Exception($"ShopBuy failed: {buy.ErrorCode} {buy.Message}");
+    if (buy.Gold != goldBefore - 10)
+        throw new Exception($"Gold expected {goldBefore - 10}, got {buy.Gold}");
+    Console.WriteLine($"[Step M3.2] ShopBuy OK: potion, gold={buy.Gold}");
+
+    bool questDone = talk.Quests.Any(q => q.QuestId == "quest_slime_hunt" && q.Status == QuestStatus.QuestCompleted);
+    if (questDone)
+    {
+        Console.WriteLine("[Step M3.3] Quest already completed (persist OK) — skip accept/combat/turn-in");
+        combat = false;
+    }
+    else
+    {
+        var accept = await clientA.QuestAcceptAsync(npc.EntityId, "quest_slime_hunt", cts.Token);
+        if (!accept.Success)
+            throw new Exception($"QuestAccept failed: {accept.Message}");
+        Console.WriteLine($"[Step M3.3] QuestAccept OK: {accept.Quest.Title}");
+    }
+}
+
 if (combat)
 {
     // Walk out of safe zone toward slime spawn (25,10)
-    async Task Walk(int tx, int ty)
-    {
-        int x = clientA.SelfEntity!.X, y = clientA.SelfEntity.Y;
-        int guard = 0;
-        while ((x != tx || y != ty) && guard++ < 80)
-        {
-            int nx = x, ny = y;
-            if (x != tx) nx = x + Math.Clamp(tx - x, -2, 2);
-            else ny = y + Math.Clamp(ty - y, -2, 2);
-            var s = await clientA.MoveAsync(nx, ny, ct: cts.Token);
-            if (!s.Accepted) throw new Exception($"Walk failed ({nx},{ny}): {s.Reason}");
-            x = s.ToX; y = s.ToY;
-        }
-    }
-
     await Walk(22, 10);
     Console.WriteLine($"[Step 11] Left safe zone @ ({clientA.SelfEntity!.X},{clientA.SelfEntity.Y}) safe={clientA.SelfEntity.InSafeZone}");
 
@@ -192,6 +240,52 @@ if (combat)
     if (!pickup.Success)
         throw new Exception($"Pickup failed: {pickup.Message}");
     Console.WriteLine($"[Step 15] Pickup OK: {pickup.Picked.ItemId} x{pickup.Picked.Count}, bag={pickup.Inventory.Count} stacks");
+
+    // Second slime for quest_slime_hunt (need 2) — also drain AOI enters
+    EntitySnapshot? monster2 = null;
+    for (int i = 0; i < 50 && monster2 is null; i++)
+    {
+        while (clientA.ReceivedAoiEnters.TryDequeue(out var en))
+        {
+            if (en.Entity.Kind == EntityKind.EntityMonster && en.Entity.TemplateId == "slime_green" &&
+                en.Entity.EntityId != monster.EntityId)
+            { monster2 = en.Entity; break; }
+        }
+        while (monster2 is null && clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
+        {
+            if (sp.Entity.Kind == EntityKind.EntityMonster && sp.Entity.TemplateId == "slime_green" &&
+                sp.Entity.EntityId != monster.EntityId)
+            { monster2 = sp.Entity; break; }
+        }
+        if (monster2 is null)
+        {
+            await Walk(i % 2 == 0 ? 28 : 25, i % 2 == 0 ? 12 : 10);
+            await Task.Delay(50, cts.Token);
+        }
+    }
+    if (monster2 is null)
+        throw new Exception("No second slime for quest");
+    await Walk(monster2.X - 1, monster2.Y);
+    await Task.Delay(2600, cts.Token); // power_strike CD
+    for (int hit = 0; hit < 8; hit++)
+    {
+        string skill = hit == 0 ? "power_strike" : "basic_slash";
+        if (hit > 0) await Task.Delay(650, cts.Token);
+        var (atk2, cs2) = await clientA.AttackAsync(monster2.EntityId, skill, cts.Token);
+        if (!atk2.Success) throw new Exception($"Attack2 failed: {atk2.Message}");
+        Console.WriteLine($"[Step 16.{hit}] Kill2 dmg={cs2?.Damage} died={cs2?.TargetDied}");
+        if (cs2?.TargetDied == true) break;
+    }
 }
 
-Console.WriteLine("[SUCCESS] All M2 full-chain verification steps passed!");
+if (combat)
+{
+    // Turn in quest at NPC
+    await Walk(12, 12);
+    var turn = await clientA.QuestTurnInAsync("npc_village_merchant", "quest_slime_hunt", cts.Token);
+    if (!turn.Success)
+        throw new Exception($"QuestTurnIn failed: {turn.ErrorCode} {turn.Message}");
+    Console.WriteLine($"[Step M3.4] QuestTurnIn OK: gold={turn.Gold} reward={turn.GoldReward} status={turn.Quest.Status}");
+}
+
+Console.WriteLine("[SUCCESS] All M3 full-chain verification steps passed!");

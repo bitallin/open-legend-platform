@@ -7,11 +7,12 @@ using Legend.Storage;
 namespace Legend.Game;
 
 /// <summary>
-/// M2 combat rules (authoritative):
+/// M2 combat + M3 NPC shop/quests (authoritative):
 /// - Safe zone: ALL attacks forbidden (PvE and PvP). Monsters spawn outside safe zones.
-/// - PvP: disabled in M2 (only monsters are valid Attack targets).
+/// - PvP: disabled (only monsters are valid Attack targets).
 /// - Loot ownership: killer-only until FreeForAll (15s), then anyone; despawn at 60s.
 /// - Player death: revive at current map spawn with full HP/MP.
+/// - NPC talk/buy/quest: Chebyshev range; gold + quest_json persisted.
 /// </summary>
 public sealed class GameWorldModule : IGameModule
 {
@@ -22,6 +23,7 @@ public sealed class GameWorldModule : IGameModule
     private readonly ConcurrentDictionary<string, GridAoiManager> _maps = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, MonsterEntity> _monsters = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, LootEntity> _loots = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, NpcEntity> _npcs = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _combatLock = new();
     private CancellationTokenSource? _aiCts;
     private Task? _aiTask;
@@ -32,6 +34,7 @@ public sealed class GameWorldModule : IGameModule
     public const int LootOwnerMs = 15_000;
     public const int LootDespawnMs = 60_000;
     public const int PickupRange = 2;
+    public const int NpcInteractRange = 3;
 
     public GameWorldModule(
         IEventBus eventBus,
@@ -54,12 +57,15 @@ public sealed class GameWorldModule : IGameModule
     public Task InitializeAsync(CancellationToken ct = default)
     {
         SpawnInitialMonsters();
+        SpawnNpcs();
         _aiCts = new CancellationTokenSource();
         _aiTask = Task.Run(() => AiLoopAsync(_aiCts.Token), _aiCts.Token);
         return Task.CompletedTask;
     }
 
-    public bool CanHandle(MsgId msgId) => msgId is MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq;
+    public bool CanHandle(MsgId msgId) => msgId is
+        MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq or
+        MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -114,6 +120,23 @@ public sealed class GameWorldModule : IGameModule
         return m;
     }
 
+
+    private void SpawnNpcs()
+    {
+        foreach (var tmpl in _versionPack.Npcs.Values)
+        {
+            var npc = new NpcEntity
+            {
+                EntityId = tmpl.NpcId.StartsWith("npc_", StringComparison.OrdinalIgnoreCase)
+                    ? tmpl.NpcId
+                    : $"npc_{tmpl.NpcId}",
+                Template = tmpl
+            };
+            _npcs[npc.EntityId] = npc;
+        }
+        StructuredLogger.Info("GameWorldModule", $"Spawned {_npcs.Count} NPCs from version pack");
+    }
+
     public async Task HandlePacketAsync(IClientSession session, PacketFrame frame, CancellationToken ct = default)
     {
         switch (frame.MsgId)
@@ -129,6 +152,18 @@ public sealed class GameWorldModule : IGameModule
                 break;
             case MsgId.PickupReq:
                 await HandlePickupAsync(session, frame, ct);
+                break;
+            case MsgId.TalkReq:
+                await HandleTalkAsync(session, frame, ct);
+                break;
+            case MsgId.ShopBuyReq:
+                await HandleShopBuyAsync(session, frame, ct);
+                break;
+            case MsgId.QuestAcceptReq:
+                await HandleQuestAcceptAsync(session, frame, ct);
+                break;
+            case MsgId.QuestTurnInReq:
+                await HandleQuestTurnInAsync(session, frame, ct);
                 break;
         }
     }
@@ -228,7 +263,9 @@ public sealed class GameWorldModule : IGameModule
             Mp = character.Mp,
             MaxMp = character.MaxMp,
             Atk = atk,
-            Inventory = InventoryHelper.Parse(character.InventoryJson)
+            Inventory = InventoryHelper.Parse(character.InventoryJson),
+            Gold = character.Gold,
+            Quests = QuestHelper.Parse(character.QuestJson)
         };
 
         var aoiMgr = GetAoi(map.MapId);
@@ -249,6 +286,12 @@ public sealed class GameWorldModule : IGameModule
             resp.NearbyEntities.Add(snap);
         foreach (var item in InventoryHelper.ToProto(entity.Inventory))
             resp.Inventory.Add(item);
+        resp.Gold = entity.Gold;
+        foreach (var q in entity.Quests)
+        {
+            _versionPack.Quests.TryGetValue(q.QuestId, out var qt);
+            resp.Quests.Add(QuestHelper.ToProto(q, qt));
+        }
 
         await session.SendAsync(MsgId.EnterWorldResp, frame.Seq, resp, ct);
 
@@ -280,6 +323,13 @@ public sealed class GameWorldModule : IGameModule
                 continue;
             if (CombatMath.Chebyshev(x, y, loot.X, loot.Y) <= view)
                 yield return loot.ToSnapshot();
+        }
+        foreach (var npc in _npcs.Values)
+        {
+            if (!string.Equals(npc.MapId, mapId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (CombatMath.Chebyshev(x, y, npc.X, npc.Y) <= view)
+                yield return npc.ToSnapshot();
         }
     }
 
@@ -550,6 +600,8 @@ public sealed class GameWorldModule : IGameModule
             await _eventBus.PublishAsync(new MonsterKilledEvent(
                 session, attacker.EntityId, attacker.Name, attacker.CharacterId,
                 monster.EntityId, monster.Name, monster.MonsterId, monster.MapId, monster.X, monster.Y), ct);
+
+            await UpdateQuestKillProgressAsync(attacker, monster.MonsterId, ct);
         }
     }
 
@@ -678,7 +730,8 @@ public sealed class GameWorldModule : IGameModule
         await session.SendAsync(MsgId.InventoryNotify, 0, new InventoryNotify
         {
             CharacterId = player.CharacterId,
-            Reason = "Pickup"
+            Reason = "Pickup",
+            Gold = player.Gold
         }.Also(n => { foreach (var i in InventoryHelper.ToProto(player.Inventory)) n.Items.Add(i); }), ct);
 
         await BroadcastNearAsync(loot.MapId, loot.X, loot.Y, MsgId.EntityDespawn,
@@ -942,6 +995,519 @@ public sealed class GameWorldModule : IGameModule
             }
         }
     }
+
+
+    private async Task UpdateQuestKillProgressAsync(WorldPlayerEntity player, string monsterId, CancellationToken ct)
+    {
+        bool changed = false;
+        foreach (var q in player.Quests)
+        {
+            if (!string.Equals(q.Status, "active", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!_versionPack.Quests.TryGetValue(q.QuestId, out var tmpl))
+                continue;
+            if (!string.Equals(tmpl.ObjectiveType, "kill", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!string.Equals(tmpl.TargetMonsterId, monsterId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            q.Progress = Math.Min(tmpl.TargetCount, q.Progress + 1);
+            if (q.Progress >= tmpl.TargetCount)
+                q.Status = "ready";
+            changed = true;
+
+            await player.Session.SendAsync(MsgId.QuestProgressNotify, 0, new QuestProgressNotify
+            {
+                CharacterId = player.CharacterId,
+                Quest = QuestHelper.ToProto(q, tmpl),
+                Reason = "Kill"
+            }, ct);
+        }
+
+        if (changed)
+            await _storage.Characters.SaveQuestsAsync(player.CharacterId, QuestHelper.Serialize(player.Quests), ct);
+    }
+
+    private bool TryGetNpc(string npcEntityId, out NpcEntity npc)
+    {
+        if (!string.IsNullOrEmpty(npcEntityId) && _npcs.TryGetValue(npcEntityId, out npc!))
+            return true;
+        if (!string.IsNullOrEmpty(npcEntityId) && !npcEntityId.StartsWith("npc_", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_npcs.TryGetValue("npc_" + npcEntityId, out npc!))
+                return true;
+        }
+        npc = null!;
+        return false;
+    }
+
+    private async Task PersistEconomyAsync(WorldPlayerEntity player, CancellationToken ct)
+    {
+        await _storage.Characters.SaveInventoryAsync(player.CharacterId, InventoryHelper.Serialize(player.Inventory), ct);
+        await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
+        await _storage.Characters.SaveQuestsAsync(player.CharacterId, QuestHelper.Serialize(player.Quests), ct);
+    }
+
+    private async Task HandleTalkAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = TalkReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.TalkResp, frame.Seq, new TalkResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+        if (!TryGetNpc(req.NpcEntityId, out var npc))
+        {
+            await session.SendAsync(MsgId.TalkResp, frame.Seq, new TalkResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUnknownNpc,
+                Message = "Unknown NPC"
+            }, ct);
+            return;
+        }
+        if (!string.Equals(player.MapId, npc.MapId, StringComparison.OrdinalIgnoreCase) ||
+            CombatMath.Chebyshev(player.X, player.Y, npc.X, npc.Y) > NpcInteractRange)
+        {
+            await session.SendAsync(MsgId.TalkResp, frame.Seq, new TalkResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNpcTooFar,
+                Message = "Too far from NPC"
+            }, ct);
+            return;
+        }
+
+        var resp = new TalkResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            NpcId = npc.NpcId,
+            NpcName = npc.Name,
+            Dialogue = npc.Template.Dialogue,
+            ShopId = npc.Template.ShopId ?? "",
+            Gold = player.Gold
+        };
+
+        if (!string.IsNullOrEmpty(npc.Template.ShopId) &&
+            _versionPack.Shops.TryGetValue(npc.Template.ShopId, out var shop))
+        {
+            foreach (var o in shop.Offers)
+            {
+                resp.ShopOffers.Add(new ShopOffer
+                {
+                    ItemId = o.ItemId,
+                    PriceGold = o.PriceGold,
+                    Stock = o.Stock
+                });
+            }
+        }
+
+        foreach (var qid in npc.Template.QuestIds)
+        {
+            if (!_versionPack.Quests.TryGetValue(qid, out var qt))
+                continue;
+            var existing = player.Quests.FirstOrDefault(q =>
+                string.Equals(q.QuestId, qid, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                resp.Quests.Add(QuestHelper.ToProto(existing, qt));
+            }
+            else
+            {
+                resp.Quests.Add(new QuestProgress
+                {
+                    QuestId = qt.QuestId,
+                    Title = qt.Title,
+                    Description = qt.Description,
+                    Status = QuestStatus.QuestNone,
+                    Progress = 0,
+                    TargetCount = qt.TargetCount,
+                    TargetMonsterId = qt.TargetMonsterId
+                });
+            }
+        }
+
+        await session.SendAsync(MsgId.TalkResp, frame.Seq, resp, ct);
+        await _eventBus.PublishAsync(new NpcTalkedEvent(
+            session, player.Name, player.CharacterId, npc.NpcId, npc.Name, npc.MapId), ct);
+    }
+
+    private async Task HandleShopBuyAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = ShopBuyReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+        if (!TryGetNpc(req.NpcEntityId, out var npc))
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUnknownNpc,
+                Message = "Unknown NPC"
+            }, ct);
+            return;
+        }
+        if (!string.Equals(player.MapId, npc.MapId, StringComparison.OrdinalIgnoreCase) ||
+            CombatMath.Chebyshev(player.X, player.Y, npc.X, npc.Y) > NpcInteractRange)
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNpcTooFar,
+                Message = "Too far from NPC"
+            }, ct);
+            return;
+        }
+        if (string.IsNullOrEmpty(npc.Template.ShopId) ||
+            !_versionPack.Shops.TryGetValue(npc.Template.ShopId, out var shop))
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrShopDenied,
+                Message = "NPC has no shop"
+            }, ct);
+            return;
+        }
+
+        int count = Math.Max(1, req.Count);
+        var offer = shop.Offers.FirstOrDefault(o =>
+            string.Equals(o.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase));
+        if (offer is null)
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrShopDenied,
+                Message = "Item not sold here"
+            }, ct);
+            return;
+        }
+        if (offer.Stock == 0)
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrShopDenied,
+                Message = "Out of stock"
+            }, ct);
+            return;
+        }
+        if (offer.Stock > 0 && count > offer.Stock)
+            count = offer.Stock;
+
+        long costLong = (long)offer.PriceGold * count;
+        if (costLong < 0 || costLong > int.MaxValue || costLong > player.Gold)
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNotEnoughGold,
+                Message = "Not enough gold",
+                Gold = player.Gold
+            }, ct);
+            return;
+        }
+        int cost = (int)costLong;
+
+        lock (_combatLock)
+        {
+            if (cost > player.Gold)
+            {
+                cost = -1;
+            }
+            else
+            {
+                player.Gold -= cost;
+                InventoryHelper.AddItem(player.Inventory, offer.ItemId, count);
+                if (offer.Stock > 0)
+                    offer.Stock -= count;
+            }
+        }
+        if (cost < 0)
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNotEnoughGold,
+                Message = "Not enough gold",
+                Gold = player.Gold
+            }, ct);
+            return;
+        }
+
+        await PersistEconomyAsync(player, ct);
+
+        var purchased = new InventoryItem { ItemId = offer.ItemId, Count = count };
+        var resp = new ShopBuyResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            Purchased = purchased,
+            Gold = player.Gold
+        };
+        foreach (var item in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(item);
+
+        await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, resp, ct);
+        await session.SendAsync(MsgId.InventoryNotify, 0, new InventoryNotify
+        {
+            CharacterId = player.CharacterId,
+            Reason = "ShopBuy",
+            Gold = player.Gold
+        }.Also(n => { foreach (var i in InventoryHelper.ToProto(player.Inventory)) n.Items.Add(i); }), ct);
+
+        await _eventBus.PublishAsync(new ShopBoughtEvent(
+            session, player.Name, player.CharacterId, npc.NpcId, offer.ItemId, count, cost, player.Gold), ct);
+    }
+
+    private async Task HandleQuestAcceptAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = QuestAcceptReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+        if (!TryGetNpc(req.NpcEntityId, out var npc))
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUnknownNpc,
+                Message = "Unknown NPC"
+            }, ct);
+            return;
+        }
+        if (!string.Equals(player.MapId, npc.MapId, StringComparison.OrdinalIgnoreCase) ||
+            CombatMath.Chebyshev(player.X, player.Y, npc.X, npc.Y) > NpcInteractRange)
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNpcTooFar,
+                Message = "Too far from NPC"
+            }, ct);
+            return;
+        }
+        if (!_versionPack.Quests.TryGetValue(req.QuestId, out var tmpl))
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Unknown quest"
+            }, ct);
+            return;
+        }
+        if (!string.Equals(tmpl.AcceptNpcId, npc.NpcId, StringComparison.OrdinalIgnoreCase) &&
+            !npc.Template.QuestIds.Contains(tmpl.QuestId, StringComparer.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "This NPC does not offer that quest"
+            }, ct);
+            return;
+        }
+
+        var existing = player.Quests.FirstOrDefault(q =>
+            string.Equals(q.QuestId, tmpl.QuestId, StringComparison.OrdinalIgnoreCase));
+        if (existing != null && !string.Equals(existing.Status, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Quest already in progress",
+                Quest = QuestHelper.ToProto(existing, tmpl)
+            }, ct);
+            return;
+        }
+        if (existing != null && string.Equals(existing.Status, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Quest already completed"
+            }, ct);
+            return;
+        }
+
+        var state = new QuestProgressState
+        {
+            QuestId = tmpl.QuestId,
+            Status = "active",
+            Progress = 0
+        };
+        player.Quests.Add(state);
+        await _storage.Characters.SaveQuestsAsync(player.CharacterId, QuestHelper.Serialize(player.Quests), ct);
+
+        var proto = QuestHelper.ToProto(state, tmpl);
+        await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "Quest accepted",
+            Quest = proto
+        }, ct);
+        await session.SendAsync(MsgId.QuestProgressNotify, 0, new QuestProgressNotify
+        {
+            CharacterId = player.CharacterId,
+            Quest = proto,
+            Reason = "Accept"
+        }, ct);
+
+        await _eventBus.PublishAsync(new QuestAcceptedEvent(
+            session, player.Name, player.CharacterId, tmpl.QuestId, tmpl.Title), ct);
+    }
+
+    private async Task HandleQuestTurnInAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = QuestTurnInReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+        if (!TryGetNpc(req.NpcEntityId, out var npc))
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUnknownNpc,
+                Message = "Unknown NPC"
+            }, ct);
+            return;
+        }
+        if (!string.Equals(player.MapId, npc.MapId, StringComparison.OrdinalIgnoreCase) ||
+            CombatMath.Chebyshev(player.X, player.Y, npc.X, npc.Y) > NpcInteractRange)
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNpcTooFar,
+                Message = "Too far from NPC"
+            }, ct);
+            return;
+        }
+        if (!_versionPack.Quests.TryGetValue(req.QuestId, out var tmpl))
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Unknown quest"
+            }, ct);
+            return;
+        }
+        if (!string.Equals(tmpl.TurnInNpcId, npc.NpcId, StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Wrong turn-in NPC"
+            }, ct);
+            return;
+        }
+
+        var state = player.Quests.FirstOrDefault(q =>
+            string.Equals(q.QuestId, tmpl.QuestId, StringComparison.OrdinalIgnoreCase));
+        if (state is null ||
+            (!string.Equals(state.Status, "ready", StringComparison.OrdinalIgnoreCase) &&
+             state.Progress < tmpl.TargetCount))
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Quest objectives not complete"
+            }, ct);
+            return;
+        }
+        if (string.Equals(state.Status, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, new QuestTurnInResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "Already turned in"
+            }, ct);
+            return;
+        }
+
+        state.Status = "completed";
+        state.Progress = tmpl.TargetCount;
+        player.Gold += Math.Max(0, tmpl.RewardGold);
+        foreach (var reward in tmpl.RewardItems)
+        {
+            if (reward.Count > 0 && !string.IsNullOrEmpty(reward.ItemId))
+                InventoryHelper.AddItem(player.Inventory, reward.ItemId, reward.Count);
+        }
+
+        await PersistEconomyAsync(player, ct);
+
+        var resp = new QuestTurnInResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "Quest complete",
+            Quest = QuestHelper.ToProto(state, tmpl),
+            GoldReward = tmpl.RewardGold,
+            Gold = player.Gold
+        };
+        foreach (var r in tmpl.RewardItems)
+            resp.ItemRewards.Add(new InventoryItem { ItemId = r.ItemId, Count = r.Count });
+        foreach (var item in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(item);
+
+        await session.SendAsync(MsgId.QuestTurnInResp, frame.Seq, resp, ct);
+        await session.SendAsync(MsgId.QuestProgressNotify, 0, new QuestProgressNotify
+        {
+            CharacterId = player.CharacterId,
+            Quest = resp.Quest,
+            Reason = "Complete"
+        }, ct);
+        await session.SendAsync(MsgId.InventoryNotify, 0, new InventoryNotify
+        {
+            CharacterId = player.CharacterId,
+            Reason = "QuestReward",
+            Gold = player.Gold
+        }.Also(n => { foreach (var i in InventoryHelper.ToProto(player.Inventory)) n.Items.Add(i); }), ct);
+
+        await _eventBus.PublishAsync(new QuestCompletedEvent(
+            session, player.Name, player.CharacterId, tmpl.QuestId, tmpl.Title, tmpl.RewardGold), ct);
+    }
+
 
     private async Task BroadcastNearAsync(string mapId, int x, int y, MsgId msgId, Google.Protobuf.IMessage msg, CancellationToken ct)
     {

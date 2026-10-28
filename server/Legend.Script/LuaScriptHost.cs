@@ -99,6 +99,10 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<PlayerEnteredWorldEvent>(OnPlayerEnteredWorldAsync);
         _eventBus.Subscribe<MonsterKilledEvent>(OnMonsterKilledAsync);
         _eventBus.Subscribe<LootPickedEvent>(OnLootPickedAsync);
+        _eventBus.Subscribe<NpcTalkedEvent>(OnNpcTalkedAsync);
+        _eventBus.Subscribe<ShopBoughtEvent>(OnShopBoughtAsync);
+        _eventBus.Subscribe<QuestAcceptedEvent>(OnQuestAcceptedAsync);
+        _eventBus.Subscribe<QuestCompletedEvent>(OnQuestCompletedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -226,5 +230,100 @@ public sealed class LuaScriptHost
             _bridge.ClearPendingNotices();
         }
         return Task.CompletedTask;
+    }
+
+    private Task OnNpcTalkedAsync(NpcTalkedEvent evt, CancellationToken ct)
+    {
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_talk");
+            if (fn.Type != DataType.Function)
+                return Task.CompletedTask;
+            _bridge.ClearPendingNotices();
+            var ctx = new Table(_luaVm)
+            {
+                ["player_name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId,
+                ["npc_id"] = evt.NpcId,
+                ["npc_name"] = evt.NpcName,
+                ["map_id"] = evt.MapId
+            };
+            _luaVm.Call(fn, ctx);
+            _bridge.ClearPendingNotices();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnShopBoughtAsync(ShopBoughtEvent evt, CancellationToken ct)
+    {
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_buy");
+            if (fn.Type != DataType.Function)
+                return Task.CompletedTask;
+            _bridge.ClearPendingNotices();
+            var ctx = new Table(_luaVm)
+            {
+                ["player_name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId,
+                ["npc_id"] = evt.NpcId,
+                ["item_id"] = evt.ItemId,
+                ["count"] = evt.Count,
+                ["gold"] = evt.GoldRemaining,
+                ["price_paid"] = evt.PricePaid
+            };
+            _luaVm.Call(fn, ctx);
+            _bridge.ClearPendingNotices();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task OnQuestAcceptedAsync(QuestAcceptedEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> notices = new();
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_quest_accept");
+            if (fn.Type != DataType.Function)
+                return;
+            _bridge.ClearPendingNotices();
+            var ctx = new Table(_luaVm)
+            {
+                ["player_name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId,
+                ["quest_id"] = evt.QuestId,
+                ["quest_title"] = evt.QuestTitle
+            };
+            _luaVm.Call(fn, ctx);
+            notices = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
+        }
+        foreach (var n in notices)
+            await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
+    }
+
+    private async Task OnQuestCompletedAsync(QuestCompletedEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> notices = new();
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_quest_complete");
+            if (fn.Type != DataType.Function)
+                return;
+            _bridge.ClearPendingNotices();
+            var ctx = new Table(_luaVm)
+            {
+                ["player_name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId,
+                ["quest_id"] = evt.QuestId,
+                ["quest_title"] = evt.QuestTitle,
+                ["reward_gold"] = evt.RewardGold
+            };
+            _luaVm.Call(fn, ctx);
+            notices = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
+        }
+        foreach (var n in notices)
+            await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
     }
 }

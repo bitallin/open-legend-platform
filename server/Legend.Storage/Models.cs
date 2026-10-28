@@ -25,6 +25,8 @@ public sealed class CharacterRecord
     public int MaxHp { get; set; }
     public int MaxMp { get; set; }
     public string InventoryJson { get; set; } = "[]";
+    public int Gold { get; set; } = 100;
+    public string QuestJson { get; set; } = "[]";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -43,6 +45,8 @@ public sealed class CharacterRecord
         MaxHp = MaxHp,
         MaxMp = MaxMp,
         InventoryJson = InventoryJson,
+        Gold = Gold,
+        QuestJson = QuestJson,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt
     };
@@ -66,4 +70,10 @@ public static class InventoryJson
         try { using var _ = JsonDocument.Parse(json); return true; }
         catch { return false; }
     }
+}
+
+public static class QuestJson
+{
+    public static string Empty => "[]";
+    public const int StartingGold = 100;
 }
