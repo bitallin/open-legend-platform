@@ -1,0 +1,6 @@
+{
+  "maxMailsPerCharacter": 50,
+  "retentionDays": 30,
+  "maxInventorySlots": 40,
+  "systemSenderName": "系统"
+}

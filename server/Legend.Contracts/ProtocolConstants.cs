@@ -110,13 +110,24 @@ public enum MsgId : ushort
     SiegeControlResp = 2907,
     SiegeCaptureReq = 2908,
     SiegeCaptureResp = 2909,
-    ServerNotice = 3001
+    ServerNotice = 3001,
+    MailListReq = 3101,
+    MailListResp = 3102,
+    MailReadReq = 3103,
+    MailReadResp = 3104,
+    MailClaimAttachmentReq = 3105,
+    MailClaimAttachmentResp = 3106,
+    MailDeleteReq = 3107,
+    MailDeleteResp = 3108,
+    MailNotify = 3109,
+    MailSendReq = 3110,
+    MailSendResp = 3111
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.10.0";
-    public const string MinCompatibleVersion = "1.10.0";
+    public const string CurrentVersion = "1.11.0";
+    public const string MinCompatibleVersion = "1.11.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

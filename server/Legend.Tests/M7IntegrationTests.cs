@@ -30,7 +30,7 @@ public class M7IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.10.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.11.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -162,7 +162,7 @@ public class M7IntegrationTests
             }
         }
 
-        // Phase 2: restart Host on same SQLite DB -> active listing list3 survives and can be bought while seller is offline, then seller logs in and sees updated gold
+        // Phase 2: restart Host on same SQLite DB -> active listing list3 survives and can be bought while seller is offline; seller claims gold via mail (M11)
         {
             var storage2 = await StorageFactory.CreateAsync(new StorageOptions { Backend = "Sqlite", SqlitePath = dbPath });
             var engine2 = new LegendServerEngine(GetManifestPath(), port: 0, IPAddress.Loopback, storage2);
@@ -189,11 +189,18 @@ public class M7IntegrationTests
                     await buyer2.DisposeAsync();
                 }
 
-                // Offline seller now logs in -> Gold includes the +25 from offline sale!
+                // Offline seller logs in: gold unchanged until mail claim (M11 offline payout via mail attachment).
                 var (seller2, _, enterS2) = await EnterAsAsync(engine2, "m7_seller", "摊主甲", "warrior");
                 try
                 {
-                    Assert.Equal(sellerGoldBeforeRestart + 25, enterS2.Gold);
+                    Assert.Equal(sellerGoldBeforeRestart, enterS2.Gold);
+                    var mails = await seller2.MailListAsync();
+                    Assert.True(mails.Success);
+                    var stallMail = Assert.Single(mails.Mails.Where(m => m.HasUnclaimedAttachment && m.Attachments.Gold > 0));
+                    Assert.Equal(25, stallMail.Attachments.Gold);
+                    var claim = await seller2.MailClaimAsync(stallMail.MailId);
+                    Assert.True(claim.Success, claim.Message);
+                    Assert.Equal(sellerGoldBeforeRestart + 25, seller2.Gold);
                 }
                 finally
                 {

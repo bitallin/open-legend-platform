@@ -73,7 +73,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.PartyInviteReq or MsgId.PartyAcceptReq or MsgId.PartyLeaveReq or MsgId.PartyKickReq or
         MsgId.FriendAddReq or MsgId.FriendRemoveReq or MsgId.FriendListReq or
         MsgId.LearnSkillReq or MsgId.SkillListReq or
-        MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq;
+        MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq or
+        MsgId.MailListReq or MsgId.MailReadReq or MsgId.MailClaimAttachmentReq or MsgId.MailDeleteReq or MsgId.MailSendReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -250,6 +251,21 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.SiegeCaptureReq:
                 await HandleSiegeCaptureAsync(session, frame, ct);
+                break;
+            case MsgId.MailListReq:
+                await HandleMailListAsync(session, frame, ct);
+                break;
+            case MsgId.MailReadReq:
+                await HandleMailReadAsync(session, frame, ct);
+                break;
+            case MsgId.MailClaimAttachmentReq:
+                await HandleMailClaimAsync(session, frame, ct);
+                break;
+            case MsgId.MailDeleteReq:
+                await HandleMailDeleteAsync(session, frame, ct);
+                break;
+            case MsgId.MailSendReq:
+                await HandleMailSendAsync(session, frame, ct);
                 break;
         }
     }

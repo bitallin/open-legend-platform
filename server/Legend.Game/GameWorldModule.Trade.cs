@@ -329,12 +329,8 @@ public sealed partial class GameWorldModule
             }
             else
             {
-                var sellerChar = await _storage.Characters.GetByIdAsync(soldListing.SellerCharacterId, ct);
-                if (sellerChar != null)
-                {
-                    sellerNewGold = sellerChar.Gold + netSellerGold;
-                    await _storage.Characters.SaveGoldAsync(sellerChar.CharacterId, sellerNewGold, ct);
-                }
+                // Offline seller: gold via mail attachment only (no direct SaveGold — avoid double pay).
+                sellerNewGold = 0;
             }
         }
         finally
@@ -381,6 +377,18 @@ public sealed partial class GameWorldModule
                 Reason = "stall_sold",
                 Gold = sellerNewGold
             }.Also(n => { foreach (var i in InventoryHelper.ToProto(onlineSeller.Inventory)) n.Items.Add(i); }), ct);
+        }
+        else if (netSellerGold > 0)
+        {
+            await SendMailAsync(
+                soldListing.SellerCharacterId,
+                soldListing.SellerName,
+                MailCfg.SystemSenderName,
+                "摊位售出",
+                $"你的摊位物品 [{soldListing.ItemId} x{soldListing.Count}] 已被 {buyer.Name} 购买。毛收入 {soldListing.TotalPriceGold} 金，税 {taxGold}，净得 {netSellerGold} 金（请领取附件）。",
+                netSellerGold,
+                null,
+                ct);
         }
 
         await _eventBus.PublishAsync(new StallBoughtEvent(

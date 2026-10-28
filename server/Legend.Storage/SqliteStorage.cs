@@ -11,6 +11,7 @@ public sealed class SqliteStorage : ILegendStorage
     private readonly SqliteTradeStore _trades;
     private readonly SqliteFriendStore _friends;
     private readonly SqliteSiegeStore _siege;
+    private readonly SqliteMailStore _mails;
     private readonly InMemorySessionStore _sessions = new();
 
     public SqliteStorage(string databasePath)
@@ -28,6 +29,7 @@ public sealed class SqliteStorage : ILegendStorage
         _trades = new SqliteTradeStore(_connectionString);
         _friends = new SqliteFriendStore(_connectionString);
         _siege = new SqliteSiegeStore(_connectionString);
+        _mails = new SqliteMailStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -37,6 +39,7 @@ public sealed class SqliteStorage : ILegendStorage
     public ITradeStore Trades => _trades;
     public IFriendStore Friends => _friends;
     public ISiegeStore Siege => _siege;
+    public IMailStore Mails => _mails;
     public string BackendName => "Sqlite";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -47,6 +50,7 @@ public sealed class SqliteStorage : ILegendStorage
         await _trades.EnsureSchemaAsync(ct);
         await _friends.EnsureSchemaAsync(ct);
         await _siege.EnsureSchemaAsync(ct);
+        await _mails.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 

@@ -368,6 +368,22 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 packHash
             });
 
+
+        var mailConfig = new MailConfig();
+        if (!string.IsNullOrWhiteSpace(manifest.MailConfigFile))
+        {
+            string mailPath = Path.Combine(baseDir, manifest.MailConfigFile);
+            if (!File.Exists(mailPath))
+                throw new FileNotFoundException($"Mail config not found: {mailPath}");
+            string mailJson = File.ReadAllText(mailPath);
+            mailConfig = JsonSerializer.Deserialize<MailConfig>(mailJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to parse mail.json");
+            if (mailConfig.MaxMailsPerCharacter <= 0)
+                mailConfig.MaxMailsPerCharacter = 50;
+            if (mailConfig.MaxInventorySlots <= 0)
+                mailConfig.MaxInventorySlots = 40;
+        }
+
         return new LoadedVersionPack
         {
             Manifest = manifest,
@@ -390,6 +406,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Trade = tradeConfig,
             Party = partyConfig,
             Siege = siegeConfig,
+            Mail = mailConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

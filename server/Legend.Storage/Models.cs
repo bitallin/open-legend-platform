@@ -182,3 +182,67 @@ public sealed class SiegeStateRecord
         UpdatedAt = UpdatedAt
     };
 }
+
+public sealed class MailAttachmentItemRecord
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public sealed class MailRecord
+{
+    public string MailId { get; set; } = string.Empty;
+    public string OwnerCharacterId { get; set; } = string.Empty;
+    public string FromName { get; set; } = string.Empty;
+    public string Subject { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public int AttachGold { get; set; }
+    public string AttachItemsJson { get; set; } = "[]";
+    public bool IsRead { get; set; }
+    public bool Claimed { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public bool HasUnclaimedAttachment =>
+        !Claimed && (AttachGold > 0 || (!string.IsNullOrWhiteSpace(AttachItemsJson) && AttachItemsJson != "[]"));
+
+    public MailRecord Clone() => new()
+    {
+        MailId = MailId,
+        OwnerCharacterId = OwnerCharacterId,
+        FromName = FromName,
+        Subject = Subject,
+        Body = Body,
+        AttachGold = AttachGold,
+        AttachItemsJson = AttachItemsJson,
+        IsRead = IsRead,
+        Claimed = Claimed,
+        CreatedAt = CreatedAt
+    };
+}
+
+public static class MailItemsJson
+{
+    private static readonly JsonSerializerOptions Opts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    public static string Serialize(IEnumerable<MailAttachmentItemRecord> items)
+        => JsonSerializer.Serialize(items?.ToList() ?? new List<MailAttachmentItemRecord>(), Opts);
+
+    public static List<MailAttachmentItemRecord> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "[]")
+            return new List<MailAttachmentItemRecord>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<MailAttachmentItemRecord>>(json, Opts)
+                   ?? new List<MailAttachmentItemRecord>();
+        }
+        catch
+        {
+            return new List<MailAttachmentItemRecord>();
+        }
+    }
+}

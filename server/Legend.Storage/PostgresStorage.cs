@@ -12,6 +12,7 @@ public sealed class PostgresStorage : ILegendStorage
     private readonly PostgresTradeStore _trades;
     private readonly PostgresFriendStore _friends;
     private readonly PostgresSiegeStore _siege;
+    private readonly PostgresMailStore _mails;
 
     public PostgresStorage(string connectionString, ISessionStore sessions)
     {
@@ -23,6 +24,7 @@ public sealed class PostgresStorage : ILegendStorage
         _trades = new PostgresTradeStore(_connectionString);
         _friends = new PostgresFriendStore(_connectionString);
         _siege = new PostgresSiegeStore(_connectionString);
+        _mails = new PostgresMailStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -32,6 +34,7 @@ public sealed class PostgresStorage : ILegendStorage
     public ITradeStore Trades => _trades;
     public IFriendStore Friends => _friends;
     public ISiegeStore Siege => _siege;
+    public IMailStore Mails => _mails;
     public string BackendName => "PostgreSQL";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -42,6 +45,7 @@ public sealed class PostgresStorage : ILegendStorage
         await _trades.EnsureSchemaAsync(ct);
         await _friends.EnsureSchemaAsync(ct);
         await _siege.EnsureSchemaAsync(ct);
+        await _mails.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 

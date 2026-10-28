@@ -124,6 +124,8 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<SiegeDeclaredEvent>(OnSiegeDeclaredAsync);
         _eventBus.Subscribe<SiegeCapturedEvent>(OnSiegeCapturedAsync);
         _eventBus.Subscribe<SiegeEndedEvent>(OnSiegeEndedAsync);
+        _eventBus.Subscribe<MailSentEvent>(OnMailSentAsync);
+        _eventBus.Subscribe<MailClaimedEvent>(OnMailClaimedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -826,6 +828,49 @@ public sealed class LuaScriptHost
         catch (Exception ex)
         {
             StructuredLogger.Error("LuaSandbox", $"on_siege_end failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+
+    private Task OnMailSentAsync(MailSentEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_mail_send");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.ToName, evt.Subject, evt.AttachGold, evt.FromName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_mail_send failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnMailClaimedAsync(MailClaimedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_mail_claim");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.MailId, evt.ClaimedGold);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_mail_claim failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }

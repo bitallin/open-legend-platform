@@ -11,6 +11,7 @@ bool tradeTest = false;
 bool partyTest = false;
 bool skillTest = false;
 bool siegeTest = false;
+bool mailTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -76,10 +77,22 @@ for (int i = 0; i < args.Length; i++)
         equipTest = false;
         levelTest = false;
     }
+    else if (args[i] == "--mail")
+    {
+        mailTest = true;
+        siegeTest = false;
+        skillTest = false;
+        partyTest = false;
+        tradeTest = false;
+        guildTest = false;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(mailTest ? 180 : siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(mailTest ? "M11 mail/offline payout" : siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -109,12 +122,206 @@ if (skillTest)
     return;
 }
 
+if (mailTest)
+{
+    await RunMailAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M11 mail/offline payout verification steps passed!");
+    return;
+}
+
 if (siegeTest)
 {
     await RunSiegeAcceptanceAsync(host, port, cts.Token);
     Console.WriteLine("[SUCCESS] All M10 siege/sabuk verification steps passed!");
     return;
 }
+
+
+static async Task RunMailAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    string suffix = Guid.NewGuid().ToString("N")[..6];
+    string marker = "/tmp/legend-m11-mail-marker.txt";
+    bool restartPass = File.Exists(marker);
+
+    await using var alice = new LegendTcpClient();
+    await using var bob = new LegendTcpClient();
+    await alice.ConnectAsync(host, port, ct);
+    await bob.ConnectAsync(host, port, ct);
+    if (!(await alice.HandshakeAsync("1.11.0", "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
+    if (!(await bob.HandshakeAsync("1.11.0", "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
+
+    string userA = $"m11_a_{suffix}";
+    string userB = $"m11_b_{suffix}";
+    if (restartPass)
+    {
+        var lines = File.ReadAllLines(marker);
+        userA = lines[0];
+        userB = lines[1];
+        Console.WriteLine($"[M11.0] Restart pass: reusing users {userA}/{userB}");
+    }
+
+    async Task EnsureAccount(LegendTcpClient c, string user)
+    {
+        await c.RegisterAsync(user, "pass12345", "PC", ct);
+        var login = await c.LoginAsync(user, "pass12345", "PC", ct);
+        if (!login.Success) throw new Exception($"login {user}: {login.Message}");
+    }
+
+    await EnsureAccount(alice, userA);
+    await EnsureAccount(bob, userB);
+
+    async Task<string> EnsureChar(LegendTcpClient c, string name, string cls)
+    {
+        var create = await c.CreateCharAsync(name, cls, ct);
+        if (create.Success) return create.Character.CharacterId;
+        var list = await c.CharListAsync(ct);
+        var existing = list.Characters.FirstOrDefault(x => x.Name == name) ?? list.Characters.FirstOrDefault();
+        if (existing is null) throw new Exception($"no char for {name}: {create.Message}");
+        return existing.CharacterId;
+    }
+
+    string nameA = restartPass ? File.ReadAllLines(marker)[2] : $"邮差甲{suffix}";
+    string nameB = restartPass ? File.ReadAllLines(marker)[3] : $"摊主乙{suffix}";
+    string idA = await EnsureChar(alice, nameA, "warrior");
+    string idB = await EnsureChar(bob, nameB, "mage");
+    await alice.SelectCharAsync(idA, ct);
+    await bob.SelectCharAsync(idB, ct);
+    var realms = await alice.GetRealmListAsync(ct);
+    string realm = realms.Realms[0].RealmId;
+    var enterA = await alice.EnterWorldAsync(realm, idA, ct);
+    var enterB = await bob.EnterWorldAsync(realm, idB, ct);
+    if (!enterA.Success || !enterB.Success) throw new Exception("enter failed");
+    Console.WriteLine($"[M11.1] Entered world A.gold={enterA.Gold} B.gold={enterB.Gold}");
+
+    if (restartPass)
+    {
+        var listR = await bob.MailListAsync(ct);
+        if (!listR.Success) throw new Exception($"mail list restart: {listR.Message}");
+        var pending = listR.Mails.FirstOrDefault(m => m.HasUnclaimedAttachment && m.Attachments.Gold > 0);
+        if (pending is null)
+            throw new Exception("Expected unclaimed stall/system mail after Host restart");
+        int goldBefore = bob.Gold;
+        var claimR = await bob.MailClaimAsync(pending.MailId, ct);
+        if (!claimR.Success) throw new Exception($"claim after restart failed: {claimR.Message}");
+        if (bob.Gold != goldBefore + pending.Attachments.Gold)
+            throw new Exception($"gold after restart claim mismatch: before={goldBefore} attach={pending.Attachments.Gold} now={bob.Gold}");
+        Console.WriteLine($"[M11.R] Claimed persisted mail after restart: +{pending.Attachments.Gold} gold -> {bob.Gold}");
+        try { File.Delete(marker); } catch { }
+        return;
+    }
+
+    var send = await alice.MailSendAsync(nameB, "测试邮件", "你好，附赠金币", attachGold: 25, ct: ct);
+    if (!send.Success) throw new Exception($"MailSend failed: {send.Message}");
+    Console.WriteLine($"[M11.2] Alice sent mail with 25g to Bob, mailId={send.MailId}");
+
+    try
+    {
+        var n = await bob.WaitMailNotifyAsync(2000, ct);
+        Console.WriteLine($"[M11.2b] Bob MailNotify: {n.Mail.Subject} gold={n.Mail.Attachments.Gold}");
+    }
+    catch (TimeoutException)
+    {
+        Console.WriteLine("[M11.2b] MailNotify not received (list still works)");
+    }
+
+    var list1 = await bob.MailListAsync(ct);
+    if (!list1.Success || list1.Mails.Count < 1) throw new Exception("MailList empty");
+    var mail = list1.Mails.First(m => m.MailId == send.MailId || m.Subject == "测试邮件");
+    if (mail.IsRead) throw new Exception("mail should be unread");
+    if (!mail.HasUnclaimedAttachment) throw new Exception("should have unclaimed attachment");
+    Console.WriteLine($"[M11.3] MailList OK count={list1.Mails.Count} capacity={list1.Capacity}");
+
+    var read = await bob.MailReadAsync(mail.MailId, ct);
+    if (!read.Success || read.Mail is null || !read.Mail.IsRead) throw new Exception("MailRead failed");
+    Console.WriteLine("[M11.4] MailRead OK");
+
+    var delDeny = await bob.MailDeleteAsync(mail.MailId, ct);
+    if (delDeny.Success || delDeny.ErrorCode != ProtocolErrorCode.ErrMailAttachUnclaimed)
+        throw new Exception($"Expected ErrMailAttachUnclaimed, got success={delDeny.Success} code={delDeny.ErrorCode}");
+    Console.WriteLine("[M11.5] Delete with unclaimed attachment denied OK");
+
+    int goldBeforeClaim = bob.Gold;
+    var claim1 = await bob.MailClaimAsync(mail.MailId, ct);
+    if (!claim1.Success) throw new Exception($"claim failed: {claim1.Message}");
+    if (bob.Gold != goldBeforeClaim + 25) throw new Exception($"gold mismatch after claim: {bob.Gold}");
+    Console.WriteLine($"[M11.6] Claim OK gold={bob.Gold}");
+
+    var claim2 = await bob.MailClaimAsync(mail.MailId, ct);
+    if (claim2.Success || claim2.ErrorCode != ProtocolErrorCode.ErrMailAlreadyClaimed)
+        throw new Exception($"Expected ErrMailAlreadyClaimed, got success={claim2.Success} code={claim2.ErrorCode}");
+    Console.WriteLine("[M11.7] Anti-dup claim OK");
+
+    var delOk = await bob.MailDeleteAsync(mail.MailId, ct);
+    if (!delOk.Success) throw new Exception($"delete after claim failed: {delOk.Message}");
+    Console.WriteLine("[M11.8] Delete after claim OK");
+
+    async Task Walk(LegendTcpClient c, int tx, int ty)
+    {
+        while (c.SelfEntity!.X != tx || c.SelfEntity.Y != ty)
+        {
+            int nx = c.SelfEntity.X + Math.Sign(tx - c.SelfEntity.X);
+            int ny = c.SelfEntity.Y + Math.Sign(ty - c.SelfEntity.Y);
+            var m = await c.MoveAsync(nx, ny, ct: ct);
+            if (!m.Accepted) throw new Exception($"Move rejected to ({nx},{ny})");
+        }
+    }
+
+    await Walk(bob, 12, 12);
+    var npc = enterB.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+    if (npc is null)
+    {
+        for (int i = 0; i < 30 && npc is null; i++)
+        {
+            while (bob.ReceivedEntitySpawns.TryDequeue(out var sp))
+                if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
+            await Task.Delay(25, ct);
+        }
+    }
+    if (npc is null) throw new Exception("NPC not found");
+    await Walk(bob, npc.X, npc.Y);
+    var shop = await bob.ShopBuyAsync(npc.EntityId, "item_hp_potion", 1, ct);
+    if (!shop.Success) throw new Exception($"shop buy: {shop.Message}");
+    await Walk(bob, 10, 10);
+    var listing = await bob.StallListAsync("item_hp_potion", 1, 30, ct);
+    if (!listing.Success) throw new Exception($"stall list: {listing.Message}");
+    string listingId = listing.Listing.ListingId;
+    int bobGoldBeforeOffline = bob.Gold;
+    Console.WriteLine($"[M11.9] Bob listed potion listing={listingId} gold={bobGoldBeforeOffline}; disconnecting (offline seller)");
+
+    await bob.DisposeAsync();
+
+    await Walk(alice, 10, 10);
+    var buy = await alice.StallBuyAsync(listingId, ct);
+    if (!buy.Success) throw new Exception($"stall buy: {buy.Message}");
+    Console.WriteLine($"[M11.10] Alice bought offline listing OK");
+
+    await using var bob2 = new LegendTcpClient();
+    await bob2.ConnectAsync(host, port, ct);
+    if (!(await bob2.HandshakeAsync("1.11.0", "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
+    await EnsureAccount(bob2, userB);
+    await bob2.SelectCharAsync(idB, ct);
+    var enterB2 = await bob2.EnterWorldAsync(realm, idB, ct);
+    if (!enterB2.Success) throw new Exception("bob2 enter");
+    if (enterB2.Gold != bobGoldBeforeOffline)
+        throw new Exception($"offline seller gold must not change until claim: before={bobGoldBeforeOffline} enter={enterB2.Gold}");
+
+    var listStall = await bob2.MailListAsync(ct);
+    var stallMail = listStall.Mails.FirstOrDefault(m => m.Subject.Contains("摊位") && m.HasUnclaimedAttachment);
+    if (stallMail is null) throw new Exception("stall sold mail not found");
+    int net = stallMail.Attachments.Gold;
+    if (net <= 0) throw new Exception("stall mail gold attach missing");
+    var claimStall = await bob2.MailClaimAsync(stallMail.MailId, ct);
+    if (!claimStall.Success) throw new Exception($"stall mail claim: {claimStall.Message}");
+    if (bob2.Gold != bobGoldBeforeOffline + net)
+        throw new Exception($"stall claim gold mismatch: expected {bobGoldBeforeOffline + net}, got {bob2.Gold}");
+    Console.WriteLine($"[M11.11] Offline stall mail claim OK +{net} -> gold={bob2.Gold}");
+
+    var persist = await alice.MailSendAsync(nameB, "持久化测试", "重启后应仍在", attachGold: 7, ct: ct);
+    if (!persist.Success) throw new Exception($"persist send: {persist.Message}");
+    File.WriteAllLines(marker, new[] { userA, userB, nameA, nameB, persist.MailId });
+    Console.WriteLine($"[M11.12] Left unclaimed mail for Host restart persistence check mailId={persist.MailId}");
+}
+
 
 static async Task RunSiegeAcceptanceAsync(string host, int port, CancellationToken ct)
 {
@@ -123,7 +330,7 @@ static async Task RunSiegeAcceptanceAsync(string host, int port, CancellationTok
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.10.0", "pc-m10", ct)).Accepted)
+        if (!(await c.HandshakeAsync("1.11.0", "pc-m10", ct)).Accepted)
             throw new Exception("Handshake failed");
         await c.RegisterAsync(user, "pass12345", "PC", ct);
         var login = await c.LoginAsync(user, "pass12345", "PC", ct);
@@ -249,7 +456,7 @@ static async Task RunSkillAcceptanceAsync(string host, int port, CancellationTok
 {
     await using var client = new LegendTcpClient();
     await client.ConnectAsync(host, port, ct);
-    if (!(await client.HandshakeAsync("1.10.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
+    if (!(await client.HandshakeAsync("1.11.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
 
     string user = "m9_skill_" + Guid.NewGuid().ToString("N")[..6];
     await client.RegisterAsync(user, "pass12345", "PC", ct);
@@ -415,8 +622,8 @@ static async Task RunPartyAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.10.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.10.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.11.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.11.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
@@ -576,8 +783,8 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.10.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.10.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync("1.11.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.11.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -723,8 +930,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.10.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.10.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.11.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.11.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -853,7 +1060,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.10.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.11.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -900,7 +1107,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.10.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.11.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)

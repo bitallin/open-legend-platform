@@ -51,6 +51,7 @@ namespace Legend.UnitySdk
         public event Action<BuffApplyNotify>? OnBuffApplyNotify;
         public event Action<BuffRemoveNotify>? OnBuffRemoveNotify;
         public event Action<SiegeStateNotify>? OnSiegeStateNotify;
+        public event Action<MailNotify>? OnMailNotify;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -517,6 +518,45 @@ namespace Legend.UnitySdk
             return SiegeControlResp.Parser.ParseFrom(frame.Payload);
         }
 
+
+        public async Task<MailListResp> RequestMailListAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MailListReq, new MailListReq(), ct).ConfigureAwait(false);
+            return MailListResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MailReadResp> RequestMailReadAsync(string mailId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MailReadReq, new MailReadReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
+            return MailReadResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MailClaimAttachmentResp> RequestMailClaimAsync(string mailId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MailClaimAttachmentReq, new MailClaimAttachmentReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
+            return MailClaimAttachmentResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MailDeleteResp> RequestMailDeleteAsync(string mailId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MailDeleteReq, new MailDeleteReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
+            return MailDeleteResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MailSendResp> RequestMailSendAsync(string toName, string subject, string body, int attachGold = 0, string attachItemId = "", int attachItemCount = 0, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MailSendReq, new MailSendReq
+            {
+                ToCharacterName = toName ?? "",
+                Subject = subject ?? "",
+                Body = body ?? "",
+                AttachGold = attachGold,
+                AttachItemId = attachItemId ?? "",
+                AttachItemCount = attachItemCount
+            }, ct).ConfigureAwait(false);
+            return MailSendResp.Parser.ParseFrom(frame.Payload);
+        }
+
         public async Task<SiegeCaptureResp> RequestSiegeCaptureAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.SiegeCaptureReq, new SiegeCaptureReq { CastleId = castleId ?? "sabuk_castle" }, ct).ConfigureAwait(false);
@@ -657,6 +697,10 @@ namespace Legend.UnitySdk
                         case MsgId.SiegeStateNotify:
                             var ssn = SiegeStateNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnSiegeStateNotify?.Invoke(ssn));
+                            break;
+                        case MsgId.MailNotify:
+                            var mn = MailNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnMailNotify?.Invoke(mn));
                             break;
                         case MsgId.ChatNotify:
                             var chat = ChatNotify.Parser.ParseFrom(frame.Payload);

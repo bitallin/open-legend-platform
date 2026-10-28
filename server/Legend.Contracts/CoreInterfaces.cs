@@ -72,6 +72,7 @@ public sealed class VersionPackManifest
     public string PartyConfigFile { get; set; } = "";
     public string BuffsConfigFile { get; set; } = "";
     public string SiegeConfigFile { get; set; } = "";
+    public string MailConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -418,6 +419,14 @@ public sealed class SiegeConfig
     public int WinnerRewardGold { get; set; } = 100;
 }
 
+public sealed class MailConfig
+{
+    public int MaxMailsPerCharacter { get; set; } = 50;
+    public int RetentionDays { get; set; } = 30;
+    public int MaxInventorySlots { get; set; } = 40;
+    public string SystemSenderName { get; set; } = "系统";
+}
+
 public sealed class PartyConfig
 {
     public int MaxMembers { get; set; } = 5;
@@ -494,6 +503,7 @@ public sealed class LoadedVersionPack
     public TradeConfig Trade { get; init; } = new();
     public PartyConfig Party { get; init; } = new();
     public SiegeConfig Siege { get; init; } = new();
+    public MailConfig Mail { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -540,3 +550,6 @@ public sealed record BuffExpiredEvent(IClientSession Session, string PlayerName,
 public sealed record SiegeDeclaredEvent(IClientSession Session, string CastleId, string GuildId, string GuildName, string LeaderName, int CostGold);
 public sealed record SiegeCapturedEvent(IClientSession Session, string CastleId, string GuildId, string GuildName, string CapturerName);
 public sealed record SiegeEndedEvent(string CastleId, string OwnerGuildId, string OwnerGuildName);
+
+public sealed record MailSentEvent(string ToCharacterId, string ToName, string MailId, string FromName, string Subject, int AttachGold);
+public sealed record MailClaimedEvent(IClientSession Session, string PlayerName, string CharacterId, string MailId, int ClaimedGold);

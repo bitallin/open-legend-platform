@@ -11,6 +11,7 @@ public sealed class InMemoryStorage : ILegendStorage
     private readonly InMemoryTradeStore _trades = new();
     private readonly InMemoryFriendStore _friends = new();
     private readonly InMemorySiegeStore _siege = new();
+    private readonly InMemoryMailStore _mails = new();
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
@@ -19,6 +20,7 @@ public sealed class InMemoryStorage : ILegendStorage
     public ITradeStore Trades => _trades;
     public IFriendStore Friends => _friends;
     public ISiegeStore Siege => _siege;
+    public IMailStore Mails => _mails;
     public string BackendName => "InMemory";
 
     public Task InitializeAsync(CancellationToken ct = default)

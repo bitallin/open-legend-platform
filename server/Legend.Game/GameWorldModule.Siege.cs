@@ -337,6 +337,7 @@ public sealed partial class GameWorldModule
                 int reward = Math.Max(0, _versionPack.Siege.WinnerRewardGold);
                 if (reward > 0)
                 {
+                    var rewardedOnline = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var aoi in _maps.Values)
                     {
                         foreach (var p in aoi.AllPlayers().ToList())
@@ -349,7 +350,30 @@ public sealed partial class GameWorldModule
                                 foreach (var it in InventoryHelper.ToProto(p.Inventory))
                                     invNotify.Items.Add(it);
                                 await p.Session.SendAsync(MsgId.InventoryNotify, 0, invNotify, ct);
+                                rewardedOnline.Add(p.CharacterId);
                             }
+                        }
+                    }
+
+                    // Offline guild members: reward via mail attachment only (mutually exclusive with online instant gold).
+                    var guild = await _storage.Guilds.GetByIdAsync(winnerId, ct);
+                    if (guild != null)
+                    {
+                        foreach (var memberId in guild.MemberCharacterIds.ToList())
+                        {
+                            if (rewardedOnline.Contains(memberId))
+                                continue;
+                            var ch = await _storage.Characters.GetByIdAsync(memberId, ct);
+                            string name = ch?.Name ?? memberId;
+                            await SendMailAsync(
+                                memberId,
+                                name,
+                                MailCfg.SystemSenderName,
+                                "攻城战胜利奖励",
+                                $"行会 [{winnerName}] 占领沙巴克，离线成员奖励 {reward} 金（请领取附件）。",
+                                reward,
+                                null,
+                                ct);
                         }
                     }
                 }

@@ -38,6 +38,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<BuffApplyNotify> ReceivedBuffApplyNotifies { get; } = new();
     public ConcurrentQueue<BuffRemoveNotify> ReceivedBuffRemoveNotifies { get; } = new();
     public ConcurrentQueue<SiegeStateNotify> ReceivedSiegeStateNotifies { get; } = new();
+    public ConcurrentQueue<MailNotify> ReceivedMailNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -239,6 +240,11 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     case MsgId.SiegeStateNotify:
                     {
                         ReceivedSiegeStateNotifies.Enqueue(SiegeStateNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.MailNotify:
+                    {
+                        ReceivedMailNotifies.Enqueue(MailNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
                     case MsgId.StallSoldNotify:
@@ -873,6 +879,61 @@ public sealed class LegendTcpClient : IAsyncDisposable
     {
         var frame = await SendRequestAsync(MsgId.SiegeCaptureReq, new SiegeCaptureReq { CastleId = castleId }, ct);
         return SiegeCaptureResp.Parser.ParseFrom(frame.Payload);
+    }
+
+
+    public async Task<MailListResp> MailListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailListReq, new MailListReq(), ct);
+        return MailListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailReadResp> MailReadAsync(string mailId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailReadReq, new MailReadReq { MailId = mailId }, ct);
+        return MailReadResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailClaimAttachmentResp> MailClaimAsync(string mailId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailClaimAttachmentReq, new MailClaimAttachmentReq { MailId = mailId }, ct);
+        var resp = MailClaimAttachmentResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
+    public async Task<MailDeleteResp> MailDeleteAsync(string mailId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailDeleteReq, new MailDeleteReq { MailId = mailId }, ct);
+        return MailDeleteResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailSendResp> MailSendAsync(string toName, string subject, string body, int attachGold = 0, string? itemId = null, int itemCount = 0, CancellationToken ct = default)
+    {
+        var req = new MailSendReq
+        {
+            ToCharacterName = toName,
+            Subject = subject,
+            Body = body,
+            AttachGold = attachGold,
+            AttachItemId = itemId ?? "",
+            AttachItemCount = itemCount
+        };
+        var frame = await SendRequestAsync(MsgId.MailSendReq, req, ct);
+        return MailSendResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailNotify> WaitMailNotifyAsync(int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (ReceivedMailNotifies.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("MailNotify not received in time");
     }
 
     public async ValueTask DisposeAsync()

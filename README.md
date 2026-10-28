@@ -1,10 +1,22 @@
-# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M10)
+# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M11)
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：M10（沙巴克/据点争夺战最小闭环）
+## 当前里程碑：M11（邮件系统与离线奖励/摆摊成交补发）
 
-协议版本 **1.10.0**。在 M9 技能书/Buff 基础上新增：
+协议版本 **1.11.0**。在 M10 攻城基础上新增邮件闭环，并把离线应得收益接到邮件附件：
+
+| 项 | 约定 |
+|----|------|
+| 邮件协议 | `MailList/Read/ClaimAttachment/Delete`（3101–3108）、`MailNotify`（3109）、`MailSend`（3110–3111）；字段含 id/from/subject/body/createdAt/isRead/attachments(gold+items)/claimed |
+| 领取与删除 | 附件原子领取（防重复）；背包满失败并保留邮件；**有未领附件禁止删除**；容量 50/角色，超限先挤掉最旧已领空邮件再拒绝 |
+| 三后端持久化 | `IMailStore` / `mails` 表（InMemory / Sqlite / Postgres）；Host 重启后邮件与附件状态完整保留 |
+| VersionPack / Lua | `configs/mail.json`；`on_mail_send` / `on_mail_claim`（`scripts/mail.lua`） |
+| 摆摊离线成交 | 卖家离线：金币**仅**经系统邮件附件发放；在线：即时加金 + `StallSoldNotify`；互斥不双发 |
+| 攻城离线奖励 | `SiegeControl stop` 结算：占领行会离线成员用邮件发 `winnerRewardGold`；在线即时加金；互斥 |
+| 验收 | CLI `--mail`；`M11IntegrationTests`（4）；`scripts/verify-m11.sh` |
+
+### M10（沙巴克/据点争夺战最小闭环）
 
 | 项 | 约定 |
 |----|------|
@@ -17,7 +29,6 @@
 | 验收 | CLI `--siege`；`M10IntegrationTests`；`scripts/verify-m10.sh` |
 
 ### M9（技能书学习、技能成长与 Buff 状态机）
-
 | 项 | 约定 |
 |----|------|
 | 技能书学习 | `LearnSkillReq/Resp`（2801–2802）或 `UseItem` skillbook；职业/等级门槛；商店售 `item_skillbook_fatal_strike` |
@@ -33,22 +44,23 @@
 ## 1. 目录结构
 ```text
 legend-platform/
-├── protocol/                    # Protobuf 契约 (VERSION=1.10.0)
+├── protocol/                    # Protobuf 契约 (VERSION=1.11.0)
 ├── server/
-│   ├── Legend.Contracts/        # MsgId … 2801–2808 技能/Buff
-│   ├── Legend.Core/             # VersionPackLoader(+buffs.json)
-│   ├── Legend.Storage/          # friends 三后端持久化
-│   ├── Legend.Game/             # GameWorldModule.PartySocial
-│   ├── Legend.Script/           # on_party_* / on_friend_add / on_whisper
-│   ├── Legend.CliClient/        # --party 双会话验收
-│   └── Legend.Tests/            # M0–M10（35 tests）
-├── client/unity-sdk/            # RequestLearnSkill* / SkillList / Buff events (1.9.0)
-├── version-packs/sample-classic/# party.json + party.lua + social.lua
-└── scripts/verify-m10.sh
+│   ├── Legend.Contracts/        # MsgId … 3101–3111 邮件
+│   ├── Legend.Core/             # VersionPackLoader(+mail.json)
+│   ├── Legend.Storage/          # mails 三后端持久化
+│   ├── Legend.Game/             # GameWorldModule.Mail + offline stall/siege payout
+│   ├── Legend.Script/           # on_mail_send / on_mail_claim
+│   ├── Legend.CliClient/        # --mail 验收（含 Host 重启持久化）
+│   └── Legend.Tests/            # M0–M11（39 tests）
+├── client/unity-sdk/            # MailList/Read/Claim/Delete + OnMailNotify (1.11.0)
+├── version-packs/sample-classic/# mail.json + mail.lua
+└── scripts/verify-m11.sh
 ```
 
 ## 2. 快速验证
 ```bash
+./scripts/verify-m11.sh
 ./scripts/verify-m10.sh
 ./scripts/verify-m9.sh
 ./scripts/verify-m8.sh

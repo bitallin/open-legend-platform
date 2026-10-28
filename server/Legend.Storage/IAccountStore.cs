@@ -67,6 +67,21 @@ public interface ISiegeStore
     Task UpsertAsync(SiegeStateRecord record, CancellationToken ct = default);
 }
 
+public interface IMailStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<MailRecord>> ListByOwnerAsync(string ownerCharacterId, CancellationToken ct = default);
+    Task<int> CountByOwnerAsync(string ownerCharacterId, CancellationToken ct = default);
+    Task<MailRecord?> GetByIdAsync(string mailId, CancellationToken ct = default);
+    Task<MailRecord> InsertAsync(MailRecord mail, CancellationToken ct = default);
+    Task<(bool Ok, string? Error)> MarkReadAsync(string mailId, string ownerCharacterId, CancellationToken ct = default);
+    /// <summary>Atomically mark claimed if not yet claimed. Returns the mail snapshot before claim.</summary>
+    Task<(bool Ok, string? Error, MailRecord? Mail)> TryClaimAsync(string mailId, string ownerCharacterId, CancellationToken ct = default);
+    Task<(bool Ok, string? Error)> DeleteAsync(string mailId, string ownerCharacterId, bool allowUnclaimedAttachment, CancellationToken ct = default);
+    /// <summary>Delete oldest claimed mails with no remaining attachments until under max, or return false if still full.</summary>
+    Task<int> EvictOldestClaimedEmptyAsync(string ownerCharacterId, int keepUnder, CancellationToken ct = default);
+}
+
 public interface ISessionStore
 {
     Task EnsureReadyAsync(CancellationToken ct = default);
@@ -87,6 +102,7 @@ public interface ILegendStorage : IAsyncDisposable
     ITradeStore Trades { get; }
     IFriendStore Friends { get; }
     ISiegeStore Siege { get; }
+    IMailStore Mails { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
 }
