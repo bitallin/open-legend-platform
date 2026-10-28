@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Legend.Contracts\Legend.Contracts.csproj" />
+    <ProjectReference Include="..\Legend.Core\Legend.Core.csproj" />
+    <ProjectReference Include="..\Legend.Gate\Legend.Gate.csproj" />
+    <ProjectReference Include="..\Legend.Login\Legend.Login.csproj" />
+    <ProjectReference Include="..\Legend.Game\Legend.Game.csproj" />
+    <ProjectReference Include="..\Legend.Script\Legend.Script.csproj" />
+    <ProjectReference Include="..\Legend.Host\Legend.Host.csproj" />
+    <ProjectReference Include="..\Legend.CliClient\Legend.CliClient.csproj" />
+  </ItemGroup>
+
+</Project>

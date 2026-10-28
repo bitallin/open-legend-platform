@@ -1,0 +1,15 @@
+{
+  "mapId": "novice_plain",
+  "mapName": "曙光平原（原创占位图）",
+  "width": 64,
+  "height": 64,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 10,
+  "spawnY": 10,
+  "blockedCells": [
+    { "x": 15, "y": 15 },
+    { "x": 15, "y": 16 },
+    { "x": 16, "y": 15 }
+  ]
+}

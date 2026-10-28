@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package legend.protocol.v1;
+option csharp_namespace = "Legend.Contracts.Proto";
+
+// Error codes shared across protocol responses
+enum ProtocolErrorCode {
+  ERR_NONE = 0;
+  ERR_VERSION_MISMATCH = 1001;
+  ERR_AUTH_FAILED = 1002;
+  ERR_INVALID_TOKEN = 1003;
+  ERR_REALM_UNAVAILABLE = 1004;
+  ERR_MOVE_BLOCKED = 1005;
+  ERR_RATE_LIMITED = 1006;
+  ERR_INTERNAL = 1999;
+}
+
+// 1. Handshake (MsgId: 1001 / 1002)
+message HandshakeReq {
+  string protocol_version = 1; // SemVer e.g. "1.0.0"
+  string client_build = 2;     // e.g. "pc-0.1.0" or "android-0.1.0"
+  string device_id = 3;
+}
+
+message HandshakeResp {
+  bool accepted = 1;
+  ProtocolErrorCode error_code = 2;
+  string server_protocol_version = 3;
+  string min_compatible_version = 4;
+  string session_nonce = 5;
+  int64 server_time_unix_ms = 6;
+  string message = 7;
+}
+
+// 2. Login (MsgId: 1003 / 1004)
+message LoginReq {
+  string username = 1;
+  string password = 2;
+  string client_platform = 3; // "PC" | "Android"
+}
+
+message LoginResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string account_id = 3;
+  string session_token = 4;
+  string message = 5;
+}
+
+// 3. RealmList (MsgId: 1005 / 1006)
+message RealmListReq {
+  string session_token = 1;
+}
+
+message RealmInfo {
+  string realm_id = 1;
+  string realm_name = 2;
+  string version_pack_id = 3;
+  string status = 4; // "OPEN" | "MAINTENANCE" | "HOT"
+  string host = 5;
+  int32 port = 6;
+  int32 online_count = 7;
+}
+
+message RealmListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  repeated RealmInfo realms = 3;
+}
+
+// 4. Heartbeat Ping/Pong (MsgId: 1007 / 1008)
+message PingReq {
+  int64 client_time_unix_ms = 1;
+}
+
+message PongResp {
+  int64 client_time_unix_ms = 1;
+  int64 server_time_unix_ms = 2;
+}
+
+// 5. EnterWorld & Entity Snapshot (MsgId: 2001 / 2002)
+message EntitySnapshot {
+  string entity_id = 1;
+  string name = 2;
+  string class_id = 3;
+  string map_id = 4;
+  int32 x = 5;
+  int32 y = 6;
+  int32 direction = 7;
+  int32 hp = 8;
+  int32 max_hp = 9;
+}
+
+message EnterWorldReq {
+  string session_token = 1;
+  string realm_id = 2;
+  string character_name = 3;
+  string class_id = 4; // e.g. "warrior", "mage", "taoist"
+}
+
+message EnterWorldResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string map_id = 3;
+  EntitySnapshot self_entity = 4;
+  repeated EntitySnapshot nearby_entities = 5;
+  string message = 6;
+}
+
+// 6. AOI Movement & Visibility Broadcast (MsgId: 2003 / 2004 / 2005 / 2006)
+message MoveReq {
+  int32 to_x = 1;
+  int32 to_y = 2;
+  int32 direction = 3;
+}
+
+message MoveSync {
+  string entity_id = 1;
+  int32 from_x = 2;
+  int32 from_y = 3;
+  int32 to_x = 4;
+  int32 to_y = 5;
+  int32 direction = 6;
+  bool accepted = 7;
+  ProtocolErrorCode error_code = 8;
+  string reason = 9;
+}
+
+message EntityEnterAoi {
+  EntitySnapshot entity = 1;
+}
+
+message EntityLeaveAoi {
+  string entity_id = 1;
+  string reason = 2;
+}
+
+// 7. Server / Lua Script Notice (MsgId: 3001)
+message ServerNotice {
+  string notice_type = 1; // "WELCOME" | "SYSTEM" | "LUA_HOOK"
+  string title = 2;
+  string content = 3;
+  string granted_item_id = 4;
+  int32 granted_item_count = 5;
+}

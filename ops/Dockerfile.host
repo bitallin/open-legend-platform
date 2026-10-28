@@ -1,0 +1,12 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY protocol/ ./protocol/
+COPY server/ ./server/
+RUN dotnet publish server/Legend.Host/Legend.Host.csproj -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/runtime:8.0
+WORKDIR /app
+COPY --from=build /app/publish ./
+COPY version-packs/ ./version-packs/
+EXPOSE 7100
+ENTRYPOINT ["dotnet", "Legend.Host.dll", "--manifest", "version-packs/sample-classic/manifest.json", "--port", "7100", "--bind", "0.0.0.0"]

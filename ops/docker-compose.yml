@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: legend-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: legend
+      POSTGRES_PASSWORD: legend_dev_password
+      POSTGRES_DB: legend_zone_01
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: legend-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  legend-host:
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile.host
+    container_name: legend-host-zone01
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "7100:7100"
+    environment:
+      LEGEND_DB_CONN: "Host=postgres;Port=5432;Database=legend_zone_01;Username=legend;Password=legend_dev_password"
+      LEGEND_REDIS_CONN: "redis:6379"
+
+volumes:
+  pg_data:
+  redis_data:

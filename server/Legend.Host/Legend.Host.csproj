@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Legend.Contracts\Legend.Contracts.csproj" />
+    <ProjectReference Include="..\Legend.Core\Legend.Core.csproj" />
+    <ProjectReference Include="..\Legend.Gate\Legend.Gate.csproj" />
+    <ProjectReference Include="..\Legend.Login\Legend.Login.csproj" />
+    <ProjectReference Include="..\Legend.Game\Legend.Game.csproj" />
+    <ProjectReference Include="..\Legend.Script\Legend.Script.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

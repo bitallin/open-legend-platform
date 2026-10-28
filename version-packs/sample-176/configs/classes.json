@@ -1,0 +1,23 @@
+[
+  {
+    "classId": "warrior",
+    "displayName": "武者",
+    "baseHp": 180,
+    "baseMp": 40,
+    "baseAtk": 25
+  },
+  {
+    "classId": "mage",
+    "displayName": "术士",
+    "baseHp": 100,
+    "baseMp": 160,
+    "baseAtk": 32
+  },
+  {
+    "classId": "taoist",
+    "displayName": "灵师",
+    "baseHp": 135,
+    "baseMp": 110,
+    "baseAtk": 20
+  }
+]
