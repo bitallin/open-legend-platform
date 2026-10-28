@@ -302,6 +302,23 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+        // Siege
+        var siegeConfig = new SiegeConfig();
+        if (!string.IsNullOrWhiteSpace(manifest.SiegeConfigFile))
+        {
+            string siegePath = Path.Combine(baseDir, manifest.SiegeConfigFile);
+            if (!File.Exists(siegePath))
+                throw new FileNotFoundException($"Siege config not found: {siegePath}");
+            string siegeJson = File.ReadAllText(siegePath, Encoding.UTF8);
+            hashInput.Append(siegeJson);
+            siegeConfig = JsonSerializer.Deserialize<SiegeConfig>(siegeJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize siege.json");
+            if (string.IsNullOrWhiteSpace(siegeConfig.CastleId))
+                throw new InvalidDataException("SiegeConfig.CastleId cannot be empty.");
+            if (!maps.ContainsKey(siegeConfig.CaptureZone.MapId))
+                throw new InvalidDataException($"Siege captureZone map '{siegeConfig.CaptureZone.MapId}' not in version pack.");
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -372,6 +389,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Guild = guildConfig,
             Trade = tradeConfig,
             Party = partyConfig,
+            Siege = siegeConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

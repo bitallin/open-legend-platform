@@ -71,6 +71,7 @@ public sealed class VersionPackManifest
     public string TradeConfigFile { get; set; } = "";
     public string PartyConfigFile { get; set; } = "";
     public string BuffsConfigFile { get; set; } = "";
+    public string SiegeConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -391,6 +392,32 @@ public sealed class TradeConfig
     public bool RequireSafeZone { get; set; } = true;
 }
 
+public sealed class SiegeCaptureZone
+{
+    public string MapId { get; set; } = "dark_forest";
+    public int X1 { get; set; } = 16;
+    public int Y1 { get; set; } = 16;
+    public int X2 { get; set; } = 24;
+    public int Y2 { get; set; } = 24;
+
+    public bool Contains(string mapId, int x, int y)
+        => string.Equals(MapId, mapId, StringComparison.OrdinalIgnoreCase)
+        && x >= Math.Min(X1, X2) && x <= Math.Max(X1, X2)
+        && y >= Math.Min(Y1, Y2) && y <= Math.Max(Y1, Y2);
+}
+
+public sealed class SiegeConfig
+{
+    public string CastleId { get; set; } = "sabuk_castle";
+    public string DisplayName { get; set; } = "沙巴克王城";
+    public int DeclareCostGold { get; set; } = 50;
+    public bool LeaderOnlyDeclare { get; set; } = true;
+    public SiegeCaptureZone CaptureZone { get; set; } = new();
+    public string OwnerBuffId { get; set; } = "buff_castle_lord";
+    public string OwnerTitle { get; set; } = "沙巴克城主行会";
+    public int WinnerRewardGold { get; set; } = 100;
+}
+
 public sealed class PartyConfig
 {
     public int MaxMembers { get; set; } = 5;
@@ -466,6 +493,7 @@ public sealed class LoadedVersionPack
     public GuildConfig Guild { get; init; } = new();
     public TradeConfig Trade { get; init; } = new();
     public PartyConfig Party { get; init; } = new();
+    public SiegeConfig Siege { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -509,3 +537,6 @@ public sealed record SkillLearnedEvent(IClientSession Session, string PlayerName
 public sealed record SkillLevelUpEvent(IClientSession Session, string PlayerName, string CharacterId, string SkillId, int OldLevel, int NewLevel);
 public sealed record BuffAppliedEvent(IClientSession Session, string PlayerName, string CharacterId, string BuffId, int DurationMs);
 public sealed record BuffExpiredEvent(IClientSession Session, string PlayerName, string CharacterId, string BuffId, string Reason);
+public sealed record SiegeDeclaredEvent(IClientSession Session, string CastleId, string GuildId, string GuildName, string LeaderName, int CostGold);
+public sealed record SiegeCapturedEvent(IClientSession Session, string CastleId, string GuildId, string GuildName, string CapturerName);
+public sealed record SiegeEndedEvent(string CastleId, string OwnerGuildId, string OwnerGuildName);

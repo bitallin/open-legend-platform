@@ -57,6 +57,10 @@ enum ProtocolErrorCode {
   ERR_SKILL_LEARN_DENIED = 1049;
   ERR_SKILL_MAX_LEVEL = 1050;
   ERR_BUFF_DENIED = 1051;
+  ERR_SIEGE_DENIED = 1052;
+  ERR_SIEGE_NOT_ACTIVE = 1053;
+  ERR_SIEGE_ALREADY_DECLARED = 1054;
+  ERR_SIEGE_CONTESTED = 1055;
   ERR_INTERNAL = 1999;
 }
 
@@ -277,6 +281,9 @@ message EnterWorldResp {
   string guild_rank = 21;
   repeated SkillState skills = 22;
   repeated BuffState buffs = 23;
+  string siege_owner_guild_id = 24;
+  string siege_owner_guild_name = 25;
+  bool is_castle_lord_guild = 26;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -909,3 +916,70 @@ message BuffRemoveNotify {
   int32 effective_def = 5;
 }
 
+// 17. M10 Siege / Sabuk Castle War (MsgId: 2901–2909)
+message SiegeDeclareReq {
+  string castle_id = 1;
+}
+
+message SiegeDeclareResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 new_gold = 4;
+  repeated string declared_guild_ids = 5;
+  repeated string declared_guild_names = 6;
+}
+
+message SiegeStatusReq {
+  string castle_id = 1;
+}
+
+message SiegeStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string castle_id = 4;
+  string castle_name = 5;
+  bool is_active = 6;
+  string owner_guild_id = 7;
+  string owner_guild_name = 8;
+  repeated string declared_guild_ids = 9;
+  repeated string declared_guild_names = 10;
+}
+
+message SiegeStateNotify {
+  string castle_id = 1;
+  string castle_name = 2;
+  bool is_active = 3;
+  string owner_guild_id = 4;
+  string owner_guild_name = 5;
+  repeated string declared_guild_ids = 6;
+  repeated string declared_guild_names = 7;
+  string reason = 8;
+}
+
+message SiegeControlReq {
+  string castle_id = 1;
+  string action = 2; // start | stop
+}
+
+message SiegeControlResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  bool is_active = 4;
+  string owner_guild_id = 5;
+  string owner_guild_name = 6;
+}
+
+message SiegeCaptureReq {
+  string castle_id = 1;
+}
+
+message SiegeCaptureResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string owner_guild_id = 4;
+  string owner_guild_name = 5;
+}

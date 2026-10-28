@@ -10,6 +10,7 @@ bool guildTest = false;
 bool tradeTest = false;
 bool partyTest = false;
 bool skillTest = false;
+bool siegeTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -64,10 +65,21 @@ for (int i = 0; i < args.Length; i++)
         equipTest = false;
         levelTest = false;
     }
+    else if (args[i] == "--siege")
+    {
+        siegeTest = true;
+        skillTest = false;
+        partyTest = false;
+        tradeTest = false;
+        guildTest = false;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -97,11 +109,147 @@ if (skillTest)
     return;
 }
 
+if (siegeTest)
+{
+    await RunSiegeAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M10 siege/sabuk verification steps passed!");
+    return;
+}
+
+static async Task RunSiegeAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    static async Task<(LegendTcpClient Client, string CharId, EnterWorldResp Enter)> EnterHeroAsync(
+        string host, int port, string user, string charName, string cls, CancellationToken ct)
+    {
+        var c = new LegendTcpClient();
+        await c.ConnectAsync(host, port, ct);
+        if (!(await c.HandshakeAsync("1.10.0", "pc-m10", ct)).Accepted)
+            throw new Exception("Handshake failed");
+        await c.RegisterAsync(user, "pass12345", "PC", ct);
+        var login = await c.LoginAsync(user, "pass12345", "PC", ct);
+        if (!login.Success) throw new Exception(login.Message);
+        string charId;
+        var create = await c.CreateCharAsync(charName, cls, ct);
+        if (create.Success)
+            charId = create.Character.CharacterId;
+        else
+        {
+            var list = await c.CharListAsync(ct);
+            charId = list.Characters.First(x => x.Name == charName).CharacterId;
+        }
+        await c.SelectCharAsync(charId, ct);
+        var realms = await c.GetRealmListAsync(ct);
+        var enter = await c.EnterWorldAsync(realms.Realms[0].RealmId, charId, ct);
+        if (!enter.Success) throw new Exception(enter.Message);
+        return (c, charId, enter);
+    }
+
+    string suffix = Guid.NewGuid().ToString("N")[..4];
+    var (leaderA, charIdA, enterA) = await EnterHeroAsync(host, port, $"m10_la_{suffix}", $"战神{suffix}", "warrior", ct);
+    var (memberA, _, _) = await EnterHeroAsync(host, port, $"m10_ma_{suffix}", $"战友{suffix}", "warrior", ct);
+    var (leaderB, _, _) = await EnterHeroAsync(host, port, $"m10_lb_{suffix}", $"法神{suffix}", "mage", ct);
+
+    await using var _a = leaderA;
+    await using var _ma = memberA;
+    await using var _b = leaderB;
+
+    var preStatus = await leaderA.SiegeStatusAsync(ct: ct);
+    Console.WriteLine($"[M10.0] Pre-existing Sabuk state: owner=[{preStatus.OwnerGuildName}]({preStatus.OwnerGuildId}) declared={preStatus.DeclaredGuildNames.Count}");
+
+    // 1. Guildless declare denied
+    var denyNoGuild = await leaderA.SiegeDeclareAsync(ct: ct);
+    if (denyNoGuild.Success || denyNoGuild.ErrorCode != ProtocolErrorCode.ErrSiegeDenied)
+        throw new Exception("Expected guildless declare denied");
+
+    // 2. Create Guild A and Guild B, memberA joins Guild A
+    string guildNameA = $"风云{suffix}";
+    string guildNameB = $"天下{suffix}";
+    var gA = await leaderA.GuildCreateAsync(guildNameA, ct);
+    if (!gA.Success) throw new Exception(gA.Message);
+    var joinA = await memberA.GuildJoinAsync(guildNameA, ct);
+    if (!joinA.Success) throw new Exception(joinA.Message);
+    var gB = await leaderB.GuildCreateAsync(guildNameB, ct);
+    if (!gB.Success) throw new Exception(gB.Message);
+
+    // 3. Non-leader declare denied
+    var denyMember = await memberA.SiegeDeclareAsync(ct: ct);
+    if (denyMember.Success || denyMember.ErrorCode != ProtocolErrorCode.ErrSiegeDenied)
+        throw new Exception("Expected non-leader declare denied");
+
+    // 4. Both leaders declare siege
+    var declA = await leaderA.SiegeDeclareAsync(ct: ct);
+    if (!declA.Success) throw new Exception($"DeclA failed: {declA.Message}");
+    var declB = await leaderB.SiegeDeclareAsync(ct: ct);
+    if (!declB.Success) throw new Exception($"DeclB failed: {declB.Message}");
+    Console.WriteLine($"[M10.1] Guilds declared: {string.Join(", ", declB.DeclaredGuildNames)} (leaderA gold={declA.NewGold})");
+
+    // 5. Enter Sabuk Palace zone via portal at (10, 8) -> dark_forest (20, 20)
+    await leaderA.MoveAsync(10, 8, ct: ct);
+    await memberA.MoveAsync(10, 8, ct: ct);
+    await leaderB.MoveAsync(10, 8, ct: ct);
+    for (int w = 0; w < 60 && (leaderA.SelfEntity?.MapId != "dark_forest" || memberA.SelfEntity?.MapId != "dark_forest" || leaderB.SelfEntity?.MapId != "dark_forest"); w++)
+        await Task.Delay(25, ct);
+    if (leaderA.SelfEntity?.MapId != "dark_forest" || leaderB.SelfEntity?.MapId != "dark_forest")
+        throw new Exception($"Expected teleport to dark_forest, got A={leaderA.SelfEntity?.MapId}, B={leaderB.SelfEntity?.MapId}");
+    Console.WriteLine($"[M10.2] Entered Sabuk Palace zone: A=({leaderA.SelfEntity.X},{leaderA.SelfEntity.Y}) B=({leaderB.SelfEntity.X},{leaderB.SelfEntity.Y})");
+
+    // 6. Start Siege War
+    var start = await leaderA.SiegeControlAsync("start", ct: ct);
+    if (!start.Success || !start.IsActive) throw new Exception("Failed to start siege");
+    Console.WriteLine("[M10.3] Siege War started!");
+
+    // 7. Same-guild PvP immunity check (leaderA attacks memberA -> ErrSiegeDenied)
+    var (sameGuildAtk, _) = await leaderA.AttackAsync(memberA.SelfEntity!.EntityId, "basic_slash", ct);
+    if (sameGuildAtk.Success || sameGuildAtk.ErrorCode != ProtocolErrorCode.ErrSiegeDenied)
+        throw new Exception($"Expected same-guild immunity ErrSiegeDenied, got {sameGuildAtk.ErrorCode}");
+    Console.WriteLine("[M10.4] Same-guild PvP immunity verified OK");
+
+    // 8. Contested capture denied while leaderB is alive in zone
+    var contestedCap = await leaderA.SiegeCaptureAsync(ct: ct);
+    if (contestedCap.Success || contestedCap.ErrorCode != ProtocolErrorCode.ErrSiegeContested)
+        throw new Exception($"Expected ErrSiegeContested, got {contestedCap.ErrorCode}");
+    Console.WriteLine("[M10.5] Contested capture denied while enemy in palace OK");
+
+    // 9. Cross-guild PvP: leaderA + memberA defeat leaderB in palace zone
+    bool bDied = false;
+    for (int i = 0; i < 20 && !bDied; i++)
+    {
+        var (atk1, cs1) = await leaderA.AttackAsync(leaderB.SelfEntity!.EntityId, "power_strike", ct);
+        if (atk1.Success && cs1?.TargetDied == true) { bDied = true; break; }
+        var (atk2, cs2) = await memberA.AttackAsync(leaderB.SelfEntity!.EntityId, "basic_slash", ct);
+        if (atk2.Success && cs2?.TargetDied == true) { bDied = true; break; }
+        await Task.Delay(550, ct);
+    }
+    if (!bDied) throw new Exception("Failed to defeat enemy leaderB in palace");
+    await Task.Delay(100, ct);
+    Console.WriteLine($"[M10.6] Enemy leaderB defeated and revived at ({leaderB.SelfEntity.X},{leaderB.SelfEntity.Y})");
+
+    // 10. Uncontested capture succeeds
+    int atkBeforeLord = enterA.EffectiveAtk;
+    while (leaderA.ReceivedBuffApplyNotifies.TryDequeue(out _)) { }
+    var cap = await leaderA.SiegeCaptureAsync(ct: ct);
+    if (!cap.Success || cap.OwnerGuildId != gA.GuildId)
+        throw new Exception($"Capture failed: {cap.ErrorCode} {cap.Message}");
+    var lordBuff = await leaderA.WaitBuffApplyAsync("buff_castle_lord", 3000, ct);
+    if (lordBuff.EffectiveAtk <= atkBeforeLord)
+        throw new Exception($"Expected buff_castle_lord atk bonus: {lordBuff.EffectiveAtk} vs {atkBeforeLord}");
+    Console.WriteLine($"[M10.7] Sabuk Palace captured by [{cap.OwnerGuildName}]! Lord buff ATK {atkBeforeLord}->{lordBuff.EffectiveAtk}");
+
+    // 11. End Siege War and verify settlement
+    var stop = await leaderA.SiegeControlAsync("stop", ct: ct);
+    if (!stop.Success || stop.IsActive || stop.OwnerGuildId != gA.GuildId)
+        throw new Exception("Siege stop failed");
+    var status = await leaderA.SiegeStatusAsync(ct: ct);
+    if (!status.Success || status.OwnerGuildId != gA.GuildId || status.IsActive)
+        throw new Exception("Siege status mismatch after stop");
+    Console.WriteLine($"[M10.8] Siege War ended! Winner=[{status.OwnerGuildName}]({status.OwnerGuildId}) leaderGold={leaderA.Gold}");
+}
+
 static async Task RunSkillAcceptanceAsync(string host, int port, CancellationToken ct)
 {
     await using var client = new LegendTcpClient();
     await client.ConnectAsync(host, port, ct);
-    if (!(await client.HandshakeAsync("1.9.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
+    if (!(await client.HandshakeAsync("1.10.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
 
     string user = "m9_skill_" + Guid.NewGuid().ToString("N")[..6];
     await client.RegisterAsync(user, "pass12345", "PC", ct);
@@ -267,8 +415,8 @@ static async Task RunPartyAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.9.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.9.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.10.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.10.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
@@ -428,8 +576,8 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.9.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.9.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync("1.10.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.10.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -575,8 +723,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.9.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.9.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.10.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.10.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -705,7 +853,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.9.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.10.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -752,7 +900,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.9.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.10.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)

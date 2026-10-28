@@ -24,5 +24,18 @@
     "dotDamagePerTick": 5,
     "stackRule": "refresh",
     "clearOnDeath": true
+  },
+  {
+    "buffId": "buff_castle_lord",
+    "displayName": "沙巴克城主",
+    "kind": "buff",
+    "durationMs": 3600000,
+    "tickMs": 0,
+    "atkBonusPercent": 20,
+    "defBonusPercent": 20,
+    "moveSlowPercent": 0,
+    "dotDamagePerTick": 0,
+    "stackRule": "refresh",
+    "clearOnDeath": false
   }
 ]

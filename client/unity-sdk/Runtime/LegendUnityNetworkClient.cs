@@ -50,6 +50,7 @@ namespace Legend.UnitySdk
         public event Action<SkillLevelUpNotify>? OnSkillLevelUpNotify;
         public event Action<BuffApplyNotify>? OnBuffApplyNotify;
         public event Action<BuffRemoveNotify>? OnBuffRemoveNotify;
+        public event Action<SiegeStateNotify>? OnSiegeStateNotify;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -496,6 +497,32 @@ namespace Legend.UnitySdk
             return SkillListResp.Parser.ParseFrom(frame.Payload);
         }
 
+        public async Task<SiegeDeclareResp> RequestSiegeDeclareAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.SiegeDeclareReq, new SiegeDeclareReq { CastleId = castleId ?? "sabuk_castle" }, ct).ConfigureAwait(false);
+            var resp = SiegeDeclareResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success) Gold = resp.NewGold;
+            return resp;
+        }
+
+        public async Task<SiegeStatusResp> RequestSiegeStatusAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.SiegeStatusReq, new SiegeStatusReq { CastleId = castleId ?? "sabuk_castle" }, ct).ConfigureAwait(false);
+            return SiegeStatusResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<SiegeControlResp> RequestSiegeControlAsync(string action, string castleId = "sabuk_castle", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.SiegeControlReq, new SiegeControlReq { CastleId = castleId ?? "sabuk_castle", Action = action ?? "start" }, ct).ConfigureAwait(false);
+            return SiegeControlResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<SiegeCaptureResp> RequestSiegeCaptureAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.SiegeCaptureReq, new SiegeCaptureReq { CastleId = castleId ?? "sabuk_castle" }, ct).ConfigureAwait(false);
+            return SiegeCaptureResp.Parser.ParseFrom(frame.Payload);
+        }
+
         public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
             // Ignore stale MoveSync if a portal already changed our map.
@@ -626,6 +653,10 @@ namespace Legend.UnitySdk
                         case MsgId.BuffRemoveNotify:
                             var br = BuffRemoveNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnBuffRemoveNotify?.Invoke(br));
+                            break;
+                        case MsgId.SiegeStateNotify:
+                            var ssn = SiegeStateNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnSiegeStateNotify?.Invoke(ssn));
                             break;
                         case MsgId.ChatNotify:
                             var chat = ChatNotify.Parser.ParseFrom(frame.Payload);

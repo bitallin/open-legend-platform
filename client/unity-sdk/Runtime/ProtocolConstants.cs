@@ -105,13 +105,22 @@ namespace Legend.Contracts
         SkillLevelUpNotify = 2806,
         BuffApplyNotify = 2807,
         BuffRemoveNotify = 2808,
+        SiegeDeclareReq = 2901,
+        SiegeDeclareResp = 2902,
+        SiegeStatusReq = 2903,
+        SiegeStatusResp = 2904,
+        SiegeStateNotify = 2905,
+        SiegeControlReq = 2906,
+        SiegeControlResp = 2907,
+        SiegeCaptureReq = 2908,
+        SiegeCaptureResp = 2909,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.9.0";
-        public const string MinCompatibleVersion = "1.9.0";
+        public const string CurrentVersion = "1.10.0";
+        public const string MinCompatibleVersion = "1.10.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

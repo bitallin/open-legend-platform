@@ -121,6 +121,9 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<SkillLevelUpEvent>(OnSkillLevelUpAsync);
         _eventBus.Subscribe<BuffAppliedEvent>(OnBuffAppliedAsync);
         _eventBus.Subscribe<BuffExpiredEvent>(OnBuffExpiredAsync);
+        _eventBus.Subscribe<SiegeDeclaredEvent>(OnSiegeDeclaredAsync);
+        _eventBus.Subscribe<SiegeCapturedEvent>(OnSiegeCapturedAsync);
+        _eventBus.Subscribe<SiegeEndedEvent>(OnSiegeEndedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -763,4 +766,67 @@ public sealed class LuaScriptHost
     }
 
 
+
+    private Task OnSiegeDeclaredAsync(SiegeDeclaredEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_siege_declare");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.CastleId, evt.GuildId, evt.GuildName, evt.LeaderName, evt.CostGold);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_siege_declare failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnSiegeCapturedAsync(SiegeCapturedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_siege_capture");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.CastleId, evt.GuildId, evt.GuildName, evt.CapturerName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_siege_capture failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnSiegeEndedAsync(SiegeEndedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_siege_end");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.CastleId, evt.OwnerGuildId, evt.OwnerGuildName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_siege_end failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
 }

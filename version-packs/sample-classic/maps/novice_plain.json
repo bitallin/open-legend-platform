@@ -50,6 +50,14 @@
       "targetMapId": "dark_forest",
       "targetX": 5,
       "targetY": 5
+    },
+    {
+      "portalId": "to_sabuk_palace",
+      "x": 10,
+      "y": 8,
+      "targetMapId": "dark_forest",
+      "targetX": 20,
+      "targetY": 20
     }
   ]
 }

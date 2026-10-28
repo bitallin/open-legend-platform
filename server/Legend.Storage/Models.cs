@@ -158,3 +158,27 @@ public sealed class FriendRecord
         CreatedAt = CreatedAt
     };
 }
+
+public sealed class SiegeDeclaredGuildEntry
+{
+    public string GuildId { get; set; } = string.Empty;
+    public string GuildName { get; set; } = string.Empty;
+}
+
+public sealed class SiegeStateRecord
+{
+    public string CastleId { get; set; } = "sabuk_castle";
+    public string OwnerGuildId { get; set; } = string.Empty;
+    public string OwnerGuildName { get; set; } = string.Empty;
+    public string DeclaredGuildsJson { get; set; } = "[]";
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public SiegeStateRecord Clone() => new()
+    {
+        CastleId = CastleId,
+        OwnerGuildId = OwnerGuildId,
+        OwnerGuildName = OwnerGuildName,
+        DeclaredGuildsJson = DeclaredGuildsJson,
+        UpdatedAt = UpdatedAt
+    };
+}

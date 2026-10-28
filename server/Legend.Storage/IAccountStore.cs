@@ -60,6 +60,13 @@ public interface ITradeStore
 
 
 
+public interface ISiegeStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<SiegeStateRecord?> GetAsync(string castleId, CancellationToken ct = default);
+    Task UpsertAsync(SiegeStateRecord record, CancellationToken ct = default);
+}
+
 public interface ISessionStore
 {
     Task EnsureReadyAsync(CancellationToken ct = default);
@@ -79,6 +86,7 @@ public interface ILegendStorage : IAsyncDisposable
     IGuildStore Guilds { get; }
     ITradeStore Trades { get; }
     IFriendStore Friends { get; }
+    ISiegeStore Siege { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
 }

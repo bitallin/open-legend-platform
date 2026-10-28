@@ -37,6 +37,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<SkillLevelUpNotify> ReceivedSkillLevelUpNotifies { get; } = new();
     public ConcurrentQueue<BuffApplyNotify> ReceivedBuffApplyNotifies { get; } = new();
     public ConcurrentQueue<BuffRemoveNotify> ReceivedBuffRemoveNotifies { get; } = new();
+    public ConcurrentQueue<SiegeStateNotify> ReceivedSiegeStateNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -96,6 +97,12 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     case MsgId.MoveSync:
                     {
                         var sync = MoveSync.Parser.ParseFrom(frame.Payload);
+                        if (sync.Accepted && SelfEntity != null && sync.EntityId == SelfEntity.EntityId)
+                        {
+                            SelfEntity.X = sync.ToX;
+                            SelfEntity.Y = sync.ToY;
+                            SelfEntity.InSafeZone = sync.InSafeZone;
+                        }
                         ReceivedMoveSyncs.Enqueue(sync);
                         OnMoveSync?.Invoke(sync);
                         break;
@@ -227,6 +234,11 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     case MsgId.BuffRemoveNotify:
                     {
                         ReceivedBuffRemoveNotifies.Enqueue(BuffRemoveNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.SiegeStateNotify:
+                    {
+                        ReceivedSiegeStateNotifies.Enqueue(SiegeStateNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
                     case MsgId.StallSoldNotify:
@@ -834,6 +846,33 @@ public sealed class LegendTcpClient : IAsyncDisposable
             await Task.Delay(20, ct);
         }
         throw new TimeoutException("SkillLevelUpNotify not received in time");
+    }
+
+    public async Task<SiegeDeclareResp> SiegeDeclareAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SiegeDeclareReq, new SiegeDeclareReq { CastleId = castleId }, ct);
+        var resp = SiegeDeclareResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.NewGold;
+        return resp;
+    }
+
+    public async Task<SiegeStatusResp> SiegeStatusAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SiegeStatusReq, new SiegeStatusReq { CastleId = castleId }, ct);
+        return SiegeStatusResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<SiegeControlResp> SiegeControlAsync(string action, string castleId = "sabuk_castle", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SiegeControlReq, new SiegeControlReq { CastleId = castleId, Action = action }, ct);
+        return SiegeControlResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<SiegeCaptureResp> SiegeCaptureAsync(string castleId = "sabuk_castle", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SiegeCaptureReq, new SiegeCaptureReq { CastleId = castleId }, ct);
+        return SiegeCaptureResp.Parser.ParseFrom(frame.Payload);
     }
 
     public async ValueTask DisposeAsync()

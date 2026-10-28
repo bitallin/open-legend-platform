@@ -54,13 +54,13 @@ public sealed partial class GameWorldModule : IGameModule
     public string ModuleName => "GameWorldModule";
     public int OnlineCount => _maps.Values.Sum(m => m.OnlineCount);
 
-    public Task InitializeAsync(CancellationToken ct = default)
+    public async Task InitializeAsync(CancellationToken ct = default)
     {
         SpawnInitialMonsters();
         SpawnNpcs();
+        await LoadSiegeStateAsync(ct);
         _aiCts = new CancellationTokenSource();
         _aiTask = Task.Run(() => AiLoopAsync(_aiCts.Token), _aiCts.Token);
-        return Task.CompletedTask;
     }
 
     public bool CanHandle(MsgId msgId) => msgId is
@@ -72,7 +72,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.StallListReq or MsgId.StallBrowseReq or MsgId.StallBuyReq or MsgId.StallCancelReq or
         MsgId.PartyInviteReq or MsgId.PartyAcceptReq or MsgId.PartyLeaveReq or MsgId.PartyKickReq or
         MsgId.FriendAddReq or MsgId.FriendRemoveReq or MsgId.FriendListReq or
-        MsgId.LearnSkillReq or MsgId.SkillListReq;
+        MsgId.LearnSkillReq or MsgId.SkillListReq or
+        MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -238,6 +239,18 @@ public sealed partial class GameWorldModule : IGameModule
             case MsgId.SkillListReq:
                 await HandleSkillListAsync(session, frame, ct);
                 break;
+            case MsgId.SiegeDeclareReq:
+                await HandleSiegeDeclareAsync(session, frame, ct);
+                break;
+            case MsgId.SiegeStatusReq:
+                await HandleSiegeStatusAsync(session, frame, ct);
+                break;
+            case MsgId.SiegeControlReq:
+                await HandleSiegeControlAsync(session, frame, ct);
+                break;
+            case MsgId.SiegeCaptureReq:
+                await HandleSiegeCaptureAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -366,6 +379,7 @@ public sealed partial class GameWorldModule : IGameModule
             }
         }
         LevelCurve.ApplyBaseStats(entity, cls, _versionPack.Levels);
+        ApplyCastleLordBuffOnEnterIfEligible(entity);
         EquipmentHelper.RecalculateStats(entity, _versionPack.Items, _versionPack.Buffs);
         if (entity.Hp > entity.MaxHp) entity.Hp = entity.MaxHp;
         if (entity.Mp > entity.MaxMp) entity.Mp = entity.MaxMp;
@@ -390,7 +404,10 @@ public sealed partial class GameWorldModule : IGameModule
             EffectiveMaxMp = entity.MaxMp,
             GuildId = entity.GuildId,
             GuildName = entity.GuildName,
-            GuildRank = entity.GuildRank
+            GuildRank = entity.GuildRank,
+            SiegeOwnerGuildId = _siegeOwnerGuildId,
+            SiegeOwnerGuildName = _siegeOwnerGuildName,
+            IsCastleLordGuild = IsCastleLordGuild(entity.GuildId)
         };
         foreach (var other in nearbyPlayers)
             resp.NearbyEntities.Add(other.ToSnapshot());
@@ -668,7 +685,10 @@ public sealed partial class GameWorldModule : IGameModule
         if (!_monsters.TryGetValue(req.TargetEntityId, out var monster) || !monster.Alive ||
             !string.Equals(monster.MapId, attacker.MapId, StringComparison.OrdinalIgnoreCase))
         {
-            // PvP disabled: reject player targets and unknown
+            if (await TryHandleSiegePvpAttackAsync(session, frame, attacker, aoi, req, skill, dmgMult, cooldownMs, now, ct))
+                return;
+
+            // PvP disabled outside siege zone: reject player targets and unknown
             await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
             {
                 Success = false,
@@ -1109,7 +1129,7 @@ public sealed partial class GameWorldModule : IGameModule
         int sx = aoi.Map.SpawnX;
         int sy = aoi.Map.SpawnY;
         int ox = player.X, oy = player.Y;
-        aoi.MoveEntity(player.EntityId, sx, sy, 4);
+        var (leftViewers, _, _) = aoi.MoveEntity(player.EntityId, sx, sy, 4);
         await _storage.Characters.SavePositionAsync(
             player.CharacterId, player.MapId, player.X, player.Y, player.Hp, player.Mp, ct);
 
@@ -1130,6 +1150,8 @@ public sealed partial class GameWorldModule : IGameModule
         await player.Session.SendAsync(MsgId.MoveSync, 0, sync, ct);
         foreach (var v in aoi.QueryPlayersNear(sx, sy, player.EntityId))
             await v.Session.SendAsync(MsgId.MoveSync, 0, sync, ct);
+        foreach (var lv in leftViewers)
+            await lv.Session.SendAsync(MsgId.MoveSync, 0, sync, ct);
     }
 
     private async Task TickLootExpiryAsync(CancellationToken ct)

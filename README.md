@@ -1,10 +1,22 @@
-# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M9)
+# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M10)
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：M9（技能书学习、技能成长与 Buff 状态机）
+## 当前里程碑：M10（沙巴克/据点争夺战最小闭环）
 
-协议版本 **1.9.0**。在 M8 组队/好友基础上新增：
+协议版本 **1.10.0**。在 M9 技能书/Buff 基础上新增：
+
+| 项 | 约定 |
+|----|------|
+| 攻城配置与皇宫区域 | `configs/siege.json`（`sabuk_castle` 沙巴克城，`declareCostGold: 50`，`leaderOnlyDeclare: true`，`captureZone: dark_forest (16,16)-(24,24)`） |
+| 攻城报名与状态 | `SiegeDeclareReq/Resp`（2901–2902）、`SiegeStatusReq/Resp`（2903–2904）、`SiegeStateNotify`（2905）、`SiegeControlReq/Resp`（2906–2907）、`SiegeCaptureReq/Resp`（2908–2909） |
+| 皇宫区域跨行会 PvP | 攻城开启期间在 `captureZone` 允许跨行会 `AttackReq` 交战（同行会免伤 `ErrSiegeDenied`），击杀敌方送回出生点 `(5,5)` 复活；非攻城区域保持 M2 默认禁 PvP |
+| 夺旗占领与城主增益 | 皇宫内有敌对存活成员时夺旗返回 `ErrSiegeContested`；清场后唯一报名行会夺旗成功，挂载 `buff_castle_lord`（+20% 攻防）且结算发放 `winnerRewardGold: 100` |
+| 三后端持久化 | `ISiegeStore`（`InMemory` / `Sqlite` / `Postgres` `siege_state` 表）持久化占领行会与报名行会，Host 重启完整保留且登录自动挂载城主增益 |
+| Lua 钩子 | `on_siege_declare` / `on_siege_capture` / `on_siege_end`（`scripts/siege.lua`） |
+| 验收 | CLI `--siege`；`M10IntegrationTests`；`scripts/verify-m10.sh` |
+
+### M9（技能书学习、技能成长与 Buff 状态机）
 
 | 项 | 约定 |
 |----|------|
@@ -21,7 +33,7 @@
 ## 1. 目录结构
 ```text
 legend-platform/
-├── protocol/                    # Protobuf 契约 (VERSION=1.9.0)
+├── protocol/                    # Protobuf 契约 (VERSION=1.10.0)
 ├── server/
 │   ├── Legend.Contracts/        # MsgId … 2801–2808 技能/Buff
 │   ├── Legend.Core/             # VersionPackLoader(+buffs.json)
@@ -29,14 +41,15 @@ legend-platform/
 │   ├── Legend.Game/             # GameWorldModule.PartySocial
 │   ├── Legend.Script/           # on_party_* / on_friend_add / on_whisper
 │   ├── Legend.CliClient/        # --party 双会话验收
-│   └── Legend.Tests/            # M0–M9（33 tests）
+│   └── Legend.Tests/            # M0–M10（35 tests）
 ├── client/unity-sdk/            # RequestLearnSkill* / SkillList / Buff events (1.9.0)
 ├── version-packs/sample-classic/# party.json + party.lua + social.lua
-└── scripts/verify-m9.sh
+└── scripts/verify-m10.sh
 ```
 
 ## 2. 快速验证
 ```bash
+./scripts/verify-m10.sh
 ./scripts/verify-m9.sh
 ./scripts/verify-m8.sh
 # 回归：
