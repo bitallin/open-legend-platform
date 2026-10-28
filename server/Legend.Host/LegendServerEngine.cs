@@ -84,6 +84,7 @@ public sealed class LegendServerEngine : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await GateServer.DisposeAsync();
+        await GameWorldModule.DisposeAiAsync();
         await Storage.DisposeAsync();
     }
 }

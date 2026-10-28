@@ -75,6 +75,72 @@ public sealed class VersionPackLoader : IVersionPackLoader
             ?? throw new InvalidDataException("Failed to deserialize ClassesConfig.");
         var classDict = classList.ToDictionary(c => c.ClassId, c => c, StringComparer.OrdinalIgnoreCase);
 
+        // Skills
+        var skillDict = new Dictionary<string, SkillConfigItem>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.SkillsConfigFile))
+        {
+            string skillsPath = Path.Combine(baseDir, manifest.SkillsConfigFile);
+            if (!File.Exists(skillsPath))
+                throw new FileNotFoundException($"Skills config not found: {skillsPath}");
+            string skillsJson = File.ReadAllText(skillsPath, Encoding.UTF8);
+            hashInput.Append(skillsJson);
+            var skills = JsonSerializer.Deserialize<List<SkillConfigItem>>(skillsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize skills.json");
+            foreach (var s in skills)
+            {
+                if (string.IsNullOrWhiteSpace(s.SkillId))
+                    throw new InvalidDataException("SkillConfigItem.SkillId cannot be empty.");
+                skillDict[s.SkillId] = s;
+            }
+        }
+
+        // Monsters + spawns
+        var monsterDict = new Dictionary<string, MonsterTemplate>(StringComparer.OrdinalIgnoreCase);
+        var spawnList = new List<MonsterSpawnPoint>();
+        if (!string.IsNullOrWhiteSpace(manifest.MonstersConfigFile))
+        {
+            string monstersPath = Path.Combine(baseDir, manifest.MonstersConfigFile);
+            if (!File.Exists(monstersPath))
+                throw new FileNotFoundException($"Monsters config not found: {monstersPath}");
+            string monstersJson = File.ReadAllText(monstersPath, Encoding.UTF8);
+            hashInput.Append(monstersJson);
+            var monstersFile = JsonSerializer.Deserialize<MonstersConfigFile>(monstersJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize monsters.json");
+            foreach (var t in monstersFile.Templates)
+            {
+                if (string.IsNullOrWhiteSpace(t.MonsterId))
+                    throw new InvalidDataException("MonsterTemplate.MonsterId cannot be empty.");
+                monsterDict[t.MonsterId] = t;
+            }
+            foreach (var sp in monstersFile.Spawns)
+            {
+                if (!monsterDict.ContainsKey(sp.MonsterId))
+                    throw new InvalidDataException($"Spawn references unknown monsterId '{sp.MonsterId}'.");
+                if (!maps.ContainsKey(sp.MapId))
+                    throw new InvalidDataException($"Spawn map '{sp.MapId}' not in version pack.");
+                spawnList.Add(sp);
+            }
+        }
+
+        // Loot tables
+        var lootDict = new Dictionary<string, LootTableConfig>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.LootTablesConfigFile))
+        {
+            string lootPath = Path.Combine(baseDir, manifest.LootTablesConfigFile);
+            if (!File.Exists(lootPath))
+                throw new FileNotFoundException($"Loot tables config not found: {lootPath}");
+            string lootJson = File.ReadAllText(lootPath, Encoding.UTF8);
+            hashInput.Append(lootJson);
+            var lootTables = JsonSerializer.Deserialize<List<LootTableConfig>>(lootJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize loot_tables.json");
+            foreach (var t in lootTables)
+            {
+                if (string.IsNullOrWhiteSpace(t.LootTableId))
+                    throw new InvalidDataException("LootTableConfig.LootTableId cannot be empty.");
+                lootDict[t.LootTableId] = t;
+            }
+        }
+
         var luaScripts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (string relScript in manifest.ScriptFiles)
         {
@@ -98,6 +164,9 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 mapId = defaultMap.MapId,
                 mapCount = maps.Count,
                 classCount = classDict.Count,
+                skillCount = skillDict.Count,
+                monsterCount = monsterDict.Count,
+                lootTableCount = lootDict.Count,
                 scriptCount = luaScripts.Count,
                 packHash
             });
@@ -109,6 +178,10 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Map = defaultMap,
             Maps = maps,
             Classes = classDict,
+            Skills = skillDict,
+            Monsters = monsterDict,
+            MonsterSpawns = spawnList,
+            LootTables = lootDict,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

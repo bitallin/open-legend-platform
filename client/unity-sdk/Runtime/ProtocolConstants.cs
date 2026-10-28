@@ -34,13 +34,22 @@ namespace Legend.Contracts
         EntityEnterAoi = 2005,
         EntityLeaveAoi = 2006,
         MapChangeNotify = 2007,
+        AttackReq = 2101,
+        AttackResp = 2102,
+        CombatSync = 2103,
+        EntitySpawn = 2104,
+        EntityDespawn = 2105,
+        LootDropNotify = 2106,
+        PickupReq = 2107,
+        PickupResp = 2108,
+        InventoryNotify = 2109,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.1.0";
-        public const string MinCompatibleVersion = "1.1.0";
+        public const string CurrentVersion = "1.2.0";
+        public const string MinCompatibleVersion = "1.2.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

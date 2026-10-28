@@ -17,7 +17,27 @@ enum ProtocolErrorCode {
   ERR_INVALID_CLASS = 1009;
   ERR_CHAR_LIMIT = 1010;
   ERR_USERNAME_TAKEN = 1011;
+  ERR_INVALID_SKILL = 1012;
+  ERR_SKILL_COOLDOWN = 1013;
+  ERR_OUT_OF_RANGE = 1014;
+  ERR_SAFE_ZONE = 1015;
+  ERR_INVALID_TARGET = 1016;
+  ERR_LOOT_DENIED = 1017;
+  ERR_DEAD = 1018;
   ERR_INTERNAL = 1999;
+}
+
+enum EntityKind {
+  ENTITY_PLAYER = 0;
+  ENTITY_MONSTER = 1;
+  ENTITY_LOOT = 2;
+}
+
+enum CombatResultKind {
+  COMBAT_HIT = 0;
+  COMBAT_MISS = 1;
+  COMBAT_HEAL = 2;
+  COMBAT_KILL = 3;
 }
 
 // 1. Handshake (MsgId: 1001 / 1002)
@@ -171,6 +191,10 @@ message EntitySnapshot {
   int32 hp = 8;
   int32 max_hp = 9;
   bool in_safe_zone = 10;
+  EntityKind kind = 11;
+  string template_id = 12;
+  int32 quantity = 13;
+  string owner_character_id = 14;
 }
 
 message EnterWorldReq {
@@ -187,6 +211,7 @@ message EnterWorldResp {
   repeated EntitySnapshot nearby_entities = 5;
   string message = 6;
   bool in_safe_zone = 7;
+  repeated InventoryItem inventory = 8;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -229,7 +254,74 @@ message MapChangeNotify {
   repeated EntitySnapshot nearby_entities = 8;
 }
 
-// 9. Server / Lua Notice (MsgId: 3001)
+// 9. Combat & Loot (MsgId: 2101–2109)
+message AttackReq {
+  string target_entity_id = 1;
+  string skill_id = 2;
+}
+
+message AttackResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 remaining_mp = 4;
+  int64 next_ready_unix_ms = 5;
+}
+
+message CombatSync {
+  string attacker_entity_id = 1;
+  string target_entity_id = 2;
+  string skill_id = 3;
+  CombatResultKind result = 4;
+  int32 damage = 5;
+  int32 heal = 6;
+  int32 target_hp = 7;
+  int32 target_max_hp = 8;
+  bool target_died = 9;
+  string map_id = 10;
+}
+
+message EntitySpawn {
+  EntitySnapshot entity = 1;
+  string reason = 2;
+}
+
+message EntityDespawn {
+  string entity_id = 1;
+  string reason = 2;
+  string map_id = 3;
+}
+
+message LootDropNotify {
+  EntitySnapshot loot = 1;
+  string source_entity_id = 2;
+  string killer_character_id = 3;
+}
+
+message InventoryItem {
+  string item_id = 1;
+  int32 count = 2;
+}
+
+message PickupReq {
+  string loot_entity_id = 1;
+}
+
+message PickupResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  InventoryItem picked = 4;
+  repeated InventoryItem inventory = 5;
+}
+
+message InventoryNotify {
+  string character_id = 1;
+  repeated InventoryItem items = 2;
+  string reason = 3;
+}
+
+// 10. Server / Lua Notice (MsgId: 3001)
 message ServerNotice {
   string notice_type = 1;
   string title = 2;

@@ -1,0 +1,36 @@
+{
+  "templates": [
+    {
+      "monsterId": "slime_green",
+      "displayName": "绿史莱姆",
+      "maxHp": 40,
+      "atk": 6,
+      "def": 1,
+      "aggroRange": 5,
+      "attackRange": 1,
+      "attackCooldownMs": 1200,
+      "lootTableId": "slime_basic",
+      "respawnMs": 8000,
+      "ai": "chase"
+    },
+    {
+      "monsterId": "boar_wild",
+      "displayName": "野猪",
+      "maxHp": 80,
+      "atk": 12,
+      "def": 4,
+      "aggroRange": 4,
+      "attackRange": 1,
+      "attackCooldownMs": 1500,
+      "lootTableId": "boar_basic",
+      "respawnMs": 12000,
+      "ai": "stationary"
+    }
+  ],
+  "spawns": [
+    { "monsterId": "slime_green", "mapId": "novice_plain", "x": 25, "y": 10, "count": 2 },
+    { "monsterId": "slime_green", "mapId": "novice_plain", "x": 28, "y": 12, "count": 1 },
+    { "monsterId": "boar_wild", "mapId": "novice_plain", "x": 32, "y": 14, "count": 1 },
+    { "monsterId": "slime_green", "mapId": "dark_forest", "x": 12, "y": 12, "count": 2 }
+  ]
+}

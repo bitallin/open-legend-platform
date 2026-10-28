@@ -53,12 +53,15 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.1.0";
+    public string ProtocolVersion { get; set; } = "1.2.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
     public List<string> MapFiles { get; set; } = new();
     public string ClassesConfigFile { get; set; } = "configs/classes.json";
+    public string SkillsConfigFile { get; set; } = "";
+    public string MonstersConfigFile { get; set; } = "";
+    public string LootTablesConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -170,6 +173,69 @@ public sealed class ClassConfigItem
     public int BaseAtk { get; set; } = 15;
 }
 
+
+public sealed class SkillConfigItem
+{
+    public string SkillId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public int MpCost { get; set; }
+    public int CooldownMs { get; set; } = 600;
+    public int Range { get; set; } = 1;
+    public double DamageMultiplier { get; set; } = 1.0;
+    public List<string> AllowedClasses { get; set; } = new();
+}
+
+public sealed class MonsterTemplate
+{
+    public string MonsterId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public int MaxHp { get; set; } = 50;
+    public int Atk { get; set; } = 5;
+    public int Def { get; set; } = 0;
+    public int AggroRange { get; set; } = 4;
+    public int AttackRange { get; set; } = 1;
+    public int AttackCooldownMs { get; set; } = 1200;
+    public string LootTableId { get; set; } = string.Empty;
+    public int RespawnMs { get; set; } = 10000;
+    /// <summary>chase | stationary</summary>
+    public string Ai { get; set; } = "chase";
+}
+
+public sealed class MonsterSpawnPoint
+{
+    public string MonsterId { get; set; } = string.Empty;
+    public string MapId { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Count { get; set; } = 1;
+}
+
+public sealed class MonstersConfigFile
+{
+    public List<MonsterTemplate> Templates { get; set; } = new();
+    public List<MonsterSpawnPoint> Spawns { get; set; } = new();
+}
+
+public sealed class LootEntry
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int CountMin { get; set; } = 1;
+    public int CountMax { get; set; } = 1;
+    public double Chance { get; set; } = 1.0;
+}
+
+public sealed class LootTableConfig
+{
+    public string LootTableId { get; set; } = string.Empty;
+    public List<LootEntry> Entries { get; set; } = new();
+}
+
+public sealed class InventorySlot
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -177,6 +243,10 @@ public sealed class LoadedVersionPack
     public required MapConfig Map { get; init; }
     public required IReadOnlyDictionary<string, MapConfig> Maps { get; init; }
     public required IReadOnlyDictionary<string, ClassConfigItem> Classes { get; init; }
+    public required IReadOnlyDictionary<string, SkillConfigItem> Skills { get; init; }
+    public required IReadOnlyDictionary<string, MonsterTemplate> Monsters { get; init; }
+    public required IReadOnlyList<MonsterSpawnPoint> MonsterSpawns { get; init; }
+    public required IReadOnlyDictionary<string, LootTableConfig> LootTables { get; init; }
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -193,3 +263,6 @@ public sealed record PlayerLoggedInEvent(string ConnectionId, string AccountId, 
 public sealed record PlayerEnteredWorldEvent(IClientSession Session, string EntityId, string CharacterName, string ClassId, string MapId, int X, int Y);
 public sealed record PlayerMovedEvent(string EntityId, string CharacterName, string MapId, int FromX, int FromY, int ToX, int ToY);
 public sealed record ZoneLoadedEvent(string VersionId, string RealmId, string PackHash);
+public sealed record MonsterKilledEvent(IClientSession? KillerSession, string KillerEntityId, string KillerName, string KillerCharacterId, string VictimEntityId, string VictimName, string MonsterId, string MapId, int X, int Y);
+public sealed record LootPickedEvent(IClientSession Session, string PickerName, string CharacterId, string ItemId, int Count, string LootEntityId, string MapId);
+

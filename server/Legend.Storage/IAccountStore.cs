@@ -16,7 +16,9 @@ public interface ICharacterStore
     Task<(bool Ok, string? Error)> DeleteAsync(string accountId, string characterId, CancellationToken ct = default);
     Task<CharacterRecord?> GetByIdAsync(string characterId, CancellationToken ct = default);
     Task SavePositionAsync(string characterId, string mapId, int x, int y, int hp, int mp, CancellationToken ct = default);
+    Task SaveInventoryAsync(string characterId, string inventoryJson, CancellationToken ct = default);
 }
+
 
 public interface ISessionStore
 {

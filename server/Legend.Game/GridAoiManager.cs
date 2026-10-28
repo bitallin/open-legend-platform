@@ -19,7 +19,11 @@ public sealed class WorldPlayerEntity
     public int MaxHp { get; set; }
     public int Mp { get; set; }
     public int MaxMp { get; set; }
+    public int Atk { get; set; }
     public bool InSafeZone { get; set; }
+    public bool IsDead { get; set; }
+    public Dictionary<string, long> SkillReadyAtUnixMs { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<InventorySlot> Inventory { get; set; } = new();
 
     public EntitySnapshot ToSnapshot() => new()
     {
@@ -32,7 +36,9 @@ public sealed class WorldPlayerEntity
         Direction = Direction,
         Hp = Hp,
         MaxHp = MaxHp,
-        InSafeZone = InSafeZone
+        InSafeZone = InSafeZone,
+        Kind = EntityKind.EntityPlayer,
+        TemplateId = ClassId
     };
 }
 
@@ -138,6 +144,19 @@ public sealed class GridAoiManager
                 bucket.Remove(entityId);
             return viewers;
         }
+    }
+
+    public List<WorldPlayerEntity> AllPlayers()
+    {
+        lock (_gridLock)
+            return _entities.Values.ToList();
+    }
+
+    /// <summary>Players within AOI radius of a world cell (includes all in nearby buckets).</summary>
+    public List<WorldPlayerEntity> QueryPlayersNear(int x, int y, string? excludeId = null)
+    {
+        lock (_gridLock)
+            return QueryNearbyLocked(excludeId ?? string.Empty, x, y);
     }
 
     private List<WorldPlayerEntity> QueryNearbyLocked(string selfId, int x, int y)

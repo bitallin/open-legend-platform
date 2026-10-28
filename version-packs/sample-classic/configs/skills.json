@@ -1,0 +1,29 @@
+[
+  {
+    "skillId": "basic_slash",
+    "displayName": "基础挥砍",
+    "mpCost": 0,
+    "cooldownMs": 600,
+    "range": 2,
+    "damageMultiplier": 1.0,
+    "allowedClasses": ["warrior", "mage", "taoist"]
+  },
+  {
+    "skillId": "power_strike",
+    "displayName": "强击",
+    "mpCost": 12,
+    "cooldownMs": 2500,
+    "range": 2,
+    "damageMultiplier": 1.75,
+    "allowedClasses": ["warrior"]
+  },
+  {
+    "skillId": "arcane_bolt",
+    "displayName": "奥术飞弹",
+    "mpCost": 15,
+    "cooldownMs": 1200,
+    "range": 5,
+    "damageMultiplier": 1.4,
+    "allowedClasses": ["mage"]
+  }
+]

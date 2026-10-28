@@ -12,7 +12,7 @@ namespace Legend.UnitySdk
 {
     /// <summary>
     /// Unity 2022 LTS pure C# TCP client (PC + Android). PumpMainThreadEvents() in Update().
-    /// Flow: Handshake → Register/Login → CharList/Create/Select → EnterWorld → Move.
+    /// Flow: Handshake → Register/Login → CharList/Create/Select → EnterWorld → Move / Attack / Pickup.
     /// </summary>
     public sealed class LegendUnityNetworkClient : IDisposable
     {
@@ -36,6 +36,11 @@ namespace Legend.UnitySdk
         public event Action<MoveSync>? OnMoveSync;
         public event Action<ServerNotice>? OnServerNotice;
         public event Action<MapChangeNotify>? OnMapChange;
+        public event Action<CombatSync>? OnCombatSync;
+        public event Action<EntitySnapshot>? OnEntitySpawn;
+        public event Action<string, string>? OnEntityDespawn; // entityId, reason
+        public event Action<LootDropNotify>? OnLootDrop;
+        public event Action<InventoryNotify>? OnInventoryNotify;
 
         public void PumpMainThreadEvents()
         {
@@ -255,6 +260,31 @@ namespace Legend.UnitySdk
                                 SelfEntity.InSafeZone = mc.InSafeZone;
                             }
                             _mainThreadActions.Enqueue(() => OnMapChange?.Invoke(mc));
+                            break;
+                        case MsgId.CombatSync:
+                            var cs = CombatSync.Parser.ParseFrom(frame.Payload);
+                            if (SelfEntity != null && cs.TargetEntityId == SelfEntity.EntityId)
+                            {
+                                SelfEntity.Hp = cs.TargetHp;
+                                SelfEntity.MaxHp = cs.TargetMaxHp;
+                            }
+                            _mainThreadActions.Enqueue(() => OnCombatSync?.Invoke(cs));
+                            break;
+                        case MsgId.EntitySpawn:
+                            var esp = EntitySpawn.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnEntitySpawn?.Invoke(esp.Entity));
+                            break;
+                        case MsgId.EntityDespawn:
+                            var ed = EntityDespawn.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnEntityDespawn?.Invoke(ed.EntityId, ed.Reason));
+                            break;
+                        case MsgId.LootDropNotify:
+                            var ld = LootDropNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnLootDrop?.Invoke(ld));
+                            break;
+                        case MsgId.InventoryNotify:
+                            var inv = InventoryNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnInventoryNotify?.Invoke(inv));
                             break;
                     }
                 }

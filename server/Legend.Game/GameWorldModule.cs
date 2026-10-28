@@ -6,6 +6,13 @@ using Legend.Storage;
 
 namespace Legend.Game;
 
+/// <summary>
+/// M2 combat rules (authoritative):
+/// - Safe zone: ALL attacks forbidden (PvE and PvP). Monsters spawn outside safe zones.
+/// - PvP: disabled in M2 (only monsters are valid Attack targets).
+/// - Loot ownership: killer-only until FreeForAll (15s), then anyone; despawn at 60s.
+/// - Player death: revive at current map spawn with full HP/MP.
+/// </summary>
 public sealed class GameWorldModule : IGameModule
 {
     private readonly IEventBus _eventBus;
@@ -13,6 +20,18 @@ public sealed class GameWorldModule : IGameModule
     private readonly ILegendStorage _storage;
     private readonly IAntiCheatProbe _antiCheatProbe;
     private readonly ConcurrentDictionary<string, GridAoiManager> _maps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, MonsterEntity> _monsters = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, LootEntity> _loots = new(StringComparer.Ordinal);
+    private readonly object _combatLock = new();
+    private CancellationTokenSource? _aiCts;
+    private Task? _aiTask;
+    private int _monsterSeq;
+    private int _lootSeq;
+    private static readonly Random Rng = new();
+
+    public const int LootOwnerMs = 15_000;
+    public const int LootDespawnMs = 60_000;
+    public const int PickupRange = 2;
 
     public GameWorldModule(
         IEventBus eventBus,
@@ -32,9 +51,15 @@ public sealed class GameWorldModule : IGameModule
     public string ModuleName => "GameWorldModule";
     public int OnlineCount => _maps.Values.Sum(m => m.OnlineCount);
 
-    public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
+    public Task InitializeAsync(CancellationToken ct = default)
+    {
+        SpawnInitialMonsters();
+        _aiCts = new CancellationTokenSource();
+        _aiTask = Task.Run(() => AiLoopAsync(_aiCts.Token), _aiCts.Token);
+        return Task.CompletedTask;
+    }
 
-    public bool CanHandle(MsgId msgId) => msgId is MsgId.EnterWorldReq or MsgId.MoveReq;
+    public bool CanHandle(MsgId msgId) => msgId is MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -42,6 +67,51 @@ public sealed class GameWorldModule : IGameModule
             return aoi;
         var map = _versionPack.GetMap(mapId);
         return _maps.GetOrAdd(map.MapId, _ => new GridAoiManager(map));
+    }
+
+    private void SpawnInitialMonsters()
+    {
+        foreach (var spawn in _versionPack.MonsterSpawns)
+        {
+            if (!_versionPack.Monsters.TryGetValue(spawn.MonsterId, out var tmpl))
+                continue;
+            var map = _versionPack.GetMap(spawn.MapId);
+            int count = Math.Max(1, spawn.Count);
+            for (int i = 0; i < count; i++)
+            {
+                int x = spawn.X + (i % 3);
+                int y = spawn.Y + (i / 3);
+                if (map.IsBlocked(x, y) || map.IsInSafeZone(x, y))
+                {
+                    x = spawn.X;
+                    y = spawn.Y;
+                }
+                CreateMonster(tmpl, spawn.MapId, x, y);
+            }
+        }
+        StructuredLogger.Info("GameWorldModule", $"Spawned {_monsters.Count} monsters from version pack");
+    }
+
+    private MonsterEntity CreateMonster(MonsterTemplate tmpl, string mapId, int x, int y)
+    {
+        int id = Interlocked.Increment(ref _monsterSeq);
+        var m = new MonsterEntity
+        {
+            EntityId = $"mob_{tmpl.MonsterId}_{id}",
+            MonsterId = tmpl.MonsterId,
+            Name = tmpl.DisplayName,
+            MapId = mapId,
+            Template = tmpl,
+            SpawnX = x,
+            SpawnY = y,
+            X = x,
+            Y = y,
+            Hp = tmpl.MaxHp,
+            MaxHp = tmpl.MaxHp,
+            Alive = true
+        };
+        _monsters[m.EntityId] = m;
+        return m;
     }
 
     public async Task HandlePacketAsync(IClientSession session, PacketFrame frame, CancellationToken ct = default)
@@ -53,6 +123,12 @@ public sealed class GameWorldModule : IGameModule
                 break;
             case MsgId.MoveReq:
                 await HandleMoveAsync(session, frame, ct);
+                break;
+            case MsgId.AttackReq:
+                await HandleAttackAsync(session, frame, ct);
+                break;
+            case MsgId.PickupReq:
+                await HandlePickupAsync(session, frame, ct);
                 break;
         }
     }
@@ -99,7 +175,6 @@ public sealed class GameWorldModule : IGameModule
             return;
         }
 
-        // Remove from any previous map if reconnecting
         if (!string.IsNullOrEmpty(session.EntityId))
         {
             foreach (var aoi in _maps.Values)
@@ -125,7 +200,6 @@ public sealed class GameWorldModule : IGameModule
         await _storage.Sessions.BindCharacterAsync(req.SessionToken, character.CharacterId, ct);
 
         var map = _versionPack.GetMap(character.MapId);
-        // Clamp to spawn if saved position is blocked (map data changed)
         int x = character.X;
         int y = character.Y;
         if (map.IsBlocked(x, y))
@@ -133,6 +207,10 @@ public sealed class GameWorldModule : IGameModule
             x = map.SpawnX;
             y = map.SpawnY;
         }
+
+        int atk = 15;
+        if (_versionPack.Classes.TryGetValue(character.ClassId, out var cls))
+            atk = cls.BaseAtk;
 
         var entity = new WorldPlayerEntity
         {
@@ -145,14 +223,16 @@ public sealed class GameWorldModule : IGameModule
             X = x,
             Y = y,
             Direction = 4,
-            Hp = character.Hp,
+            Hp = Math.Max(1, character.Hp),
             MaxHp = character.MaxHp,
             Mp = character.Mp,
-            MaxMp = character.MaxMp
+            MaxMp = character.MaxMp,
+            Atk = atk,
+            Inventory = InventoryHelper.Parse(character.InventoryJson)
         };
 
         var aoiMgr = GetAoi(map.MapId);
-        var nearby = aoiMgr.AddOrUpdateEntity(entity);
+        var nearbyPlayers = aoiMgr.AddOrUpdateEntity(entity);
 
         var resp = new EnterWorldResp
         {
@@ -163,13 +243,17 @@ public sealed class GameWorldModule : IGameModule
             Message = $"Entered map '{map.MapName}' ({map.MapId})",
             InSafeZone = entity.InSafeZone
         };
-        foreach (var other in nearby)
+        foreach (var other in nearbyPlayers)
             resp.NearbyEntities.Add(other.ToSnapshot());
+        foreach (var snap in EnumerateNearbyNonPlayers(map.MapId, x, y))
+            resp.NearbyEntities.Add(snap);
+        foreach (var item in InventoryHelper.ToProto(entity.Inventory))
+            resp.Inventory.Add(item);
 
         await session.SendAsync(MsgId.EnterWorldResp, frame.Seq, resp, ct);
 
         var enterNotice = new EntityEnterAoi { Entity = entity.ToSnapshot() };
-        foreach (var viewer in nearby)
+        foreach (var viewer in nearbyPlayers)
             await viewer.Session.SendAsync(MsgId.EntityEnterAoi, 0, enterNotice, ct);
 
         StructuredLogger.Info("GameWorldModule",
@@ -180,29 +264,36 @@ public sealed class GameWorldModule : IGameModule
             session, entityId, character.Name, character.ClassId, map.MapId, x, y), ct);
     }
 
+    private IEnumerable<EntitySnapshot> EnumerateNearbyNonPlayers(string mapId, int x, int y)
+    {
+        int view = 16;
+        foreach (var m in _monsters.Values)
+        {
+            if (!m.Alive || !string.Equals(m.MapId, mapId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (CombatMath.Chebyshev(x, y, m.X, m.Y) <= view)
+                yield return m.ToSnapshot();
+        }
+        foreach (var loot in _loots.Values)
+        {
+            if (!string.Equals(loot.MapId, mapId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (CombatMath.Chebyshev(x, y, loot.X, loot.Y) <= view)
+                yield return loot.ToSnapshot();
+        }
+    }
+
     private async Task HandleMoveAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(session.EntityId) || string.IsNullOrEmpty(session.CharacterId))
+        if (!TryGetPlayer(session, out var entity, out var aoi) || entity is null || aoi is null)
         {
             await RejectMove(session, frame, null, "Player has not entered the world.", ct);
             return;
         }
 
-        WorldPlayerEntity? entity = null;
-        GridAoiManager? aoi = null;
-        foreach (var kv in _maps)
+        if (entity.IsDead)
         {
-            if (kv.Value.TryGetEntity(session.EntityId, out var e) && e != null)
-            {
-                entity = e;
-                aoi = kv.Value;
-                break;
-            }
-        }
-
-        if (entity is null || aoi is null)
-        {
-            await RejectMove(session, frame, null, "Player has not entered the world.", ct);
+            await RejectMove(session, frame, entity, "Cannot move while dead.", ct);
             return;
         }
 
@@ -279,16 +370,322 @@ public sealed class GameWorldModule : IGameModule
             }
         }
 
+        // Reveal monsters/loot newly in view
+        foreach (var snap in EnumerateNearbyNonPlayers(entity.MapId, toX, toY))
+        {
+            if (CombatMath.Chebyshev(fromX, fromY, snap.X, snap.Y) > 16)
+                await session.SendAsync(MsgId.EntitySpawn, 0, new EntitySpawn { Entity = snap, Reason = "AoiReveal" }, ct);
+        }
+
         await _storage.Characters.SavePositionAsync(
             entity.CharacterId, entity.MapId, entity.X, entity.Y, entity.Hp, entity.Mp, ct);
 
         await _eventBus.PublishAsync(new PlayerMovedEvent(
             entity.EntityId, entity.Name, entity.MapId, fromX, fromY, toX, toY), ct);
 
-        // Portal check after successful move
         var portal = aoi.Map.FindPortalAt(toX, toY);
         if (portal is not null)
             await TransferViaPortalAsync(session, entity, aoi, portal, ct);
+    }
+
+    private async Task HandleAttackAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = AttackReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var attacker, out var aoi) || attacker is null || aoi is null)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world."
+            }, ct);
+            return;
+        }
+
+        if (attacker.IsDead || attacker.Hp <= 0)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrDead,
+                Message = "You are dead."
+            }, ct);
+            return;
+        }
+
+        // Safe zone: complete attack ban
+        if (attacker.InSafeZone || aoi.Map.IsInSafeZone(attacker.X, attacker.Y))
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrSafeZone,
+                Message = "安全区内禁止攻击。"
+            }, ct);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(req.SkillId) ||
+            !_versionPack.Skills.TryGetValue(req.SkillId, out var skill))
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
+                Message = $"未知技能: {req.SkillId}"
+            }, ct);
+            return;
+        }
+
+        if (skill.AllowedClasses.Count > 0 &&
+            !skill.AllowedClasses.Any(c => string.Equals(c, attacker.ClassId, StringComparison.OrdinalIgnoreCase)))
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
+                Message = $"职业 {attacker.ClassId} 无法使用技能 {skill.SkillId}"
+            }, ct);
+            return;
+        }
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (attacker.SkillReadyAtUnixMs.TryGetValue(skill.SkillId, out long readyAt) && now < readyAt)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrSkillCooldown,
+                Message = "技能冷却中",
+                NextReadyUnixMs = readyAt,
+                RemainingMp = attacker.Mp
+            }, ct);
+            return;
+        }
+
+        if (attacker.Mp < skill.MpCost)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
+                Message = "MP 不足",
+                RemainingMp = attacker.Mp
+            }, ct);
+            return;
+        }
+
+        if (!_monsters.TryGetValue(req.TargetEntityId, out var monster) || !monster.Alive ||
+            !string.Equals(monster.MapId, attacker.MapId, StringComparison.OrdinalIgnoreCase))
+        {
+            // PvP disabled: reject player targets and unknown
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidTarget,
+                Message = "无效目标（M2 仅支持攻击怪物）。"
+            }, ct);
+            return;
+        }
+
+        int dist = CombatMath.Chebyshev(attacker.X, attacker.Y, monster.X, monster.Y);
+        if (dist > skill.Range)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrOutOfRange,
+                Message = $"目标超出技能距离 ({dist}>{skill.Range})"
+            }, ct);
+            return;
+        }
+
+        attacker.Mp -= skill.MpCost;
+        long nextReady = now + skill.CooldownMs;
+        attacker.SkillReadyAtUnixMs[skill.SkillId] = nextReady;
+
+        int damage = CombatMath.CalcDamage(attacker.Atk, monster.Template.Def, skill.DamageMultiplier);
+        monster.Hp = Math.Max(0, monster.Hp - damage);
+        monster.TargetEntityId = attacker.EntityId;
+        bool killed = monster.Hp <= 0;
+
+        var combat = new CombatSync
+        {
+            AttackerEntityId = attacker.EntityId,
+            TargetEntityId = monster.EntityId,
+            SkillId = skill.SkillId,
+            Result = killed ? CombatResultKind.CombatKill : CombatResultKind.CombatHit,
+            Damage = damage,
+            TargetHp = monster.Hp,
+            TargetMaxHp = monster.MaxHp,
+            TargetDied = killed,
+            MapId = attacker.MapId
+        };
+
+        await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            RemainingMp = attacker.Mp,
+            NextReadyUnixMs = nextReady
+        }, ct);
+
+        await BroadcastNearAsync(attacker.MapId, attacker.X, attacker.Y, MsgId.CombatSync, combat, ct);
+        // Also send to attacker if not already in viewers list via Broadcast (Broadcast includes all near)
+        await session.SendAsync(MsgId.CombatSync, 0, combat, ct);
+
+        await _storage.Characters.SavePositionAsync(
+            attacker.CharacterId, attacker.MapId, attacker.X, attacker.Y, attacker.Hp, attacker.Mp, ct);
+
+        if (killed)
+        {
+            monster.Alive = false;
+            monster.RespawnAtUnixMs = now + Math.Max(1000, monster.Template.RespawnMs);
+            await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.EntityDespawn,
+                new EntityDespawn { EntityId = monster.EntityId, Reason = "Killed", MapId = monster.MapId }, ct);
+
+            await DropLootAsync(monster, attacker, ct);
+
+            await _eventBus.PublishAsync(new MonsterKilledEvent(
+                session, attacker.EntityId, attacker.Name, attacker.CharacterId,
+                monster.EntityId, monster.Name, monster.MonsterId, monster.MapId, monster.X, monster.Y), ct);
+        }
+    }
+
+    private async Task DropLootAsync(MonsterEntity monster, WorldPlayerEntity killer, CancellationToken ct)
+    {
+        if (!_versionPack.LootTables.TryGetValue(monster.Template.LootTableId, out var table))
+            return;
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        foreach (var entry in table.Entries)
+        {
+            double roll;
+            lock (Rng) roll = Rng.NextDouble();
+            if (roll > entry.Chance)
+                continue;
+            int countMin = Math.Max(1, entry.CountMin);
+            int countMax = Math.Max(countMin, entry.CountMax);
+            int count;
+            lock (Rng) count = Rng.Next(countMin, countMax + 1);
+
+            int lootId = Interlocked.Increment(ref _lootSeq);
+            var loot = new LootEntity
+            {
+                EntityId = $"loot_{lootId}",
+                MapId = monster.MapId,
+                ItemId = entry.ItemId,
+                Count = count,
+                X = monster.X,
+                Y = monster.Y,
+                OwnerCharacterId = killer.CharacterId,
+                FreeForAllUnixMs = now + LootOwnerMs,
+                ExpireUnixMs = now + LootDespawnMs
+            };
+            _loots[loot.EntityId] = loot;
+
+            var notify = new LootDropNotify
+            {
+                Loot = loot.ToSnapshot(),
+                SourceEntityId = monster.EntityId,
+                KillerCharacterId = killer.CharacterId
+            };
+            await BroadcastNearAsync(loot.MapId, loot.X, loot.Y, MsgId.LootDropNotify, notify, ct);
+            await BroadcastNearAsync(loot.MapId, loot.X, loot.Y, MsgId.EntitySpawn,
+                new EntitySpawn { Entity = loot.ToSnapshot(), Reason = "LootDrop" }, ct);
+        }
+    }
+
+    private async Task HandlePickupAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = PickupReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.PickupResp, frame.Seq, new PickupResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world."
+            }, ct);
+            return;
+        }
+
+        if (!_loots.TryGetValue(req.LootEntityId, out var loot) ||
+            !string.Equals(loot.MapId, player.MapId, StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.PickupResp, frame.Seq, new PickupResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrLootDenied,
+                Message = "掉落不存在。"
+            }, ct);
+            return;
+        }
+
+        if (CombatMath.Chebyshev(player.X, player.Y, loot.X, loot.Y) > PickupRange)
+        {
+            await session.SendAsync(MsgId.PickupResp, frame.Seq, new PickupResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrOutOfRange,
+                Message = "距离太远，无法拾取。"
+            }, ct);
+            return;
+        }
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (!string.IsNullOrEmpty(loot.OwnerCharacterId) &&
+            now < loot.FreeForAllUnixMs &&
+            !string.Equals(loot.OwnerCharacterId, player.CharacterId, StringComparison.Ordinal))
+        {
+            await session.SendAsync(MsgId.PickupResp, frame.Seq, new PickupResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrLootDenied,
+                Message = "该掉落归属击杀者（保护期内不可拾取）。"
+            }, ct);
+            return;
+        }
+
+        if (!_loots.TryRemove(loot.EntityId, out _))
+        {
+            await session.SendAsync(MsgId.PickupResp, frame.Seq, new PickupResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrLootDenied,
+                Message = "掉落已被拾取。"
+            }, ct);
+            return;
+        }
+
+        InventoryHelper.AddItem(player.Inventory, loot.ItemId, loot.Count);
+        string invJson = InventoryHelper.Serialize(player.Inventory);
+        await _storage.Characters.SaveInventoryAsync(player.CharacterId, invJson, ct);
+
+        var picked = new InventoryItem { ItemId = loot.ItemId, Count = loot.Count };
+        var resp = new PickupResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            Picked = picked
+        };
+        foreach (var item in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(item);
+
+        await session.SendAsync(MsgId.PickupResp, frame.Seq, resp, ct);
+        await session.SendAsync(MsgId.InventoryNotify, 0, new InventoryNotify
+        {
+            CharacterId = player.CharacterId,
+            Reason = "Pickup"
+        }.Also(n => { foreach (var i in InventoryHelper.ToProto(player.Inventory)) n.Items.Add(i); }), ct);
+
+        await BroadcastNearAsync(loot.MapId, loot.X, loot.Y, MsgId.EntityDespawn,
+            new EntityDespawn { EntityId = loot.EntityId, Reason = "Picked", MapId = loot.MapId }, ct);
+
+        await _eventBus.PublishAsync(new LootPickedEvent(
+            session, player.Name, player.CharacterId, loot.ItemId, loot.Count, loot.EntityId, loot.MapId), ct);
     }
 
     private async Task TransferViaPortalAsync(
@@ -342,6 +739,8 @@ public sealed class GameWorldModule : IGameModule
         };
         foreach (var n in nearby)
             notify.NearbyEntities.Add(n.ToSnapshot());
+        foreach (var snap in EnumerateNearbyNonPlayers(toMap.MapId, tx, ty))
+            notify.NearbyEntities.Add(snap);
 
         await session.SendAsync(MsgId.MapChangeNotify, 0, notify, ct);
 
@@ -352,6 +751,228 @@ public sealed class GameWorldModule : IGameModule
         StructuredLogger.Info("GameWorldModule",
             $"Portal '{portal.PortalId}': {entity.Name} {fromMapId}-> {toMap.MapId} ({tx},{ty})",
             connId: session.ConnectionId, playerId: entity.EntityId);
+    }
+
+    private async Task AiLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(400, ct);
+                await TickMonstersAsync(ct);
+                await TickLootExpiryAsync(ct);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                StructuredLogger.Warn("GameWorldModule", $"AI tick error: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task TickMonstersAsync(CancellationToken ct)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        foreach (var monster in _monsters.Values.ToList())
+        {
+            if (!monster.Alive)
+            {
+                if (monster.RespawnAtUnixMs > 0 && now >= monster.RespawnAtUnixMs)
+                {
+                    monster.Alive = true;
+                    monster.Hp = monster.MaxHp;
+                    monster.X = monster.SpawnX;
+                    monster.Y = monster.SpawnY;
+                    monster.TargetEntityId = null;
+                    monster.RespawnAtUnixMs = 0;
+                    await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.EntitySpawn,
+                        new EntitySpawn { Entity = monster.ToSnapshot(), Reason = "Respawn" }, ct);
+                }
+                continue;
+            }
+
+            var aoi = GetAoi(monster.MapId);
+            WorldPlayerEntity? target = null;
+            if (!string.IsNullOrEmpty(monster.TargetEntityId) &&
+                aoi.TryGetEntity(monster.TargetEntityId, out var t) && t != null && !t.IsDead)
+            {
+                target = t;
+            }
+            else
+            {
+                // aggro nearest player in range (outside safe zone)
+                int best = int.MaxValue;
+                foreach (var p in aoi.AllPlayers())
+                {
+                    if (p.IsDead || p.InSafeZone) continue;
+                    int d = CombatMath.Chebyshev(monster.X, monster.Y, p.X, p.Y);
+                    if (d <= monster.Template.AggroRange && d < best)
+                    {
+                        best = d;
+                        target = p;
+                    }
+                }
+                monster.TargetEntityId = target?.EntityId;
+            }
+
+            if (target is null)
+            {
+                // leash home for chase AI
+                if (string.Equals(monster.Template.Ai, "chase", StringComparison.OrdinalIgnoreCase) &&
+                    (monster.X != monster.SpawnX || monster.Y != monster.SpawnY))
+                {
+                    int nx = monster.X + Math.Sign(monster.SpawnX - monster.X);
+                    int ny = monster.Y + Math.Sign(monster.SpawnY - monster.Y);
+                    if (aoi.IsWalkable(nx, ny) && !aoi.Map.IsInSafeZone(nx, ny))
+                    {
+                        int ox = monster.X, oy = monster.Y;
+                        monster.X = nx;
+                        monster.Y = ny;
+                        await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.MoveSync, new MoveSync
+                        {
+                            EntityId = monster.EntityId,
+                            FromX = ox, FromY = oy, ToX = nx, ToY = ny,
+                            Direction = 4, Accepted = true, Reason = "AI"
+                        }, ct);
+                    }
+                }
+                continue;
+            }
+
+            int dist = CombatMath.Chebyshev(monster.X, monster.Y, target.X, target.Y);
+            if (string.Equals(monster.Template.Ai, "chase", StringComparison.OrdinalIgnoreCase) &&
+                dist > monster.Template.AttackRange)
+            {
+                int nx = monster.X + Math.Sign(target.X - monster.X);
+                int ny = monster.Y + Math.Sign(target.Y - monster.Y);
+                if (aoi.IsWalkable(nx, ny) && !aoi.Map.IsInSafeZone(nx, ny))
+                {
+                    int ox = monster.X, oy = monster.Y;
+                    monster.X = nx;
+                    monster.Y = ny;
+                    await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.MoveSync, new MoveSync
+                    {
+                        EntityId = monster.EntityId,
+                        FromX = ox, FromY = oy, ToX = nx, ToY = ny,
+                        Direction = 4, Accepted = true, Reason = "AI"
+                    }, ct);
+                }
+                dist = CombatMath.Chebyshev(monster.X, monster.Y, target.X, target.Y);
+            }
+
+            if (dist <= monster.Template.AttackRange && now >= monster.NextAttackUnixMs)
+            {
+                if (target.InSafeZone)
+                {
+                    monster.TargetEntityId = null;
+                    continue;
+                }
+
+                monster.NextAttackUnixMs = now + monster.Template.AttackCooldownMs;
+                int dmg = CombatMath.CalcDamage(monster.Template.Atk, 0, 1.0);
+                target.Hp = Math.Max(0, target.Hp - dmg);
+                bool died = target.Hp <= 0;
+                var sync = new CombatSync
+                {
+                    AttackerEntityId = monster.EntityId,
+                    TargetEntityId = target.EntityId,
+                    SkillId = "monster_melee",
+                    Result = died ? CombatResultKind.CombatKill : CombatResultKind.CombatHit,
+                    Damage = dmg,
+                    TargetHp = target.Hp,
+                    TargetMaxHp = target.MaxHp,
+                    TargetDied = died,
+                    MapId = monster.MapId
+                };
+                await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.CombatSync, sync, ct);
+                await target.Session.SendAsync(MsgId.CombatSync, 0, sync, ct);
+
+                if (died)
+                    await RevivePlayerAsync(target, aoi, ct);
+                else
+                    await _storage.Characters.SavePositionAsync(
+                        target.CharacterId, target.MapId, target.X, target.Y, target.Hp, target.Mp, ct);
+            }
+        }
+    }
+
+    private async Task RevivePlayerAsync(WorldPlayerEntity player, GridAoiManager aoi, CancellationToken ct)
+    {
+        player.IsDead = false;
+        player.Hp = player.MaxHp;
+        player.Mp = player.MaxMp;
+        int sx = aoi.Map.SpawnX;
+        int sy = aoi.Map.SpawnY;
+        int ox = player.X, oy = player.Y;
+        aoi.MoveEntity(player.EntityId, sx, sy, 4);
+        await _storage.Characters.SavePositionAsync(
+            player.CharacterId, player.MapId, player.X, player.Y, player.Hp, player.Mp, ct);
+
+        await player.Session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+        {
+            NoticeType = "REVIVE",
+            Title = "复活",
+            Content = $"你已在出生点 ({sx},{sy}) 满血复活。"
+        }, ct);
+
+        var sync = new MoveSync
+        {
+            EntityId = player.EntityId,
+            FromX = ox, FromY = oy, ToX = sx, ToY = sy,
+            Direction = 4, Accepted = true, Reason = "Revive",
+            InSafeZone = player.InSafeZone
+        };
+        await player.Session.SendAsync(MsgId.MoveSync, 0, sync, ct);
+        foreach (var v in aoi.QueryPlayersNear(sx, sy, player.EntityId))
+            await v.Session.SendAsync(MsgId.MoveSync, 0, sync, ct);
+    }
+
+    private async Task TickLootExpiryAsync(CancellationToken ct)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        foreach (var loot in _loots.Values.ToList())
+        {
+            if (now < loot.ExpireUnixMs)
+                continue;
+            if (_loots.TryRemove(loot.EntityId, out _))
+            {
+                await BroadcastNearAsync(loot.MapId, loot.X, loot.Y, MsgId.EntityDespawn,
+                    new EntityDespawn { EntityId = loot.EntityId, Reason = "Expired", MapId = loot.MapId }, ct);
+            }
+        }
+    }
+
+    private async Task BroadcastNearAsync(string mapId, int x, int y, MsgId msgId, Google.Protobuf.IMessage msg, CancellationToken ct)
+    {
+        var aoi = GetAoi(mapId);
+        foreach (var p in aoi.QueryPlayersNear(x, y))
+            await p.Session.SendAsync(msgId, 0, msg, ct);
+        // Also players slightly farther for combat visibility — QueryPlayersNear uses AOI cells;
+        // expand by also notifying all on same map within chebyshev 16
+        foreach (var p in aoi.AllPlayers())
+        {
+            if (CombatMath.Chebyshev(p.X, p.Y, x, y) <= 16)
+                await p.Session.SendAsync(msgId, 0, msg, ct);
+        }
+    }
+
+    private bool TryGetPlayer(IClientSession session, out WorldPlayerEntity? entity, out GridAoiManager? aoi)
+    {
+        entity = null;
+        aoi = null;
+        if (string.IsNullOrEmpty(session.EntityId))
+            return false;
+        foreach (var kv in _maps)
+        {
+            if (kv.Value.TryGetEntity(session.EntityId, out var e) && e != null)
+            {
+                entity = e;
+                aoi = kv.Value;
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Task RejectMove(IClientSession session, PacketFrame frame, WorldPlayerEntity? entity, string reason, CancellationToken ct)
@@ -375,6 +996,8 @@ public sealed class GameWorldModule : IGameModule
 
             await _storage.Characters.SavePositionAsync(
                 entity.CharacterId, entity.MapId, entity.X, entity.Y, entity.Hp, entity.Mp, ct);
+            await _storage.Characters.SaveInventoryAsync(
+                entity.CharacterId, InventoryHelper.Serialize(entity.Inventory), ct);
 
             var viewers = aoi.RemoveEntity(session.EntityId);
             var leaveMsg = new EntityLeaveAoi { EntityId = session.EntityId, Reason = "Disconnected" };
@@ -385,5 +1008,27 @@ public sealed class GameWorldModule : IGameModule
 
         if (!string.IsNullOrEmpty(session.AccountId))
             await _storage.Sessions.SetOnlineAsync(session.AccountId, false, ct);
+    }
+
+    public async ValueTask DisposeAiAsync()
+    {
+        if (_aiCts != null)
+        {
+            await _aiCts.CancelAsync();
+            if (_aiTask != null)
+            {
+                try { await _aiTask; } catch { }
+            }
+            _aiCts.Dispose();
+        }
+    }
+}
+
+internal static class ProtoAlsoExt
+{
+    public static T Also<T>(this T obj, Action<T> act)
+    {
+        act(obj);
+        return obj;
     }
 }

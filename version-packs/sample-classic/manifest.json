@@ -1,7 +1,7 @@
 {
-  "versionId": "sample-classic-1.1.0",
+  "versionId": "sample-classic-1.2.0",
   "displayName": "自研经典复古规则包 (Sample Classic)",
-  "protocolVersion": "1.1.0",
+  "protocolVersion": "1.2.0",
   "realmId": "realm-classic-01",
   "realmName": "自研先锋一区",
   "defaultMapFile": "maps/novice_plain.json",
@@ -10,8 +10,12 @@
     "maps/dark_forest.json"
   ],
   "classesConfigFile": "configs/classes.json",
+  "skillsConfigFile": "configs/skills.json",
+  "monstersConfigFile": "configs/monsters.json",
+  "lootTablesConfigFile": "configs/loot_tables.json",
   "scriptFiles": [
-    "scripts/welcome.lua"
+    "scripts/welcome.lua",
+    "scripts/combat.lua"
   ],
   "maxCharactersPerAccount": 3
 }

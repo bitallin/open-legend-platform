@@ -21,12 +21,19 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<EntityLeaveAoi> ReceivedAoiLeaves { get; } = new();
     public ConcurrentQueue<ServerNotice> ReceivedServerNotices { get; } = new();
     public ConcurrentQueue<MapChangeNotify> ReceivedMapChanges { get; } = new();
+    public ConcurrentQueue<CombatSync> ReceivedCombatSyncs { get; } = new();
+    public ConcurrentQueue<EntitySpawn> ReceivedEntitySpawns { get; } = new();
+    public ConcurrentQueue<EntityDespawn> ReceivedEntityDespawns { get; } = new();
+    public ConcurrentQueue<LootDropNotify> ReceivedLootDrops { get; } = new();
+    public ConcurrentQueue<InventoryNotify> ReceivedInventoryNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
     public event Action<EntityLeaveAoi>? OnEntityLeaveAoi;
     public event Action<ServerNotice>? OnServerNotice;
     public event Action<MapChangeNotify>? OnMapChange;
+    public event Action<CombatSync>? OnCombatSync;
+    public event Action<LootDropNotify>? OnLootDrop;
 
     public string? SessionToken { get; private set; }
     public string? AccountId { get; private set; }
@@ -113,6 +120,43 @@ public sealed class LegendTcpClient : IAsyncDisposable
                         }
                         break;
                     }
+                    case MsgId.CombatSync:
+                    {
+                        var sync = CombatSync.Parser.ParseFrom(frame.Payload);
+                        ReceivedCombatSyncs.Enqueue(sync);
+                        OnCombatSync?.Invoke(sync);
+                        if (SelfEntity != null && sync.TargetEntityId == SelfEntity.EntityId)
+                        {
+                            SelfEntity.Hp = sync.TargetHp;
+                            SelfEntity.MaxHp = sync.TargetMaxHp;
+                        }
+                        break;
+                    }
+                    case MsgId.EntitySpawn:
+                    {
+                        var spawn = EntitySpawn.Parser.ParseFrom(frame.Payload);
+                        ReceivedEntitySpawns.Enqueue(spawn);
+                        break;
+                    }
+                    case MsgId.EntityDespawn:
+                    {
+                        var despawn = EntityDespawn.Parser.ParseFrom(frame.Payload);
+                        ReceivedEntityDespawns.Enqueue(despawn);
+                        break;
+                    }
+                    case MsgId.LootDropNotify:
+                    {
+                        var loot = LootDropNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedLootDrops.Enqueue(loot);
+                        OnLootDrop?.Invoke(loot);
+                        break;
+                    }
+                    case MsgId.InventoryNotify:
+                    {
+                        var inv = InventoryNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedInventoryNotifies.Enqueue(inv);
+                        break;
+                    }
                 }
             }
         }
@@ -145,7 +189,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task<HandshakeResp> HandshakeAsync(
         string protocolVersion = ProtocolConstants.CurrentVersion,
-        string clientBuild = "pc-cli-1.1.0",
+        string clientBuild = "pc-cli-1.2.0",
         CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.HandshakeReq, new HandshakeReq
@@ -290,15 +334,55 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return PongResp.Parser.ParseFrom(frame.Payload);
     }
 
+    public async Task<(AttackResp Resp, CombatSync? Combat)> AttackAsync(string targetEntityId, string skillId, CancellationToken ct = default)
+    {
+        // Drain stale combat events
+        while (ReceivedCombatSyncs.TryDequeue(out _)) { }
+
+        var frame = await SendRequestAsync(MsgId.AttackReq, new AttackReq
+        {
+            TargetEntityId = targetEntityId,
+            SkillId = skillId
+        }, ct);
+        var resp = AttackResp.Parser.ParseFrom(frame.Payload);
+        CombatSync? combat = null;
+        string selfId = SelfEntity?.EntityId ?? "";
+        for (int i = 0; i < 40 && combat is null; i++)
+        {
+            while (ReceivedCombatSyncs.TryDequeue(out var c))
+            {
+                if (c.AttackerEntityId == selfId && c.TargetEntityId == targetEntityId)
+                {
+                    combat = c;
+                    break;
+                }
+            }
+            if (combat is null)
+                await Task.Delay(25, ct);
+        }
+        return (resp, combat);
+    }
+
+    public async Task<PickupResp> PickupAsync(string lootEntityId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PickupReq, new PickupReq
+        {
+            LootEntityId = lootEntityId
+        }, ct);
+        return PickupResp.Parser.ParseFrom(frame.Payload);
+    }
+
     public async ValueTask DisposeAsync()
     {
-        if (_cts != null)
-            await _cts.CancelAsync();
-        _tcp.Dispose();
+        var cts = Interlocked.Exchange(ref _cts, null);
+        if (cts is null)
+            return;
+        try { await cts.CancelAsync(); } catch (ObjectDisposedException) { }
+        try { _tcp.Dispose(); } catch { }
         if (_readLoopTask != null)
         {
             try { await _readLoopTask; } catch { }
         }
-        _cts?.Dispose();
+        cts.Dispose();
     }
 }

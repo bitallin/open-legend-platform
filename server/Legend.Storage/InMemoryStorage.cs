@@ -135,6 +135,16 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         }
         return Task.CompletedTask;
     }
+
+    public Task SaveInventoryAsync(string characterId, string inventoryJson, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.InventoryJson = string.IsNullOrWhiteSpace(inventoryJson) ? InventoryJson.Empty : inventoryJson;
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class InMemorySessionStore : ISessionStore

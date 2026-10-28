@@ -265,6 +265,18 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveInventoryAsync(string characterId, string inventoryJson, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET inventory_json=$inv, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$inv", string.IsNullOrWhiteSpace(inventoryJson) ? InventoryJson.Empty : inventoryJson);
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord ReadCharacter(SqliteDataReader reader)
         => new()
         {

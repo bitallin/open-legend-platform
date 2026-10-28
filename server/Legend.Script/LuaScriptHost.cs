@@ -97,11 +97,12 @@ public sealed class LuaScriptHost
         _luaVm = CreateHardSandboxVm(_bridge);
 
         _eventBus.Subscribe<PlayerEnteredWorldEvent>(OnPlayerEnteredWorldAsync);
+        _eventBus.Subscribe<MonsterKilledEvent>(OnMonsterKilledAsync);
+        _eventBus.Subscribe<LootPickedEvent>(OnLootPickedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
     {
-        // Preset_HardSandbox strips IO, OS, debug, loadfile, dofile to prevent arbitrary file/system access
         var vm = new MoonSharp.Interpreter.Script(CoreModules.Preset_HardSandbox);
         vm.Globals["legend_api"] = bridge;
         return vm;
@@ -166,8 +167,64 @@ public sealed class LuaScriptHost
         }
 
         foreach (var notice in noticesToDeliver)
-        {
             await evt.Session.SendAsync(MsgId.ServerNotice, 0, notice, ct);
+    }
+
+    private async Task OnMonsterKilledAsync(MonsterKilledEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> noticesToDeliver;
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_kill");
+            if (fn.Type != DataType.Function)
+                return;
+
+            _bridge.ClearPendingNotices();
+            var ctx = new Table(_luaVm)
+            {
+                ["killer_entity_id"] = evt.KillerEntityId,
+                ["killer_name"] = evt.KillerName,
+                ["killer_character_id"] = evt.KillerCharacterId,
+                ["victim_entity_id"] = evt.VictimEntityId,
+                ["victim_name"] = evt.VictimName,
+                ["monster_id"] = evt.MonsterId,
+                ["map_id"] = evt.MapId,
+                ["x"] = evt.X,
+                ["y"] = evt.Y
+            };
+            _luaVm.Call(fn, ctx);
+            noticesToDeliver = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
         }
+
+        if (evt.KillerSession != null)
+        {
+            foreach (var notice in noticesToDeliver)
+                await evt.KillerSession.SendAsync(MsgId.ServerNotice, 0, notice, ct);
+        }
+    }
+
+    private Task OnLootPickedAsync(LootPickedEvent evt, CancellationToken ct)
+    {
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_loot");
+            if (fn.Type != DataType.Function)
+                return Task.CompletedTask;
+
+            _bridge.ClearPendingNotices();
+            var ctx = new Table(_luaVm)
+            {
+                ["picker_name"] = evt.PickerName,
+                ["character_id"] = evt.CharacterId,
+                ["item_id"] = evt.ItemId,
+                ["count"] = evt.Count,
+                ["loot_entity_id"] = evt.LootEntityId,
+                ["map_id"] = evt.MapId
+            };
+            _luaVm.Call(fn, ctx);
+            _bridge.ClearPendingNotices();
+        }
+        return Task.CompletedTask;
     }
 }

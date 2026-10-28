@@ -173,22 +173,23 @@ public sealed class TcpGateServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_cts != null)
+        var cts = Interlocked.Exchange(ref _cts, null);
+        if (cts is null)
+            return;
+        try
         {
-            await _cts.CancelAsync();
+            await cts.CancelAsync();
         }
-        _listener?.Stop();
+        catch (ObjectDisposedException)
+        {
+            // Already torn down
+        }
+        try { _listener?.Stop(); } catch { /* ignore */ }
         if (_acceptLoopTask != null)
         {
-            try
-            {
-                await _acceptLoopTask;
-            }
-            catch
-            {
-                // Ignore cancellation exceptions
-            }
+            try { await _acceptLoopTask; }
+            catch { /* ignore cancellation */ }
         }
-        _cts?.Dispose();
+        cts.Dispose();
     }
 }

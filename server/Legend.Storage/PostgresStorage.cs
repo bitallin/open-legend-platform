@@ -256,6 +256,17 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveInventoryAsync(string characterId, string inventoryJson, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "UPDATE characters SET inventory_json=@inv::jsonb, updated_at=NOW() WHERE character_id=@id", conn);
+        cmd.Parameters.AddWithValue("inv", string.IsNullOrWhiteSpace(inventoryJson) ? "[]" : inventoryJson);
+        cmd.Parameters.AddWithValue("id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord Read(NpgsqlDataReader reader)
         => new()
         {
