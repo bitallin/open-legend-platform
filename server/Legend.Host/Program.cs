@@ -1,10 +1,12 @@
 using System.Net;
 using Legend.Core;
 using Legend.Host;
+using Legend.Storage;
 
 string manifestPath = "../version-packs/sample-classic/manifest.json";
 int port = 7100;
 string bindIp = "0.0.0.0";
+StorageOptions? storageOverride = null;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -14,11 +16,21 @@ for (int i = 0; i < args.Length; i++)
         port = p;
     else if (args[i] == "--bind" && i + 1 < args.Length)
         bindIp = args[++i];
+    else if (args[i] == "--storage" && i + 1 < args.Length)
+    {
+        storageOverride ??= StorageFactory.FromEnvironment();
+        storageOverride.Backend = args[++i];
+    }
+    else if (args[i] == "--sqlite" && i + 1 < args.Length)
+    {
+        storageOverride ??= StorageFactory.FromEnvironment();
+        storageOverride.Backend = "Sqlite";
+        storageOverride.SqlitePath = args[++i];
+    }
 }
 
 if (!File.Exists(manifestPath))
 {
-    // Fallback relative to repo root if launched from /workspace/legend-platform
     string alt = Path.Combine("version-packs", "sample-classic", "manifest.json");
     if (File.Exists(alt))
         manifestPath = alt;
@@ -32,11 +44,12 @@ Console.CancelKeyPress += (_, e) =>
 };
 AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
 
-await using var engine = new LegendServerEngine(manifestPath, port, IPAddress.Parse(bindIp));
+await using var engine = await LegendServerEngine.CreateAsync(
+    manifestPath, port, IPAddress.Parse(bindIp), storageOverride, cts.Token);
 await engine.StartAsync(cts.Token);
 
 StructuredLogger.Info("Legend.Host",
-    $"Legend.Host ready on {bindIp}:{engine.BoundPort} (VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash})");
+    $"Legend.Host ready on {bindIp}:{engine.BoundPort} (VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash}, Storage={engine.Storage.BackendName})");
 
 try
 {

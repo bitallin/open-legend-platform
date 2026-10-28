@@ -1,0 +1,306 @@
+using Microsoft.Data.Sqlite;
+
+namespace Legend.Storage;
+
+public sealed class SqliteStorage : ILegendStorage
+{
+    private readonly string _connectionString;
+    private readonly SqliteAccountStore _accounts;
+    private readonly SqliteCharacterStore _characters;
+    private readonly InMemorySessionStore _sessions = new();
+
+    public SqliteStorage(string databasePath)
+    {
+        string dir = Path.GetDirectoryName(Path.GetFullPath(databasePath))!;
+        Directory.CreateDirectory(dir);
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate
+        }.ToString();
+        _accounts = new SqliteAccountStore(_connectionString);
+        _characters = new SqliteCharacterStore(_connectionString);
+    }
+
+    public IAccountStore Accounts => _accounts;
+    public ICharacterStore Characters => _characters;
+    public ISessionStore Sessions => _sessions;
+    public string BackendName => "Sqlite";
+
+    public async Task InitializeAsync(CancellationToken ct = default)
+    {
+        await _accounts.EnsureSchemaAsync(ct);
+        await _characters.EnsureSchemaAsync(ct);
+        await _sessions.EnsureReadyAsync(ct);
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+internal sealed class SqliteAccountStore : IAccountStore
+{
+    private readonly string _cs;
+    public SqliteAccountStore(string cs) => _cs = cs;
+
+    public async Task EnsureSchemaAsync(CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS accounts (
+              account_id TEXT PRIMARY KEY,
+              username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+              password_hash TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            """;
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task<(bool Ok, string? Error, AccountRecord? Account)> RegisterAsync(string username, string password, CancellationToken ct = default)
+    {
+        username = username.Trim();
+        if (username.Length < 3 || username.Length > 32)
+            return (false, "用户名长度须为 3–32", null);
+        if (string.IsNullOrEmpty(password) || password.Length < 6)
+            return (false, "密码至少 6 位", null);
+
+        var account = new AccountRecord
+        {
+            AccountId = Guid.NewGuid().ToString("N"),
+            Username = username,
+            PasswordHash = PasswordHasher.Hash(password),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        try
+        {
+            await using var conn = new SqliteConnection(_cs);
+            await conn.OpenAsync(ct);
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO accounts(account_id, username, password_hash, created_at) VALUES($id,$u,$h,$c)";
+            cmd.Parameters.AddWithValue("$id", account.AccountId);
+            cmd.Parameters.AddWithValue("$u", account.Username);
+            cmd.Parameters.AddWithValue("$h", account.PasswordHash);
+            cmd.Parameters.AddWithValue("$c", account.CreatedAt.ToString("O"));
+            await cmd.ExecuteNonQueryAsync(ct);
+            return (true, null, account);
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            return (false, "用户名已存在", null);
+        }
+    }
+
+    public async Task<(bool Ok, string? Error, AccountRecord? Account)> AuthenticateAsync(string username, string password, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT account_id, username, password_hash, created_at FROM accounts WHERE username = $u COLLATE NOCASE";
+        cmd.Parameters.AddWithValue("$u", username.Trim());
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return (false, "用户名或密码错误", null);
+
+        var account = new AccountRecord
+        {
+            AccountId = reader.GetString(0),
+            Username = reader.GetString(1),
+            PasswordHash = reader.GetString(2),
+            CreatedAt = DateTimeOffset.Parse(reader.GetString(3))
+        };
+        if (!PasswordHasher.Verify(password, account.PasswordHash))
+            return (false, "用户名或密码错误", null);
+        return (true, null, account);
+    }
+
+    public async Task<AccountRecord?> GetByIdAsync(string accountId, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT account_id, username, password_hash, created_at FROM accounts WHERE account_id = $id";
+        cmd.Parameters.AddWithValue("$id", accountId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return new AccountRecord
+        {
+            AccountId = reader.GetString(0),
+            Username = reader.GetString(1),
+            PasswordHash = reader.GetString(2),
+            CreatedAt = DateTimeOffset.Parse(reader.GetString(3))
+        };
+    }
+}
+
+internal sealed class SqliteCharacterStore : ICharacterStore
+{
+    private readonly string _cs;
+    public SqliteCharacterStore(string cs) => _cs = cs;
+
+    public async Task EnsureSchemaAsync(CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS characters (
+              character_id TEXT PRIMARY KEY,
+              account_id TEXT NOT NULL,
+              name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+              class_id TEXT NOT NULL,
+              level INTEGER NOT NULL,
+              map_id TEXT NOT NULL,
+              x INTEGER NOT NULL,
+              y INTEGER NOT NULL,
+              hp INTEGER NOT NULL,
+              mp INTEGER NOT NULL,
+              max_hp INTEGER NOT NULL,
+              max_mp INTEGER NOT NULL,
+              inventory_json TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_characters_account ON characters(account_id);
+            """;
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<CharacterRecord>> ListByAccountAsync(string accountId, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM characters WHERE account_id = $a ORDER BY created_at";
+        cmd.Parameters.AddWithValue("$a", accountId);
+        var list = new List<CharacterRecord>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            list.Add(ReadCharacter(reader));
+        return list;
+    }
+
+    public async Task<(bool Ok, string? Error, CharacterRecord? Character)> CreateAsync(CharacterRecord character, int maxPerAccount, CancellationToken ct = default)
+    {
+        character.Name = character.Name.Trim();
+        if (character.Name.Length < 2 || character.Name.Length > 16)
+            return (false, "角色名长度须为 2–16", null);
+        if (string.IsNullOrEmpty(character.CharacterId))
+            character.CharacterId = Guid.NewGuid().ToString("N");
+        if (string.IsNullOrEmpty(character.InventoryJson))
+            character.InventoryJson = InventoryJson.Empty;
+        character.CreatedAt = DateTimeOffset.UtcNow;
+        character.UpdatedAt = character.CreatedAt;
+
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+
+        await using (var countCmd = conn.CreateCommand())
+        {
+            countCmd.CommandText = "SELECT COUNT(*) FROM characters WHERE account_id = $a";
+            countCmd.Parameters.AddWithValue("$a", character.AccountId);
+            long count = (long)(await countCmd.ExecuteScalarAsync(ct) ?? 0L);
+            if (count >= maxPerAccount)
+                return (false, $"每账号最多 {maxPerAccount} 个角色", null);
+        }
+
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$c,$u)
+                """;
+            BindCharacter(cmd, character);
+            await cmd.ExecuteNonQueryAsync(ct);
+            return (true, null, character.Clone());
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            return (false, "角色名已存在", null);
+        }
+    }
+
+    public async Task<(bool Ok, string? Error)> DeleteAsync(string accountId, string characterId, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM characters WHERE character_id = $cid AND account_id = $aid";
+        cmd.Parameters.AddWithValue("$cid", characterId);
+        cmd.Parameters.AddWithValue("$aid", accountId);
+        int n = await cmd.ExecuteNonQueryAsync(ct);
+        return n > 0 ? (true, null) : (false, "角色不存在");
+    }
+
+    public async Task<CharacterRecord?> GetByIdAsync(string characterId, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM characters WHERE character_id = $id";
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return ReadCharacter(reader);
+    }
+
+    public async Task SavePositionAsync(string characterId, string mapId, int x, int y, int hp, int mp, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET map_id=$m, x=$x, y=$y, hp=$hp, mp=$mp, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$m", mapId);
+        cmd.Parameters.AddWithValue("$x", x);
+        cmd.Parameters.AddWithValue("$y", y);
+        cmd.Parameters.AddWithValue("$hp", hp);
+        cmd.Parameters.AddWithValue("$mp", mp);
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private static CharacterRecord ReadCharacter(SqliteDataReader reader)
+        => new()
+        {
+            CharacterId = reader.GetString(reader.GetOrdinal("character_id")),
+            AccountId = reader.GetString(reader.GetOrdinal("account_id")),
+            Name = reader.GetString(reader.GetOrdinal("name")),
+            ClassId = reader.GetString(reader.GetOrdinal("class_id")),
+            Level = reader.GetInt32(reader.GetOrdinal("level")),
+            MapId = reader.GetString(reader.GetOrdinal("map_id")),
+            X = reader.GetInt32(reader.GetOrdinal("x")),
+            Y = reader.GetInt32(reader.GetOrdinal("y")),
+            Hp = reader.GetInt32(reader.GetOrdinal("hp")),
+            Mp = reader.GetInt32(reader.GetOrdinal("mp")),
+            MaxHp = reader.GetInt32(reader.GetOrdinal("max_hp")),
+            MaxMp = reader.GetInt32(reader.GetOrdinal("max_mp")),
+            InventoryJson = reader.GetString(reader.GetOrdinal("inventory_json")),
+            CreatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at"))),
+            UpdatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")))
+        };
+
+    private static void BindCharacter(SqliteCommand cmd, CharacterRecord c)
+    {
+        cmd.Parameters.AddWithValue("$cid", c.CharacterId);
+        cmd.Parameters.AddWithValue("$aid", c.AccountId);
+        cmd.Parameters.AddWithValue("$n", c.Name);
+        cmd.Parameters.AddWithValue("$cl", c.ClassId);
+        cmd.Parameters.AddWithValue("$lv", c.Level);
+        cmd.Parameters.AddWithValue("$m", c.MapId);
+        cmd.Parameters.AddWithValue("$x", c.X);
+        cmd.Parameters.AddWithValue("$y", c.Y);
+        cmd.Parameters.AddWithValue("$hp", c.Hp);
+        cmd.Parameters.AddWithValue("$mp", c.Mp);
+        cmd.Parameters.AddWithValue("$mhp", c.MaxHp);
+        cmd.Parameters.AddWithValue("$mmp", c.MaxMp);
+        cmd.Parameters.AddWithValue("$inv", c.InventoryJson);
+        cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
+        cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
+    }
+}

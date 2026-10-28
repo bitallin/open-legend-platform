@@ -6,3 +6,9 @@ obj/
 *.suo
 TestResults/
 *.log
+
+# local sqlite
+data/
+*.db
+*.db-*
+

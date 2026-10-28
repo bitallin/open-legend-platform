@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Legend.Contracts\Legend.Contracts.csproj" />
     <ProjectReference Include="..\Legend.Core\Legend.Core.csproj" />
+    <ProjectReference Include="..\Legend.Storage\Legend.Storage.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

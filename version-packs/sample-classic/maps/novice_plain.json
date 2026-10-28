@@ -1,6 +1,6 @@
 {
   "mapId": "novice_plain",
-  "mapName": "曙光平原（原创占位图）",
+  "mapName": "曙光平原（原创）",
   "width": 64,
   "height": 64,
   "aoiCellSize": 8,
@@ -8,8 +8,48 @@
   "spawnX": 10,
   "spawnY": 10,
   "blockedCells": [
-    { "x": 15, "y": 15 },
-    { "x": 15, "y": 16 },
-    { "x": 16, "y": 15 }
+    {
+      "x": 15,
+      "y": 15
+    },
+    {
+      "x": 15,
+      "y": 16
+    },
+    {
+      "x": 16,
+      "y": 15
+    },
+    {
+      "x": 20,
+      "y": 20
+    },
+    {
+      "x": 20,
+      "y": 21
+    },
+    {
+      "x": 21,
+      "y": 20
+    }
+  ],
+  "safeZones": [
+    {
+      "name": "新手村",
+      "x1": 5,
+      "y1": 5,
+      "x2": 18,
+      "y2": 18
+    }
+  ],
+  "portals": [
+    {
+      "portalId": "to_forest",
+      "x": 30,
+      "y": 10,
+      "targetMapId": "dark_forest",
+      "targetX": 5,
+      "targetY": 5
+    }
   ]
 }

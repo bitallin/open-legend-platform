@@ -13,21 +13,32 @@ public enum MsgId : ushort
     RealmListResp = 1006,
     PingReq = 1007,
     PongResp = 1008,
+    RegisterReq = 1009,
+    RegisterResp = 1010,
+    CharListReq = 1101,
+    CharListResp = 1102,
+    CreateCharReq = 1103,
+    CreateCharResp = 1104,
+    DeleteCharReq = 1105,
+    DeleteCharResp = 1106,
+    SelectCharReq = 1107,
+    SelectCharResp = 1108,
     EnterWorldReq = 2001,
     EnterWorldResp = 2002,
     MoveReq = 2003,
     MoveSync = 2004,
     EntityEnterAoi = 2005,
     EntityLeaveAoi = 2006,
+    MapChangeNotify = 2007,
     ServerNotice = 3001
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.0.0";
-    public const string MinCompatibleVersion = "1.0.0";
-    public const int HeaderSize = 10; // [Len:4][MsgId:2][Seq:4]
-    public const int MaxPayloadSize = 1024 * 1024; // 1 MB
+    public const string CurrentVersion = "1.1.0";
+    public const string MinCompatibleVersion = "1.1.0";
+    public const int HeaderSize = 10;
+    public const int MaxPayloadSize = 1024 * 1024;
 
     public static bool IsVersionCompatible(string clientVersion)
     {
@@ -54,14 +65,8 @@ public readonly record struct PacketFrame(MsgId MsgId, uint Seq, byte[] Payload)
 
 public static class PacketCodec
 {
-    /// <summary>
-    /// Encodes a packet with header format: [Len:4][MsgId:2][Seq:4][Payload] (Big-Endian)
-    /// </summary>
     public static byte[] Encode(MsgId msgId, uint seq, IMessage message)
-    {
-        byte[] payload = message.ToByteArray();
-        return EncodeRaw(msgId, seq, payload);
-    }
+        => EncodeRaw(msgId, seq, message.ToByteArray());
 
     public static byte[] EncodeRaw(MsgId msgId, uint seq, ReadOnlySpan<byte> payload)
     {
@@ -89,7 +94,7 @@ public static class PacketCodec
         byte[] header = new byte[ProtocolConstants.HeaderSize];
         int read = await ReadExactAsync(stream, header, ct);
         if (read == 0)
-            return null; // Clean EOF
+            return null;
         if (read < ProtocolConstants.HeaderSize)
             throw new EndOfStreamException("Incomplete packet header received.");
 

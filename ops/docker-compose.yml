@@ -35,6 +35,7 @@ services:
     ports:
       - "7100:7100"
     environment:
+      LEGEND_STORAGE: "Postgres"
       LEGEND_DB_CONN: "Host=postgres;Port=5432;Database=legend_zone_01;Username=legend;Password=legend_dev_password"
       LEGEND_REDIS_CONN: "redis:6379"
 

@@ -5,6 +5,7 @@ using Legend.Game;
 using Legend.Gate;
 using Legend.Login;
 using Legend.Script;
+using Legend.Storage;
 
 namespace Legend.Host;
 
@@ -13,7 +14,7 @@ public sealed class LegendServerEngine : IAsyncDisposable
     public IEventBus EventBus { get; }
     public PluginManager PluginManager { get; }
     public LoadedVersionPack VersionPack { get; }
-    public SessionTokenRegistry TokenRegistry { get; }
+    public ILegendStorage Storage { get; }
     public LuaScriptHost ScriptHost { get; }
     public LoginModule LoginModule { get; }
     public GameWorldModule GameWorldModule { get; }
@@ -22,7 +23,11 @@ public sealed class LegendServerEngine : IAsyncDisposable
 
     public int BoundPort => GateServer.BoundPort;
 
-    public LegendServerEngine(string manifestPath, int port = 7100, IPAddress? bindAddress = null)
+    public LegendServerEngine(
+        string manifestPath,
+        int port = 7100,
+        IPAddress? bindAddress = null,
+        ILegendStorage? storage = null)
     {
         EventBus = new InMemoryEventBus();
         PluginManager = new PluginManager(EventBus);
@@ -30,23 +35,16 @@ public sealed class LegendServerEngine : IAsyncDisposable
         var loader = new VersionPackLoader();
         VersionPack = loader.LoadFromManifest(manifestPath);
 
-        TokenRegistry = new SessionTokenRegistry();
+        Storage = storage ?? new InMemoryStorage();
         ScriptHost = new LuaScriptHost(EventBus, ScriptPermissionLevel.GrantItem);
         ScriptHost.LoadScripts(VersionPack.LuaScripts);
 
-        GameWorldModule = new GameWorldModule(
-            EventBus,
-            VersionPack,
-            token =>
-            {
-                bool ok = TokenRegistry.TryValidateToken(token, out string acc);
-                return (ok, acc);
-            });
+        GameWorldModule = new GameWorldModule(EventBus, VersionPack, Storage);
 
         LoginModule = new LoginModule(
             EventBus,
             VersionPack,
-            TokenRegistry,
+            Storage,
             () => GameWorldModule.OnlineCount,
             () => GateServer?.BoundPort ?? port);
 
@@ -58,8 +56,23 @@ public sealed class LegendServerEngine : IAsyncDisposable
         BuiltInAuditPlugin = new TelemetryAuditPlugin();
     }
 
+    public static async Task<LegendServerEngine> CreateAsync(
+        string manifestPath,
+        int port = 7100,
+        IPAddress? bindAddress = null,
+        StorageOptions? storageOptions = null,
+        CancellationToken ct = default)
+    {
+        var opts = storageOptions ?? StorageFactory.FromEnvironment();
+        var storage = await StorageFactory.CreateAsync(opts, ct);
+        StructuredLogger.Info("Legend.Host", $"Storage backend: {storage.BackendName}");
+        var engine = new LegendServerEngine(manifestPath, port, bindAddress, storage);
+        return engine;
+    }
+
     public async Task StartAsync(CancellationToken ct = default)
     {
+        await Storage.InitializeAsync(ct);
         await PluginManager.RegisterAndEnableAsync(BuiltInAuditPlugin, ct);
         await GateServer.StartAsync(ct);
         await EventBus.PublishAsync(new ZoneLoadedEvent(
@@ -71,5 +84,6 @@ public sealed class LegendServerEngine : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await GateServer.DisposeAsync();
+        await Storage.DisposeAsync();
     }
 }

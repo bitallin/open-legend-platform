@@ -1,0 +1,51 @@
+{
+  "mapId": "dark_forest",
+  "mapName": "幽影林（原创）",
+  "width": 48,
+  "height": 48,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 5,
+  "spawnY": 5,
+  "blockedCells": [
+    {
+      "x": 8,
+      "y": 8
+    },
+    {
+      "x": 8,
+      "y": 9
+    },
+    {
+      "x": 9,
+      "y": 8
+    },
+    {
+      "x": 12,
+      "y": 5
+    },
+    {
+      "x": 12,
+      "y": 6
+    }
+  ],
+  "safeZones": [
+    {
+      "name": "林间驿站",
+      "x1": 3,
+      "y1": 3,
+      "x2": 7,
+      "y2": 7
+    }
+  ],
+  "portals": [
+    {
+      "portalId": "to_plain",
+      "x": 5,
+      "y": 20,
+      "targetMapId": "novice_plain",
+      "targetX": 28,
+      "targetY": 10
+    }
+  ]
+}

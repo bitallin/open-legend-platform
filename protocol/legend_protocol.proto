@@ -12,13 +12,18 @@ enum ProtocolErrorCode {
   ERR_REALM_UNAVAILABLE = 1004;
   ERR_MOVE_BLOCKED = 1005;
   ERR_RATE_LIMITED = 1006;
+  ERR_CHAR_NOT_FOUND = 1007;
+  ERR_CHAR_NAME_TAKEN = 1008;
+  ERR_INVALID_CLASS = 1009;
+  ERR_CHAR_LIMIT = 1010;
+  ERR_USERNAME_TAKEN = 1011;
   ERR_INTERNAL = 1999;
 }
 
 // 1. Handshake (MsgId: 1001 / 1002)
 message HandshakeReq {
-  string protocol_version = 1; // SemVer e.g. "1.0.0"
-  string client_build = 2;     // e.g. "pc-0.1.0" or "android-0.1.0"
+  string protocol_version = 1;
+  string client_build = 2;
   string device_id = 3;
 }
 
@@ -32,11 +37,25 @@ message HandshakeResp {
   string message = 7;
 }
 
-// 2. Login (MsgId: 1003 / 1004)
+// 2. Register (MsgId: 1009 / 1010)
+message RegisterReq {
+  string username = 1;
+  string password = 2;
+  string client_platform = 3;
+}
+
+message RegisterResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string account_id = 3;
+  string message = 4;
+}
+
+// 3. Login (MsgId: 1003 / 1004)
 message LoginReq {
   string username = 1;
   string password = 2;
-  string client_platform = 3; // "PC" | "Android"
+  string client_platform = 3;
 }
 
 message LoginResp {
@@ -47,7 +66,7 @@ message LoginResp {
   string message = 5;
 }
 
-// 3. RealmList (MsgId: 1005 / 1006)
+// 4. RealmList (MsgId: 1005 / 1006)
 message RealmListReq {
   string session_token = 1;
 }
@@ -56,7 +75,7 @@ message RealmInfo {
   string realm_id = 1;
   string realm_name = 2;
   string version_pack_id = 3;
-  string status = 4; // "OPEN" | "MAINTENANCE" | "HOT"
+  string status = 4;
   string host = 5;
   int32 port = 6;
   int32 online_count = 7;
@@ -68,7 +87,7 @@ message RealmListResp {
   repeated RealmInfo realms = 3;
 }
 
-// 4. Heartbeat Ping/Pong (MsgId: 1007 / 1008)
+// 5. Heartbeat (MsgId: 1007 / 1008)
 message PingReq {
   int64 client_time_unix_ms = 1;
 }
@@ -78,7 +97,69 @@ message PongResp {
   int64 server_time_unix_ms = 2;
 }
 
-// 5. EnterWorld & Entity Snapshot (MsgId: 2001 / 2002)
+// 6. Character management (MsgId: 1101–1108)
+message CharacterSummary {
+  string character_id = 1;
+  string name = 2;
+  string class_id = 3;
+  int32 level = 4;
+  string map_id = 5;
+  int32 x = 6;
+  int32 y = 7;
+  int32 hp = 8;
+  int32 max_hp = 9;
+  int32 mp = 10;
+  int32 max_mp = 11;
+}
+
+message CharListReq {
+  string session_token = 1;
+}
+
+message CharListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  repeated CharacterSummary characters = 3;
+  string message = 4;
+}
+
+message CreateCharReq {
+  string session_token = 1;
+  string name = 2;
+  string class_id = 3;
+}
+
+message CreateCharResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  CharacterSummary character = 3;
+  string message = 4;
+}
+
+message DeleteCharReq {
+  string session_token = 1;
+  string character_id = 2;
+}
+
+message DeleteCharResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message SelectCharReq {
+  string session_token = 1;
+  string character_id = 2;
+}
+
+message SelectCharResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  CharacterSummary character = 3;
+  string message = 4;
+}
+
+// 7. EnterWorld & Entity Snapshot (MsgId: 2001 / 2002)
 message EntitySnapshot {
   string entity_id = 1;
   string name = 2;
@@ -89,13 +170,13 @@ message EntitySnapshot {
   int32 direction = 7;
   int32 hp = 8;
   int32 max_hp = 9;
+  bool in_safe_zone = 10;
 }
 
 message EnterWorldReq {
   string session_token = 1;
   string realm_id = 2;
-  string character_name = 3;
-  string class_id = 4; // e.g. "warrior", "mage", "taoist"
+  string character_id = 3;
 }
 
 message EnterWorldResp {
@@ -105,9 +186,10 @@ message EnterWorldResp {
   EntitySnapshot self_entity = 4;
   repeated EntitySnapshot nearby_entities = 5;
   string message = 6;
+  bool in_safe_zone = 7;
 }
 
-// 6. AOI Movement & Visibility Broadcast (MsgId: 2003 / 2004 / 2005 / 2006)
+// 8. AOI Movement (MsgId: 2003–2007)
 message MoveReq {
   int32 to_x = 1;
   int32 to_y = 2;
@@ -124,6 +206,7 @@ message MoveSync {
   bool accepted = 7;
   ProtocolErrorCode error_code = 8;
   string reason = 9;
+  bool in_safe_zone = 10;
 }
 
 message EntityEnterAoi {
@@ -135,9 +218,20 @@ message EntityLeaveAoi {
   string reason = 2;
 }
 
-// 7. Server / Lua Script Notice (MsgId: 3001)
+message MapChangeNotify {
+  string entity_id = 1;
+  string from_map_id = 2;
+  string to_map_id = 3;
+  int32 to_x = 4;
+  int32 to_y = 5;
+  string portal_id = 6;
+  bool in_safe_zone = 7;
+  repeated EntitySnapshot nearby_entities = 8;
+}
+
+// 9. Server / Lua Notice (MsgId: 3001)
 message ServerNotice {
-  string notice_type = 1; // "WELCOME" | "SYSTEM" | "LUA_HOOK"
+  string notice_type = 1;
   string title = 2;
   string content = 3;
   string granted_item_id = 4;

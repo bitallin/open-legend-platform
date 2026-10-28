@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Legend.Contracts\Legend.Contracts.csproj" />
+    <ProjectReference Include="..\Legend.Storage\Legend.Storage.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -7,6 +7,7 @@
     <ProjectReference Include="..\Legend.Login\Legend.Login.csproj" />
     <ProjectReference Include="..\Legend.Game\Legend.Game.csproj" />
     <ProjectReference Include="..\Legend.Script\Legend.Script.csproj" />
+    <ProjectReference Include="..\Legend.Storage\Legend.Storage.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -7,15 +7,19 @@ namespace Legend.Game;
 public sealed class WorldPlayerEntity
 {
     public required string EntityId { get; init; }
+    public required string CharacterId { get; init; }
     public required string Name { get; init; }
     public required string ClassId { get; init; }
-    public required string MapId { get; init; }
+    public required string MapId { get; set; }
     public required IClientSession Session { get; init; }
     public int X { get; set; }
     public int Y { get; set; }
     public int Direction { get; set; }
     public int Hp { get; set; }
     public int MaxHp { get; set; }
+    public int Mp { get; set; }
+    public int MaxMp { get; set; }
+    public bool InSafeZone { get; set; }
 
     public EntitySnapshot ToSnapshot() => new()
     {
@@ -27,19 +31,15 @@ public sealed class WorldPlayerEntity
         Y = Y,
         Direction = Direction,
         Hp = Hp,
-        MaxHp = MaxHp
+        MaxHp = MaxHp,
+        InSafeZone = InSafeZone
     };
 }
 
-/// <summary>
-/// 2D Spatial Grid AOI (Area of Interest) Manager.
-/// Partitions a map of (Width x Height) into cells of size AoiCellSize x AoiCellSize.
-/// Queries and broadcasts within configurable cell radius (e.g., 3x3 surrounding cells).
-/// </summary>
+/// <summary>Per-map grid AOI. Walkability uses MapConfig.IsBlocked (bitset or cells).</summary>
 public sealed class GridAoiManager
 {
     private readonly MapConfig _mapConfig;
-    private readonly HashSet<(int X, int Y)> _blockedSet;
     private readonly ConcurrentDictionary<string, WorldPlayerEntity> _entities = new();
     private readonly object _gridLock = new();
     private readonly Dictionary<(int CellX, int CellY), HashSet<string>> _cellBuckets = new();
@@ -47,17 +47,13 @@ public sealed class GridAoiManager
     public GridAoiManager(MapConfig mapConfig)
     {
         _mapConfig = mapConfig;
-        _blockedSet = mapConfig.BlockedCells.Select(b => (b.X, b.Y)).ToHashSet();
+        _mapConfig.EnsureBlockedCache();
     }
 
+    public MapConfig Map => _mapConfig;
     public int OnlineCount => _entities.Count;
 
-    public bool IsWalkable(int x, int y)
-    {
-        if (x < 0 || y < 0 || x >= _mapConfig.Width || y >= _mapConfig.Height)
-            return false;
-        return !_blockedSet.Contains((x, y));
-    }
+    public bool IsWalkable(int x, int y) => !_mapConfig.IsBlocked(x, y);
 
     public (int CellX, int CellY) ToCell(int x, int y)
     {
@@ -73,65 +69,60 @@ public sealed class GridAoiManager
             {
                 var oldCell = ToCell(existing.X, existing.Y);
                 if (_cellBuckets.TryGetValue(oldCell, out var bucket))
-                {
                     bucket.Remove(entity.EntityId);
-                }
             }
 
+            entity.InSafeZone = _mapConfig.IsInSafeZone(entity.X, entity.Y);
             _entities[entity.EntityId] = entity;
-            var newCell = ToCell(entity.X, entity.Y);
-            if (!_cellBuckets.TryGetValue(newCell, out var newBucket))
+            var cell = ToCell(entity.X, entity.Y);
+            if (!_cellBuckets.TryGetValue(cell, out var newBucket))
             {
-                newBucket = new HashSet<string>();
-                _cellBuckets[newCell] = newBucket;
+                newBucket = new HashSet<string>(StringComparer.Ordinal);
+                _cellBuckets[cell] = newBucket;
             }
             newBucket.Add(entity.EntityId);
-
-            return GetNearbyEntitiesUnlocked(entity.X, entity.Y, excludeEntityId: entity.EntityId);
+            return QueryNearbyLocked(entity.EntityId, entity.X, entity.Y);
         }
     }
 
-    public (List<WorldPlayerEntity> OldViewers, List<WorldPlayerEntity> NewViewers, List<WorldPlayerEntity> AllCurrentViewers) MoveEntity(
-        string entityId, int toX, int toY, int direction)
+    public bool TryGetEntity(string entityId, out WorldPlayerEntity? entity)
+        => _entities.TryGetValue(entityId, out entity);
+
+    public (List<WorldPlayerEntity> Left, List<WorldPlayerEntity> Entered, List<WorldPlayerEntity> Current)
+        MoveEntity(string entityId, int toX, int toY, int direction)
     {
         lock (_gridLock)
         {
             if (!_entities.TryGetValue(entityId, out var entity))
                 return (new(), new(), new());
 
-            int fromX = entity.X;
-            int fromY = entity.Y;
-            var oldViewers = GetNearbyEntitiesUnlocked(fromX, fromY, excludeEntityId: entityId);
-
-            var oldCell = ToCell(fromX, fromY);
-            var newCell = ToCell(toX, toY);
-
-            if (oldCell != newCell)
-            {
-                if (_cellBuckets.TryGetValue(oldCell, out var oldBucket))
-                    oldBucket.Remove(entityId);
-
-                if (!_cellBuckets.TryGetValue(newCell, out var newBucket))
-                {
-                    newBucket = new HashSet<string>();
-                    _cellBuckets[newCell] = newBucket;
-                }
-                newBucket.Add(entityId);
-            }
+            var oldNearby = QueryNearbyLocked(entityId, entity.X, entity.Y).Select(e => e.EntityId).ToHashSet(StringComparer.Ordinal);
+            var oldCell = ToCell(entity.X, entity.Y);
+            if (_cellBuckets.TryGetValue(oldCell, out var oldBucket))
+                oldBucket.Remove(entityId);
 
             entity.X = toX;
             entity.Y = toY;
             entity.Direction = direction;
+            entity.InSafeZone = _mapConfig.IsInSafeZone(toX, toY);
 
-            var currentViewers = GetNearbyEntitiesUnlocked(toX, toY, excludeEntityId: entityId);
+            var newCell = ToCell(toX, toY);
+            if (!_cellBuckets.TryGetValue(newCell, out var newBucket))
+            {
+                newBucket = new HashSet<string>(StringComparer.Ordinal);
+                _cellBuckets[newCell] = newBucket;
+            }
+            newBucket.Add(entityId);
 
-            var oldIds = oldViewers.Select(v => v.EntityId).ToHashSet();
-            var currentIds = currentViewers.Select(v => v.EntityId).ToHashSet();
-
-            var leftViewers = oldViewers.Where(v => !currentIds.Contains(v.EntityId)).ToList();
-            var enteredViewers = currentViewers.Where(v => !oldIds.Contains(v.EntityId)).ToList();
-
-            return (leftViewers, enteredViewers, currentViewers);
+            var current = QueryNearbyLocked(entityId, toX, toY);
+            var currentIds = current.Select(e => e.EntityId).ToHashSet(StringComparer.Ordinal);
+            var entered = current.Where(e => !oldNearby.Contains(e.EntityId)).ToList();
+            var left = oldNearby.Where(id => !currentIds.Contains(id))
+                .Select(id => _entities.TryGetValue(id, out var e) ? e : null)
+                .Where(e => e != null)
+                .Cast<WorldPlayerEntity>()
+                .ToList();
+            return (left, entered, current);
         }
     }
 
@@ -141,41 +132,31 @@ public sealed class GridAoiManager
         {
             if (!_entities.TryRemove(entityId, out var entity))
                 return new();
-
+            var viewers = QueryNearbyLocked(entityId, entity.X, entity.Y);
             var cell = ToCell(entity.X, entity.Y);
             if (_cellBuckets.TryGetValue(cell, out var bucket))
-            {
                 bucket.Remove(entityId);
-            }
-
-            return GetNearbyEntitiesUnlocked(entity.X, entity.Y, excludeEntityId: entityId);
+            return viewers;
         }
     }
 
-    public bool TryGetEntity(string entityId, out WorldPlayerEntity? entity)
-        => _entities.TryGetValue(entityId, out entity);
-
-    private List<WorldPlayerEntity> GetNearbyEntitiesUnlocked(int x, int y, string? excludeEntityId)
+    private List<WorldPlayerEntity> QueryNearbyLocked(string selfId, int x, int y)
     {
-        var center = ToCell(x, y);
-        int r = Math.Max(1, _mapConfig.AoiRadiusCells);
+        int radius = Math.Max(0, _mapConfig.AoiRadiusCells);
+        var (cx, cy) = ToCell(x, y);
         var result = new List<WorldPlayerEntity>();
-
-        for (int cx = center.CellX - r; cx <= center.CellX + r; cx++)
+        for (int dx = -radius; dx <= radius; dx++)
         {
-            for (int cy = center.CellY - r; cy <= center.CellY + r; cy++)
+            for (int dy = -radius; dy <= radius; dy++)
             {
-                if (_cellBuckets.TryGetValue((cx, cy), out var ids))
+                if (!_cellBuckets.TryGetValue((cx + dx, cy + dy), out var bucket))
+                    continue;
+                foreach (string id in bucket)
                 {
-                    foreach (string id in ids)
-                    {
-                        if (id == excludeEntityId)
-                            continue;
-                        if (_entities.TryGetValue(id, out var ent))
-                        {
-                            result.Add(ent);
-                        }
-                    }
+                    if (id == selfId)
+                        continue;
+                    if (_entities.TryGetValue(id, out var e))
+                        result.Add(e);
                 }
             }
         }

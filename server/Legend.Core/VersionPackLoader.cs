@@ -28,40 +28,65 @@ public sealed class VersionPackLoader : IVersionPackLoader
         if (string.IsNullOrWhiteSpace(manifest.VersionId))
             throw new InvalidDataException("VersionPackManifest.VersionId cannot be empty.");
 
-        string mapPath = Path.Combine(baseDir, manifest.DefaultMapFile);
-        if (!File.Exists(mapPath))
-            throw new FileNotFoundException($"Map config file not found: {mapPath}");
+        var mapFiles = new List<string>();
+        if (!string.IsNullOrWhiteSpace(manifest.DefaultMapFile))
+            mapFiles.Add(manifest.DefaultMapFile);
+        foreach (var f in manifest.MapFiles)
+        {
+            if (!string.IsNullOrWhiteSpace(f) && !mapFiles.Contains(f, StringComparer.OrdinalIgnoreCase))
+                mapFiles.Add(f);
+        }
 
-        string mapJson = File.ReadAllText(mapPath, Encoding.UTF8);
-        var mapConfig = JsonSerializer.Deserialize<MapConfig>(mapJson, JsonOptions)
-            ?? throw new InvalidDataException("Failed to deserialize MapConfig.");
+        var maps = new Dictionary<string, MapConfig>(StringComparer.OrdinalIgnoreCase);
+        var hashInput = new StringBuilder();
+        hashInput.Append(manifestJson);
+
+        foreach (string rel in mapFiles)
+        {
+            string mapPath = Path.Combine(baseDir, rel);
+            if (!File.Exists(mapPath))
+                throw new FileNotFoundException($"Map config file not found: {mapPath}");
+            string mapJson = File.ReadAllText(mapPath, Encoding.UTF8);
+            hashInput.Append(mapJson);
+            var mapConfig = JsonSerializer.Deserialize<MapConfig>(mapJson, JsonOptions)
+                ?? throw new InvalidDataException($"Failed to deserialize MapConfig: {rel}");
+            mapConfig.EnsureBlockedCache();
+            maps[mapConfig.MapId] = mapConfig;
+        }
+
+        if (maps.Count == 0)
+            throw new InvalidDataException("Version pack has no maps.");
+
+        string defaultMapId;
+        string defaultMapRel = manifest.DefaultMapFile;
+        string defaultMapFull = Path.Combine(baseDir, defaultMapRel);
+        string defaultMapJson = File.ReadAllText(defaultMapFull, Encoding.UTF8);
+        var defaultMapParsed = JsonSerializer.Deserialize<MapConfig>(defaultMapJson, JsonOptions)!;
+        defaultMapId = defaultMapParsed.MapId;
+        var defaultMap = maps[defaultMapId];
 
         string classesPath = Path.Combine(baseDir, manifest.ClassesConfigFile);
         if (!File.Exists(classesPath))
             throw new FileNotFoundException($"Classes config file not found: {classesPath}");
 
         string classesJson = File.ReadAllText(classesPath, Encoding.UTF8);
+        hashInput.Append(classesJson);
         var classList = JsonSerializer.Deserialize<List<ClassConfigItem>>(classesJson, JsonOptions)
             ?? throw new InvalidDataException("Failed to deserialize ClassesConfig.");
-
         var classDict = classList.ToDictionary(c => c.ClassId, c => c, StringComparer.OrdinalIgnoreCase);
 
         var luaScripts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        using var sha256 = SHA256.Create();
-        var hashInput = new StringBuilder();
-        hashInput.Append(manifestJson).Append(mapJson).Append(classesJson);
-
         foreach (string relScript in manifest.ScriptFiles)
         {
             string scriptPath = Path.Combine(baseDir, relScript);
             if (!File.Exists(scriptPath))
                 throw new FileNotFoundException($"Lua script not found in version pack: {scriptPath}");
-
             string scriptContent = File.ReadAllText(scriptPath, Encoding.UTF8);
             luaScripts[relScript] = scriptContent;
             hashInput.Append(scriptContent);
         }
 
+        using var sha256 = SHA256.Create();
         byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(hashInput.ToString()));
         string packHash = Convert.ToHexString(hashBytes).ToLowerInvariant()[..16];
 
@@ -70,7 +95,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             {
                 versionId = manifest.VersionId,
                 realmId = manifest.RealmId,
-                mapId = mapConfig.MapId,
+                mapId = defaultMap.MapId,
+                mapCount = maps.Count,
                 classCount = classDict.Count,
                 scriptCount = luaScripts.Count,
                 packHash
@@ -80,7 +106,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
         {
             Manifest = manifest,
             BaseDirectory = baseDir,
-            Map = mapConfig,
+            Map = defaultMap,
+            Maps = maps,
             Classes = classDict,
             LuaScripts = luaScripts,
             PackHash = packHash

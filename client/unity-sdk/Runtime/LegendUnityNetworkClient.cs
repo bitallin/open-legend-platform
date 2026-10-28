@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.IO;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,8 +11,8 @@ using Legend.Contracts.Proto;
 namespace Legend.UnitySdk
 {
     /// <summary>
-    /// Unity 2022 LTS Compatible Pure C# Network Client (PC + Android).
-    /// Marshals all network callbacks onto Unity's main thread via PumpMainThreadEvents() called in MonoBehaviour.Update().
+    /// Unity 2022 LTS pure C# TCP client (PC + Android). PumpMainThreadEvents() in Update().
+    /// Flow: Handshake → Register/Login → CharList/Create/Select → EnterWorld → Move.
     /// </summary>
     public sealed class LegendUnityNetworkClient : IDisposable
     {
@@ -26,152 +26,196 @@ namespace Legend.UnitySdk
 
         public string? SessionToken { get; private set; }
         public string? AccountId { get; private set; }
+        public string? CharacterId { get; private set; }
         public EntitySnapshot? SelfEntity { get; private set; }
+        public IReadOnlyList<CharacterSummary> LastCharList { get; private set; } = Array.Empty<CharacterSummary>();
 
         public event Action<EntitySnapshot>? OnSelfEnteredWorld;
         public event Action<EntitySnapshot>? OnEntityEnterAoi;
         public event Action<string, string>? OnEntityLeaveAoi;
         public event Action<MoveSync>? OnMoveSync;
         public event Action<ServerNotice>? OnServerNotice;
+        public event Action<MapChangeNotify>? OnMapChange;
 
-        /// <summary>
-        /// Call this inside Unity MonoBehaviour.Update() every frame to dispatch network events on the Unity main thread.
-        /// </summary>
         public void PumpMainThreadEvents()
         {
             while (_mainThreadActions.TryDequeue(out var action))
-            {
                 action.Invoke();
-            }
         }
 
-        public async Task ConnectAndEnterAsync(
-            string host,
-            int port,
-            string username,
-            string password,
-            string characterName,
-            string classId = "warrior",
-            string platform = "PC",
-            CancellationToken ct = default)
+        public async Task ConnectAsync(string host, int port, CancellationToken ct = default)
         {
             _tcp = new TcpClient { NoDelay = true };
-            await _tcp.ConnectAsync(host, port, ct);
+            await _tcp.ConnectAsync(host, port).ConfigureAwait(false);
             _stream = _tcp.GetStream();
             _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             _ = Task.Run(() => ReadLoopAsync(_cts.Token), _cts.Token);
-
-            var hs = await SendHandshakeAsync(ProtocolConstants.CurrentVersion, $"{platform}-unity-2022", ct);
-            if (!hs.Accepted)
-                throw new InvalidOperationException($"Handshake rejected ({hs.ErrorCode}): {hs.Message}");
-
-            var login = await SendLoginAsync(username, password, platform, ct);
-            if (!login.Success)
-                throw new InvalidOperationException($"Login failed ({login.ErrorCode}): {login.Message}");
-
-            SessionToken = login.SessionToken;
-            AccountId = login.AccountId;
-
-            var realms = await SendRealmListAsync(ct);
-            if (!realms.Success || realms.Realms.Count == 0)
-                throw new InvalidOperationException("No available realms returned by server.");
-
-            string realmId = realms.Realms[0].RealmId;
-            var enter = await SendEnterWorldAsync(realmId, characterName, classId, ct);
-            if (!enter.Success)
-                throw new InvalidOperationException($"EnterWorld failed ({enter.ErrorCode}): {enter.Message}");
-
-            SelfEntity = enter.SelfEntity;
-            _mainThreadActions.Enqueue(() =>
-            {
-                OnSelfEnteredWorld?.Invoke(enter.SelfEntity);
-                foreach (var other in enter.NearbyEntities)
-                {
-                    OnEntityEnterAoi?.Invoke(other);
-                }
-            });
         }
 
-        public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
-        {
-            var frame = await SendRequestAsync(MsgId.MoveReq, new MoveReq
-            {
-                ToX = toX,
-                ToY = toY,
-                Direction = direction
-            }, ct);
-            return MoveSync.Parser.ParseFrom(frame.Payload);
-        }
-
-        private async Task<HandshakeResp> SendHandshakeAsync(string version, string build, CancellationToken ct)
+        public async Task HandshakeAsync(CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.HandshakeReq, new HandshakeReq
             {
-                ProtocolVersion = version,
-                ClientBuild = build,
+                ProtocolVersion = ProtocolConstants.CurrentVersion,
+                ClientBuild = "unity-2022-lts",
                 DeviceId = "unity-device"
-            }, ct);
-            return HandshakeResp.Parser.ParseFrom(frame.Payload);
+            }, ct).ConfigureAwait(false);
+            var hs = HandshakeResp.Parser.ParseFrom(frame.Payload);
+            if (!hs.Accepted)
+                throw new InvalidOperationException($"Handshake rejected: {hs.Message}");
         }
 
-        private async Task<LoginResp> SendLoginAsync(string username, string password, string platform, CancellationToken ct)
+        public async Task RegisterAsync(string username, string password, string platform = "PC", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.RegisterReq, new RegisterReq
+            {
+                Username = username,
+                Password = password,
+                ClientPlatform = platform
+            }, ct).ConfigureAwait(false);
+            var resp = RegisterResp.Parser.ParseFrom(frame.Payload);
+            if (!resp.Success && resp.ErrorCode != ProtocolErrorCode.ErrUsernameTaken)
+                throw new InvalidOperationException($"Register failed: {resp.Message}");
+        }
+
+        public async Task LoginAsync(string username, string password, string platform = "PC", CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.LoginReq, new LoginReq
             {
                 Username = username,
                 Password = password,
                 ClientPlatform = platform
-            }, ct);
-            return LoginResp.Parser.ParseFrom(frame.Payload);
+            }, ct).ConfigureAwait(false);
+            var login = LoginResp.Parser.ParseFrom(frame.Payload);
+            if (!login.Success)
+                throw new InvalidOperationException($"Login failed: {login.Message}");
+            SessionToken = login.SessionToken;
+            AccountId = login.AccountId;
         }
 
-        private async Task<RealmListResp> SendRealmListAsync(CancellationToken ct)
+        public async Task<IReadOnlyList<CharacterSummary>> CharListAsync(CancellationToken ct = default)
         {
-            var frame = await SendRequestAsync(MsgId.RealmListReq, new RealmListReq
+            var frame = await SendRequestAsync(MsgId.CharListReq, new CharListReq
             {
                 SessionToken = SessionToken ?? string.Empty
-            }, ct);
-            return RealmListResp.Parser.ParseFrom(frame.Payload);
+            }, ct).ConfigureAwait(false);
+            var resp = CharListResp.Parser.ParseFrom(frame.Payload);
+            if (!resp.Success)
+                throw new InvalidOperationException(resp.Message);
+            var list = new List<CharacterSummary>(resp.Characters);
+            LastCharList = list;
+            return list;
         }
 
-        private async Task<EnterWorldResp> SendEnterWorldAsync(string realmId, string charName, string classId, CancellationToken ct)
+        public async Task<CharacterSummary> CreateCharAsync(string name, string classId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.CreateCharReq, new CreateCharReq
+            {
+                SessionToken = SessionToken ?? string.Empty,
+                Name = name,
+                ClassId = classId
+            }, ct).ConfigureAwait(false);
+            var resp = CreateCharResp.Parser.ParseFrom(frame.Payload);
+            if (!resp.Success)
+                throw new InvalidOperationException($"CreateChar failed: {resp.Message}");
+            return resp.Character;
+        }
+
+        public async Task DeleteCharAsync(string characterId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.DeleteCharReq, new DeleteCharReq
+            {
+                SessionToken = SessionToken ?? string.Empty,
+                CharacterId = characterId
+            }, ct).ConfigureAwait(false);
+            var resp = DeleteCharResp.Parser.ParseFrom(frame.Payload);
+            if (!resp.Success)
+                throw new InvalidOperationException(resp.Message);
+        }
+
+        public async Task SelectCharAsync(string characterId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.SelectCharReq, new SelectCharReq
+            {
+                SessionToken = SessionToken ?? string.Empty,
+                CharacterId = characterId
+            }, ct).ConfigureAwait(false);
+            var resp = SelectCharResp.Parser.ParseFrom(frame.Payload);
+            if (!resp.Success)
+                throw new InvalidOperationException(resp.Message);
+            CharacterId = resp.Character.CharacterId;
+        }
+
+        public async Task EnterWorldAsync(string realmId, string? characterId = null, CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.EnterWorldReq, new EnterWorldReq
             {
                 SessionToken = SessionToken ?? string.Empty,
                 RealmId = realmId,
-                CharacterName = charName,
-                ClassId = classId
-            }, ct);
-            return EnterWorldResp.Parser.ParseFrom(frame.Payload);
+                CharacterId = characterId ?? CharacterId ?? string.Empty
+            }, ct).ConfigureAwait(false);
+            var enter = EnterWorldResp.Parser.ParseFrom(frame.Payload);
+            if (!enter.Success)
+                throw new InvalidOperationException($"EnterWorld failed: {enter.Message}");
+            SelfEntity = enter.SelfEntity;
+            _mainThreadActions.Enqueue(() =>
+            {
+                OnSelfEnteredWorld?.Invoke(enter.SelfEntity);
+                foreach (var other in enter.NearbyEntities)
+                    OnEntityEnterAoi?.Invoke(other);
+            });
         }
 
-        private async Task<PacketFrame> SendRequestAsync(MsgId msgId, IMessage message, CancellationToken ct)
+        /// <summary>Convenience: register/login, create-or-select, enter world.</summary>
+        public async Task ConnectLoginSelectEnterAsync(
+            string host, int port,
+            string username, string password,
+            string characterName, string classId = "warrior",
+            string platform = "PC", CancellationToken ct = default)
         {
-            if (_stream == null)
-                throw new InvalidOperationException("Not connected");
+            await ConnectAsync(host, port, ct).ConfigureAwait(false);
+            await HandshakeAsync(ct).ConfigureAwait(false);
+            await RegisterAsync(username, password, platform, ct).ConfigureAwait(false);
+            await LoginAsync(username, password, platform, ct).ConfigureAwait(false);
 
-            uint seq = Interlocked.Increment(ref _seq);
-            var tcs = new TaskCompletionSource<PacketFrame>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _pending[seq] = tcs;
+            var chars = await CharListAsync(ct).ConfigureAwait(false);
+            CharacterSummary? chosen = null;
+            foreach (var c in chars)
+            {
+                if (c.Name == characterName) { chosen = c; break; }
+            }
+            if (chosen == null)
+                chosen = await CreateCharAsync(characterName, classId, ct).ConfigureAwait(false);
 
-            await PacketCodec.WriteFrameAsync(_stream, msgId, seq, message, ct);
-            return await tcs.Task;
+            await SelectCharAsync(chosen.CharacterId, ct).ConfigureAwait(false);
+            await EnterWorldAsync("realm-classic-01", chosen.CharacterId, ct).ConfigureAwait(false);
+        }
+
+        public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MoveReq, new MoveReq
+            {
+                ToX = toX, ToY = toY, Direction = direction
+            }, ct).ConfigureAwait(false);
+            var sync = MoveSync.Parser.ParseFrom(frame.Payload);
+            if (sync.Accepted && SelfEntity != null)
+            {
+                SelfEntity.X = sync.ToX;
+                SelfEntity.Y = sync.ToY;
+                SelfEntity.InSafeZone = sync.InSafeZone;
+            }
+            return sync;
         }
 
         private async Task ReadLoopAsync(CancellationToken ct)
         {
-            if (_stream == null)
-                return;
-
+            if (_stream == null) return;
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    var frameOpt = await PacketCodec.ReadFrameAsync(_stream, ct);
-                    if (frameOpt == null)
-                        break;
-
+                    var frameOpt = await PacketCodec.ReadFrameAsync(_stream, ct).ConfigureAwait(false);
+                    if (frameOpt == null) break;
                     var frame = frameOpt.Value;
                     if (frame.Seq != 0 && _pending.TryRemove(frame.Seq, out var tcs))
                     {
@@ -183,39 +227,56 @@ namespace Legend.UnitySdk
                         tcs.TrySetResult(frame);
                         continue;
                     }
-
                     switch (frame.MsgId)
                     {
                         case MsgId.MoveSync:
-                        {
-                            var sync = MoveSync.Parser.ParseFrom(frame.Payload);
-                            _mainThreadActions.Enqueue(() => OnMoveSync?.Invoke(sync));
+                            var ms = MoveSync.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnMoveSync?.Invoke(ms));
                             break;
-                        }
                         case MsgId.EntityEnterAoi:
-                        {
-                            var enter = EntityEnterAoi.Parser.ParseFrom(frame.Payload);
-                            _mainThreadActions.Enqueue(() => OnEntityEnterAoi?.Invoke(enter.Entity));
+                            var en = EntityEnterAoi.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnEntityEnterAoi?.Invoke(en.Entity));
                             break;
-                        }
                         case MsgId.EntityLeaveAoi:
-                        {
-                            var leave = EntityLeaveAoi.Parser.ParseFrom(frame.Payload);
-                            _mainThreadActions.Enqueue(() => OnEntityLeaveAoi?.Invoke(leave.EntityId, leave.Reason));
+                            var lv = EntityLeaveAoi.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnEntityLeaveAoi?.Invoke(lv.EntityId, lv.Reason));
                             break;
-                        }
                         case MsgId.ServerNotice:
-                        {
-                            var notice = ServerNotice.Parser.ParseFrom(frame.Payload);
-                            _mainThreadActions.Enqueue(() => OnServerNotice?.Invoke(notice));
+                            var sn = ServerNotice.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnServerNotice?.Invoke(sn));
                             break;
-                        }
+                        case MsgId.MapChangeNotify:
+                            var mc = MapChangeNotify.Parser.ParseFrom(frame.Payload);
+                            if (SelfEntity != null && mc.EntityId == SelfEntity.EntityId)
+                            {
+                                SelfEntity.MapId = mc.ToMapId;
+                                SelfEntity.X = mc.ToX;
+                                SelfEntity.Y = mc.ToY;
+                                SelfEntity.InSafeZone = mc.InSafeZone;
+                            }
+                            _mainThreadActions.Enqueue(() => OnMapChange?.Invoke(mc));
+                            break;
                     }
                 }
             }
-            catch (Exception)
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
             {
-                // Disconnected
+                foreach (var kv in _pending)
+                    kv.Value.TrySetException(ex);
+            }
+        }
+
+        private async Task<PacketFrame> SendRequestAsync(MsgId msgId, IMessage message, CancellationToken ct)
+        {
+            if (_stream == null) throw new InvalidOperationException("Not connected");
+            uint seq = Interlocked.Increment(ref _seq);
+            var tcs = new TaskCompletionSource<PacketFrame>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _pending[seq] = tcs;
+            using (ct.Register(() => { if (_pending.TryRemove(seq, out var r)) r.TrySetCanceled(ct); }))
+            {
+                await PacketCodec.WriteFrameAsync(_stream, msgId, seq, message, ct).ConfigureAwait(false);
+                return await tcs.Task.ConfigureAwait(false);
             }
         }
 
@@ -224,6 +285,37 @@ namespace Legend.UnitySdk
             _cts?.Cancel();
             _tcp?.Dispose();
             _cts?.Dispose();
+        }
+    }
+
+    /// <summary>Abstract input: PC keyboard or mobile virtual stick.</summary>
+    public interface ILegendMoveInput
+    {
+        /// <summary>Normalized desired grid delta for this frame (e.g. -1..1).</summary>
+        void GetMoveIntent(out int dx, out int dy);
+    }
+
+    public sealed class KeyboardWasdInput : ILegendMoveInput
+    {
+        public Func<bool>? W, A, S, D;
+        public void GetMoveIntent(out int dx, out int dy)
+        {
+            dx = 0; dy = 0;
+            if (A != null && A()) dx -= 1;
+            if (D != null && D()) dx += 1;
+            if (S != null && S()) dy -= 1;
+            if (W != null && W()) dy += 1;
+        }
+    }
+
+    public sealed class VirtualJoystickInput : ILegendMoveInput
+    {
+        public float AxisX, AxisY;
+        public float DeadZone = 0.25f;
+        public void GetMoveIntent(out int dx, out int dy)
+        {
+            dx = Math.Abs(AxisX) < DeadZone ? 0 : (AxisX > 0 ? 1 : -1);
+            dy = Math.Abs(AxisY) < DeadZone ? 0 : (AxisY > 0 ? 1 : -1);
         }
     }
 }

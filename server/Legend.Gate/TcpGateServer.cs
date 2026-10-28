@@ -25,6 +25,7 @@ public sealed class ClientSession : IClientSession
     public string? AccountId { get; set; }
     public string? SessionToken { get; set; }
     public string? EntityId { get; set; }
+    public string? CharacterId { get; set; }
     public string? CharacterName { get; set; }
     public string? ClassId { get; set; }
 

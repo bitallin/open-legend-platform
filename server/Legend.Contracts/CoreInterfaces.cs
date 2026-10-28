@@ -2,9 +2,6 @@ using Google.Protobuf;
 
 namespace Legend.Contracts;
 
-/// <summary>
-/// Domain Event Bus interface for decoupled communication between Login, Game, Script, Pay, and Plugins.
-/// </summary>
 public interface IEventBus
 {
     void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class;
@@ -12,34 +9,24 @@ public interface IEventBus
     Task PublishAsync<TEvent>(TEvent domainEvent, CancellationToken ct = default) where TEvent : class;
 }
 
-/// <summary>
-/// Pluggable lifecycle interface (Load -> Enable -> Disable -> Unload)
-/// </summary>
 public interface IPlugin
 {
     string PluginId { get; }
     string Name { get; }
     string Version { get; }
     bool IsEnabled { get; }
-
     Task OnLoadAsync(IEventBus eventBus, CancellationToken ct = default);
     Task OnEnableAsync(CancellationToken ct = default);
     Task OnDisableAsync(CancellationToken ct = default);
     Task OnUnloadAsync(CancellationToken ct = default);
 }
 
-/// <summary>
-/// Pluggable Anti-Cheat Probe interface
-/// </summary>
 public interface IAntiCheatProbe
 {
     string ProbeName { get; }
     bool ValidateMove(string playerId, int fromX, int fromY, int toX, int toY, out string reason);
 }
 
-/// <summary>
-/// Client session abstraction exposed to GameModules
-/// </summary>
 public interface IClientSession
 {
     string ConnectionId { get; }
@@ -47,15 +34,12 @@ public interface IClientSession
     string? AccountId { get; set; }
     string? SessionToken { get; set; }
     string? EntityId { get; set; }
+    string? CharacterId { get; set; }
     string? CharacterName { get; set; }
     string? ClassId { get; set; }
-
     Task SendAsync(MsgId msgId, uint seq, IMessage message, CancellationToken ct = default);
 }
 
-/// <summary>
-/// Modular server subsystem (Login, Game, etc.)
-/// </summary>
 public interface IGameModule
 {
     string ModuleName { get; }
@@ -65,19 +49,41 @@ public interface IGameModule
     Task OnSessionDisconnectedAsync(IClientSession session, CancellationToken ct = default);
 }
 
-/// <summary>
-/// Version Pack Manifest & Data Models
-/// </summary>
 public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.0.0";
+    public string ProtocolVersion { get; set; } = "1.1.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
+    public List<string> MapFiles { get; set; } = new();
     public string ClassesConfigFile { get; set; } = "configs/classes.json";
     public List<string> ScriptFiles { get; set; } = new();
+    public int MaxCharactersPerAccount { get; set; } = 3;
+}
+
+public sealed class SafeZoneRect
+{
+    public string Name { get; set; } = "safe";
+    public int X1 { get; set; }
+    public int Y1 { get; set; }
+    public int X2 { get; set; }
+    public int Y2 { get; set; }
+
+    public bool Contains(int x, int y)
+        => x >= Math.Min(X1, X2) && x <= Math.Max(X1, X2)
+        && y >= Math.Min(Y1, Y2) && y <= Math.Max(Y1, Y2);
+}
+
+public sealed class PortalConfig
+{
+    public string PortalId { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public string TargetMapId { get; set; } = string.Empty;
+    public int TargetX { get; set; }
+    public int TargetY { get; set; }
 }
 
 public sealed class MapConfig
@@ -91,6 +97,66 @@ public sealed class MapConfig
     public int SpawnX { get; set; } = 10;
     public int SpawnY { get; set; } = 10;
     public List<GridCoord> BlockedCells { get; set; } = new();
+    /// <summary>Optional compact bitset (row-major, LSB first within each byte), Base64. Overrides BlockedCells when set.</summary>
+    public string? BlockedBitsetBase64 { get; set; }
+    public List<SafeZoneRect> SafeZones { get; set; } = new();
+    public List<PortalConfig> Portals { get; set; } = new();
+
+    private bool[]? _blockedCache;
+
+    public bool IsBlocked(int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= Width || y >= Height)
+            return true;
+        EnsureBlockedCache();
+        return _blockedCache![y * Width + x];
+    }
+
+    public bool IsInSafeZone(int x, int y)
+        => SafeZones.Any(z => z.Contains(x, y));
+
+    public PortalConfig? FindPortalAt(int x, int y)
+        => Portals.FirstOrDefault(p => p.X == x && p.Y == y);
+
+    public void EnsureBlockedCache()
+    {
+        if (_blockedCache != null)
+            return;
+
+        _blockedCache = new bool[Width * Height];
+        if (!string.IsNullOrWhiteSpace(BlockedBitsetBase64))
+        {
+            byte[] bytes = Convert.FromBase64String(BlockedBitsetBase64);
+            for (int i = 0; i < _blockedCache.Length; i++)
+            {
+                int byteIndex = i / 8;
+                int bit = i % 8;
+                if (byteIndex < bytes.Length)
+                    _blockedCache[i] = (bytes[byteIndex] & (1 << bit)) != 0;
+            }
+        }
+        else
+        {
+            foreach (var c in BlockedCells)
+            {
+                if (c.X >= 0 && c.Y >= 0 && c.X < Width && c.Y < Height)
+                    _blockedCache[c.Y * Width + c.X] = true;
+            }
+        }
+    }
+
+    public string BuildBlockedBitsetBase64()
+    {
+        EnsureBlockedCache();
+        int byteCount = (_blockedCache!.Length + 7) / 8;
+        byte[] bytes = new byte[byteCount];
+        for (int i = 0; i < _blockedCache.Length; i++)
+        {
+            if (_blockedCache[i])
+                bytes[i / 8] |= (byte)(1 << (i % 8));
+        }
+        return Convert.ToBase64String(bytes);
+    }
 }
 
 public sealed record GridCoord(int X, int Y);
@@ -109,9 +175,13 @@ public sealed class LoadedVersionPack
     public required VersionPackManifest Manifest { get; init; }
     public required string BaseDirectory { get; init; }
     public required MapConfig Map { get; init; }
+    public required IReadOnlyDictionary<string, MapConfig> Maps { get; init; }
     public required IReadOnlyDictionary<string, ClassConfigItem> Classes { get; init; }
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
+
+    public MapConfig GetMap(string mapId)
+        => Maps.TryGetValue(mapId, out var m) ? m : Map;
 }
 
 public interface IVersionPackLoader
@@ -119,7 +189,6 @@ public interface IVersionPackLoader
     LoadedVersionPack LoadFromManifest(string manifestPath);
 }
 
-// Domain Events
 public sealed record PlayerLoggedInEvent(string ConnectionId, string AccountId, string Username, string Platform);
 public sealed record PlayerEnteredWorldEvent(IClientSession Session, string EntityId, string CharacterName, string ClassId, string MapId, int X, int Y);
 public sealed record PlayerMovedEvent(string EntityId, string CharacterName, string MapId, int FromX, int FromY, int ToX, int ToY);

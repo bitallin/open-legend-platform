@@ -1,12 +1,16 @@
 {
   "versionId": "sample-176-1.0.0",
   "displayName": "自研经典复古规则包 (Sample Classic)",
-  "protocolVersion": "1.0.0",
+  "protocolVersion": "1.1.0",
   "realmId": "realm-classic-01",
   "realmName": "自研先锋一区",
   "defaultMapFile": "maps/novice_plain.json",
   "classesConfigFile": "configs/classes.json",
   "scriptFiles": [
     "scripts/welcome.lua"
-  ]
+  ],
+  "mapFiles": [
+    "maps/novice_plain.json"
+  ],
+  "maxCharactersPerAccount": 3
 }
