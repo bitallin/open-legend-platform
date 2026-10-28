@@ -7,10 +7,12 @@ public sealed class InMemoryStorage : ILegendStorage
     private readonly InMemoryAccountStore _accounts = new();
     private readonly InMemoryCharacterStore _characters = new();
     private readonly InMemorySessionStore _sessions = new();
+    private readonly InMemoryGuildStore _guilds = new();
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
     public ISessionStore Sessions => _sessions;
+    public IGuildStore Guilds => _guilds;
     public string BackendName => "InMemory";
 
     public Task InitializeAsync(CancellationToken ct = default)
@@ -190,6 +192,16 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
             c.Exp = Math.Max(0, exp);
             c.MaxHp = Math.Max(1, maxHp);
             c.MaxMp = Math.Max(0, maxMp);
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task SaveGuildIdAsync(string characterId, string? guildId, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.GuildId = guildId ?? string.Empty;
             c.UpdatedAt = DateTimeOffset.UtcNow;
         }
         return Task.CompletedTask;

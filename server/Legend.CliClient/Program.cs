@@ -6,6 +6,7 @@ int port = 7100;
 bool combat = true;
 bool equipTest = false;
 bool levelTest = false;
+bool guildTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -26,16 +27,162 @@ for (int i = 0; i < args.Length; i++)
         combat = false;
         equipTest = false;
     }
+    else if (args[i] == "--guild")
+    {
+        guildTest = true;
+        combat = false;
+        equipTest = false;
+        levelTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(guildTest ? 90 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+
+if (guildTest)
+{
+    await RunGuildAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M6 guild/chat verification steps passed!");
+    return;
+}
+
+static async Task RunGuildAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    await using var a = new LegendTcpClient();
+    await using var b = new LegendTcpClient();
+    await a.ConnectAsync(host, port, ct);
+    await b.ConnectAsync(host, port, ct);
+    if (!(await a.HandshakeAsync("1.6.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.6.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+
+    await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
+    var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
+    if (!loginA.Success) throw new Exception(loginA.Message);
+    await b.RegisterAsync("m6_member", "pass12345", "PC", ct);
+    var loginB = await b.LoginAsync("m6_member", "pass12345", "PC", ct);
+    if (!loginB.Success) throw new Exception(loginB.Message);
+
+    async Task<string> EnsureChar(LegendTcpClient c, string name, string cls)
+    {
+        var create = await c.CreateCharAsync(name, cls, ct);
+        if (create.Success) return create.Character.CharacterId;
+        var list = await c.CharListAsync(ct);
+        var existing = list.Characters.FirstOrDefault(x => x.Name == name) ?? list.Characters.FirstOrDefault();
+        if (existing is null) throw new Exception($"no char for {name}: {create.Message}");
+        return existing.CharacterId;
+    }
+
+    string idA = await EnsureChar(a, "行会会长", "warrior");
+    string idB = await EnsureChar(b, "行会成员", "mage");
+    await a.SelectCharAsync(idA, ct);
+    await b.SelectCharAsync(idB, ct);
+    var realms = await a.GetRealmListAsync(ct);
+    string realm = realms.Realms[0].RealmId;
+    var enterA = await a.EnterWorldAsync(realm, idA, ct);
+    var enterB = await b.EnterWorldAsync(realm, idB, ct);
+    if (!enterA.Success || !enterB.Success) throw new Exception("enter failed");
+    Console.WriteLine($"[M6.1] Entered world goldA={enterA.Gold} guildA='{enterA.GuildName}' guildB='{enterB.GuildName}'");
+
+    string gName = "龙腾行会";
+    bool persisted = !string.IsNullOrEmpty(a.GuildId) && !string.IsNullOrEmpty(b.GuildId)
+                     && string.Equals(a.GuildId, b.GuildId, StringComparison.Ordinal);
+    if (persisted)
+    {
+        gName = a.GuildName;
+        Console.WriteLine($"[M6.2] Persisted guild restored: {gName} (A={a.GuildRank}, B={b.GuildRank})");
+        Console.WriteLine($"[M6.3] Both members already in guild after Host restart");
+    }
+    else
+    {
+        // Ensure clean slate for create path
+        if (!string.IsNullOrEmpty(a.GuildId))
+        {
+            var leave = await a.GuildLeaveAsync(ct);
+            Console.WriteLine($"[M6.1b] A left prior guild: {leave.Success}");
+        }
+        if (!string.IsNullOrEmpty(b.GuildId))
+        {
+            var leave = await b.GuildLeaveAsync(ct);
+            Console.WriteLine($"[M6.1c] B left prior guild: {leave.Success}");
+        }
+
+        var createG = await a.GuildCreateAsync(gName, ct);
+        if (!createG.Success)
+        {
+            gName = "龙腾" + DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()[^4..];
+            createG = await a.GuildCreateAsync(gName, ct);
+            if (!createG.Success) throw new Exception($"create guild: {createG.ErrorCode} {createG.Message}");
+        }
+        if (createG.Gold != enterA.Gold - 50) throw new Exception($"gold cost expected 50, before={enterA.Gold} after={createG.Gold}");
+        if (createG.GuildRank != "leader") throw new Exception("expected leader rank");
+        Console.WriteLine($"[M6.2] Created guild {createG.GuildName} id={createG.GuildId} gold={createG.Gold}");
+
+        var join = await b.GuildJoinAsync(gName, ct);
+        if (!join.Success) throw new Exception($"join: {join.ErrorCode} {join.Message}");
+        if (join.MemberCount < 2) throw new Exception("expected >=2 members");
+        Console.WriteLine($"[M6.3] B joined {join.GuildName} members={join.MemberCount}");
+    }
+
+    var info = await a.GuildInfoAsync(ct: ct);
+    if (!info.Success || info.Members.Count < 1) throw new Exception($"info: {info.Message}");
+    Console.WriteLine($"[M6.4] GuildInfo members={info.Members.Count} leader={info.LeaderCharacterId}");
+
+    // World chat
+    while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
+    while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
+    await a.ChatAsync(ChatChannel.ChatWorld, "hello-world", ct);
+    await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatWorld && n.Content == "hello-world", 3000, ct);
+    await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatWorld && n.Content == "hello-world", 3000, ct);
+    Console.WriteLine("[M6.5] World chat OK (A+B received)");
+    await Task.Delay(50, ct);
+
+    // Nearby
+    while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
+    while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
+    await a.ChatAsync(ChatChannel.ChatNearby, "hello-near", ct);
+    await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatNearby && n.Content == "hello-near", 3000, ct);
+    await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatNearby && n.Content == "hello-near", 3000, ct);
+    Console.WriteLine("[M6.6] Nearby chat OK");
+    await Task.Delay(50, ct);
+
+    // Guild
+    while (a.ReceivedChatNotifies.TryDequeue(out _)) { }
+    while (b.ReceivedChatNotifies.TryDequeue(out _)) { }
+    await a.ChatAsync(ChatChannel.ChatGuild, "hello-guild", ct);
+    await a.WaitChatAsync(n => n.Channel == ChatChannel.ChatGuild && n.Content == "hello-guild", 3000, ct);
+    await b.WaitChatAsync(n => n.Channel == ChatChannel.ChatGuild && n.Content == "hello-guild", 3000, ct);
+    Console.WriteLine("[M6.7] Guild chat OK");
+
+    // Denied: leave then guild chat
+    var leaveB = await b.GuildLeaveAsync(ct);
+    if (!leaveB.Success) throw new Exception(leaveB.Message);
+    while (b.ReceivedServerNotices.TryDequeue(out _)) { }
+    await b.ChatAsync(ChatChannel.ChatGuild, "should-fail", ct);
+    bool denied = false;
+    for (int i = 0; i < 40; i++)
+    {
+        while (b.ReceivedServerNotices.TryDequeue(out var sn))
+        {
+            if (sn.NoticeType == "chat_denied") { denied = true; break; }
+        }
+        if (denied) break;
+        await Task.Delay(50, ct);
+    }
+    if (!denied) throw new Exception("expected chat_denied for non-guild ChatGuild");
+    Console.WriteLine("[M6.8] Guild chat denied after leave OK");
+
+    // Rejoin for persistence check on restart
+    var rejoin = await b.GuildJoinAsync(gName, ct);
+    if (!rejoin.Success) throw new Exception($"rejoin: {rejoin.Message}");
+    Console.WriteLine($"[M6.9] B rejoined for persistence check; guild={a.GuildName}");
+}
+
 
 await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.5.0", "pc-smoke-1.5.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.6.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -82,7 +229,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.5.0", "android-smoke-1.5.0", cts.Token);
+await clientB.HandshakeAsync("1.6.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)
@@ -569,7 +716,9 @@ if (levelTest)
     }
 }
 
-if (levelTest)
+if (guildTest)
+    Console.WriteLine("[SUCCESS] All M6 guild/chat verification steps passed!");
+else if (levelTest)
     Console.WriteLine("[SUCCESS] All M5 full-chain verification steps passed!");
 else if (equipTest)
     Console.WriteLine("[SUCCESS] All M4 full-chain verification steps passed!");

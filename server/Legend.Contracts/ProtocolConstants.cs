@@ -58,13 +58,23 @@ public enum MsgId : ushort
     UseItemResp = 2402,
     ExpGainNotify = 2403,
     LevelUpNotify = 2404,
+    GuildCreateReq = 2501,
+    GuildCreateResp = 2502,
+    GuildJoinReq = 2503,
+    GuildJoinResp = 2504,
+    GuildLeaveReq = 2505,
+    GuildLeaveResp = 2506,
+    GuildInfoReq = 2507,
+    GuildInfoResp = 2508,
+    ChatReq = 2509,
+    ChatNotify = 2510,
     ServerNotice = 3001
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.5.0";
-    public const string MinCompatibleVersion = "1.5.0";
+    public const string CurrentVersion = "1.6.0";
+    public const string MinCompatibleVersion = "1.6.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

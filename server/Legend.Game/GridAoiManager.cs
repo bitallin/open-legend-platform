@@ -34,6 +34,9 @@ public sealed class WorldPlayerEntity
     public int Gold { get; set; }
     public List<QuestProgressState> Quests { get; set; } = new();
     public List<EquippedItemState> Equipment { get; set; } = new();
+    public string GuildId { get; set; } = string.Empty;
+    public string GuildName { get; set; } = string.Empty;
+    public string GuildRank { get; set; } = string.Empty;
 
     public EntitySnapshot ToSnapshot() => new()
     {

@@ -9,8 +9,8 @@ echo " Legend Platform — Phase A (M3) NPC Shop / Quests"
 echo "=================================================================="
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION || true)"
-if [[ "$PROTO_VER" != "1.5.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.5.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.6.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.6.0, got '$PROTO_VER'"
   exit 1
 fi
 
@@ -118,5 +118,5 @@ echo "--- Host log (restart) ---"
 tail -n 40 "$HOST_LOG2"
 echo "-----------------------------------------"
 echo "✅ Phase A (M3) Verification PASSED"
-echo "Protocol: 1.5.0 | Storage: Sqlite at $SQLITE_DB"
+echo "Protocol: 1.6.0 | Storage: Sqlite at $SQLITE_DB"
 echo "Manual: talk NPC at (12,12), buy potion, accept quest_slime_hunt, kill 2 green slimes ~ (25,10), turn in"

@@ -44,9 +44,13 @@ namespace Legend.UnitySdk
         public event Action<QuestProgressNotify>? OnQuestProgress;
         public event Action<ExpGainNotify>? OnExpGain;
         public event Action<LevelUpNotify>? OnLevelUp;
+        public event Action<ChatNotify>? OnChatNotify;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
+        public string GuildId { get; private set; } = string.Empty;
+        public string GuildName { get; private set; } = string.Empty;
+        public string GuildRank { get; private set; } = string.Empty;
 
         public void PumpMainThreadEvents()
         {
@@ -172,6 +176,9 @@ namespace Legend.UnitySdk
             Gold = enter.Gold;
             Level = enter.Level;
             Exp = enter.Exp;
+            GuildId = enter.GuildId ?? string.Empty;
+            GuildName = enter.GuildName ?? string.Empty;
+            GuildRank = enter.GuildRank ?? string.Empty;
             _mainThreadActions.Enqueue(() =>
             {
                 OnSelfEnteredWorld?.Invoke(enter.SelfEntity);
@@ -323,7 +330,65 @@ namespace Legend.UnitySdk
             return resp;
         }
 
-        public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
+        
+        public async Task<GuildCreateResp> RequestGuildCreateAsync(string name, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildCreateReq, new GuildCreateReq { Name = name }, ct).ConfigureAwait(false);
+            var resp = GuildCreateResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+            {
+                GuildId = resp.GuildId;
+                GuildName = resp.GuildName;
+                GuildRank = resp.GuildRank;
+                Gold = resp.Gold;
+            }
+            return resp;
+        }
+
+        public async Task<GuildJoinResp> RequestGuildJoinAsync(string guildName, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildJoinReq, new GuildJoinReq { GuildName = guildName }, ct).ConfigureAwait(false);
+            var resp = GuildJoinResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+            {
+                GuildId = resp.GuildId;
+                GuildName = resp.GuildName;
+                GuildRank = resp.GuildRank;
+            }
+            return resp;
+        }
+
+        public async Task<GuildLeaveResp> RequestGuildLeaveAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildLeaveReq, new GuildLeaveReq(), ct).ConfigureAwait(false);
+            var resp = GuildLeaveResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+            {
+                GuildId = string.Empty;
+                GuildName = string.Empty;
+                GuildRank = string.Empty;
+            }
+            return resp;
+        }
+
+        public async Task<GuildInfoResp> RequestGuildInfoAsync(string guildId = "", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildInfoReq, new GuildInfoReq { GuildId = guildId ?? "" }, ct).ConfigureAwait(false);
+            return GuildInfoResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task RequestChatAsync(ChatChannel channel, string content, CancellationToken ct = default)
+        {
+            if (_stream == null) throw new InvalidOperationException("Not connected");
+            uint seq = System.Threading.Interlocked.Increment(ref _seq);
+            await PacketCodec.WriteFrameAsync(_stream, MsgId.ChatReq, seq, new ChatReq
+            {
+                Channel = channel,
+                Content = content
+            }, ct).ConfigureAwait(false);
+        }
+
+public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
             // Ignore stale MoveSync if a portal already changed our map.
             string? mapBefore = SelfEntity?.MapId;
@@ -437,6 +502,10 @@ namespace Legend.UnitySdk
                                 SelfEntity.MaxHp = lu.EffectiveMaxHp;
                             }
                             _mainThreadActions.Enqueue(() => OnLevelUp?.Invoke(lu));
+                            break;
+                        case MsgId.ChatNotify:
+                            var chat = ChatNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnChatNotify?.Invoke(chat));
                             break;
                     }
                 }

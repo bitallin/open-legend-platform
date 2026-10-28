@@ -7,6 +7,7 @@ public sealed class SqliteStorage : ILegendStorage
     private readonly string _connectionString;
     private readonly SqliteAccountStore _accounts;
     private readonly SqliteCharacterStore _characters;
+    private readonly SqliteGuildStore _guilds;
     private readonly InMemorySessionStore _sessions = new();
 
     public SqliteStorage(string databasePath)
@@ -20,17 +21,20 @@ public sealed class SqliteStorage : ILegendStorage
         }.ToString();
         _accounts = new SqliteAccountStore(_connectionString);
         _characters = new SqliteCharacterStore(_connectionString);
+        _guilds = new SqliteGuildStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
     public ISessionStore Sessions => _sessions;
+    public IGuildStore Guilds => _guilds;
     public string BackendName => "Sqlite";
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
         await _accounts.EnsureSchemaAsync(ct);
         await _characters.EnsureSchemaAsync(ct);
+        await _guilds.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 
@@ -165,6 +169,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
               gold INTEGER NOT NULL DEFAULT 100,
               quest_json TEXT NOT NULL DEFAULT '[]',
               equipment_json TEXT NOT NULL DEFAULT '[]',
+              guild_id TEXT NOT NULL DEFAULT '',
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
@@ -178,7 +183,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
                      "ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 100",
                      "ALTER TABLE characters ADD COLUMN quest_json TEXT NOT NULL DEFAULT '[]'",
                      "ALTER TABLE characters ADD COLUMN equipment_json TEXT NOT NULL DEFAULT '[]'",
-                     "ALTER TABLE characters ADD COLUMN exp INTEGER NOT NULL DEFAULT 0"
+                     "ALTER TABLE characters ADD COLUMN exp INTEGER NOT NULL DEFAULT 0",
+                     "ALTER TABLE characters ADD COLUMN guild_id TEXT NOT NULL DEFAULT ''"
                  })
         {
             try
@@ -242,8 +248,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
-                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$c,$u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$gid,$c,$u)
                 """;
             BindCharacter(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -379,6 +385,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             Gold = reader.GetInt32(reader.GetOrdinal("gold")),
             QuestJson = reader.GetString(reader.GetOrdinal("quest_json")),
             EquipmentJson = reader.GetString(reader.GetOrdinal("equipment_json")),
+            GuildId = SafeGetString(reader, "guild_id"),
             CreatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at"))),
             UpdatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")))
         };
@@ -402,9 +409,35 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$gold", c.Gold);
         cmd.Parameters.AddWithValue("$qj", c.QuestJson);
         cmd.Parameters.AddWithValue("$eqj", c.EquipmentJson);
+        cmd.Parameters.AddWithValue("$gid", c.GuildId ?? "");
         cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
         cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
     }
+    public async Task SaveGuildIdAsync(string characterId, string? guildId, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET guild_id = $g, updated_at = $u WHERE character_id = $id";
+        cmd.Parameters.AddWithValue("$g", guildId ?? "");
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private static string SafeGetString(SqliteDataReader reader, string column)
+    {
+        try
+        {
+            int ord = reader.GetOrdinal(column);
+            return reader.IsDBNull(ord) ? "" : reader.GetString(ord);
+        }
+        catch (IndexOutOfRangeException)
+        {
+            return "";
+        }
+    }
+
     private static int SafeGetInt(SqliteDataReader reader, string column)
     {
         try

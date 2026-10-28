@@ -246,6 +246,18 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new InvalidDataException("levels.json must define at least one entry.");
         }
 
+        var guildConfig = new GuildConfig();
+        if (!string.IsNullOrWhiteSpace(manifest.GuildConfigFile))
+        {
+            string guildPath = Path.Combine(baseDir, manifest.GuildConfigFile);
+            if (!File.Exists(guildPath))
+                throw new FileNotFoundException($"Guild config not found: {guildPath}");
+            string guildJson = File.ReadAllText(guildPath, Encoding.UTF8);
+            hashInput.Append(guildJson);
+            guildConfig = JsonSerializer.Deserialize<GuildConfig>(guildJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize guild.json");
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -311,6 +323,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Items = itemDict,
             EnhanceRules = enhanceRuleDict,
             Levels = levelsConfig,
+            Guild = guildConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

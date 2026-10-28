@@ -29,6 +29,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<QuestProgressNotify> ReceivedQuestProgress { get; } = new();
     public ConcurrentQueue<ExpGainNotify> ReceivedExpGains { get; } = new();
     public ConcurrentQueue<LevelUpNotify> ReceivedLevelUps { get; } = new();
+    public ConcurrentQueue<ChatNotify> ReceivedChatNotifies { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -43,6 +44,9 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public string? CharacterId { get; private set; }
     public EntitySnapshot? SelfEntity { get; private set; }
     public int Gold { get; private set; }
+    public string GuildId { get; private set; } = string.Empty;
+    public string GuildName { get; private set; } = string.Empty;
+    public string GuildRank { get; private set; } = string.Empty;
 
     public async Task ConnectAsync(string host, int port, CancellationToken ct = default)
     {
@@ -180,6 +184,12 @@ public sealed class LegendTcpClient : IAsyncDisposable
                         ReceivedLevelUps.Enqueue(lu);
                         break;
                     }
+                    case MsgId.ChatNotify:
+                    {
+                        var ch = ChatNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedChatNotifies.Enqueue(ch);
+                        break;
+                    }
                 }
             }
         }
@@ -212,7 +222,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task<HandshakeResp> HandshakeAsync(
         string protocolVersion = ProtocolConstants.CurrentVersion,
-        string clientBuild = "pc-cli-1.5.0",
+        string clientBuild = "pc-cli-1.6.0",
         CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.HandshakeReq, new HandshakeReq
@@ -324,9 +334,13 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
         var resp = EnterWorldResp.Parser.ParseFrom(frame.Payload);
         if (resp.Success)
+        {
             Gold = resp.Gold;
-        if (resp.Success)
             SelfEntity = resp.SelfEntity;
+            GuildId = resp.GuildId ?? string.Empty;
+            GuildName = resp.GuildName ?? string.Empty;
+            GuildRank = resp.GuildRank ?? string.Empty;
+        }
         return resp;
     }
 
@@ -493,6 +507,94 @@ public sealed class LegendTcpClient : IAsyncDisposable
             SelfEntity.MaxHp = resp.MaxHp;
         }
         return resp;
+    }
+
+    public async Task<GuildCreateResp> GuildCreateAsync(string name, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildCreateReq, new GuildCreateReq { Name = name }, ct);
+        var resp = GuildCreateResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            GuildId = resp.GuildId;
+            GuildName = resp.GuildName;
+            GuildRank = resp.GuildRank;
+            Gold = resp.Gold;
+        }
+        return resp;
+    }
+
+    public async Task<GuildJoinResp> GuildJoinAsync(string guildName, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildJoinReq, new GuildJoinReq { GuildName = guildName }, ct);
+        var resp = GuildJoinResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            GuildId = resp.GuildId;
+            GuildName = resp.GuildName;
+            GuildRank = resp.GuildRank;
+        }
+        return resp;
+    }
+
+    public async Task<GuildLeaveResp> GuildLeaveAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildLeaveReq, new GuildLeaveReq(), ct);
+        var resp = GuildLeaveResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            GuildId = string.Empty;
+            GuildName = string.Empty;
+            GuildRank = string.Empty;
+        }
+        return resp;
+    }
+
+    public async Task<GuildInfoResp> GuildInfoAsync(string guildId = "", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildInfoReq, new GuildInfoReq { GuildId = guildId ?? "" }, ct);
+        return GuildInfoResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task ChatAsync(ChatChannel channel, string content, CancellationToken ct = default)
+    {
+        // fire-and-forget request; replies arrive as ChatNotify (seq may not match)
+        if (_stream == null)
+            throw new InvalidOperationException("Client is not connected.");
+        uint seq = Interlocked.Increment(ref _seq);
+        var tcs = new TaskCompletionSource<PacketFrame>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingRequests[seq] = tcs;
+        // Chat has no ChatResp — remove pending so ReadLoop doesn't hang
+        _pendingRequests.TryRemove(seq, out _);
+        await PacketCodec.WriteFrameAsync(_stream, MsgId.ChatReq, seq, new ChatReq
+        {
+            Channel = channel,
+            Content = content
+        }, ct);
+    }
+
+    public async Task WaitChatAsync(Func<ChatNotify, bool> pred, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var held = new List<ChatNotify>();
+        try
+        {
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                while (ReceivedChatNotifies.TryDequeue(out var n))
+                {
+                    if (pred(n))
+                        return;
+                    held.Add(n);
+                }
+                await Task.Delay(20, ct);
+            }
+            throw new TimeoutException("ChatNotify not received in time");
+        }
+        finally
+        {
+            foreach (var n in held)
+                ReceivedChatNotifies.Enqueue(n);
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -107,6 +107,9 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<EquipmentEnhancedEvent>(OnEquipmentEnhancedAsync);
         _eventBus.Subscribe<PlayerLeveledUpEvent>(OnPlayerLeveledUpAsync);
         _eventBus.Subscribe<ItemUsedEvent>(OnItemUsedAsync);
+        _eventBus.Subscribe<GuildCreatedEvent>(OnGuildCreatedAsync);
+        _eventBus.Subscribe<GuildJoinedEvent>(OnGuildJoinedAsync);
+        _eventBus.Subscribe<GuildLeftEvent>(OnGuildLeftAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -452,5 +455,68 @@ public sealed class LuaScriptHost
         }
         foreach (var n in notices)
             await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
+    }
+
+    private Task OnGuildCreatedAsync(GuildCreatedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_guild_create");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.GuildName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_guild_create failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGuildJoinedAsync(GuildJoinedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_guild_join");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.GuildName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_guild_join failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGuildLeftAsync(GuildLeftEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_guild_leave");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.GuildName);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_guild_leave failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
     }
 }

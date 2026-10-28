@@ -32,6 +32,13 @@ enum ProtocolErrorCode {
   ERR_EQUIP_DENIED = 1024;
   ERR_ENHANCE_DENIED = 1025;
   ERR_USE_ITEM_DENIED = 1026;
+  ERR_GUILD_DENIED = 1027;
+  ERR_CHAT_DENIED = 1028;
+  ERR_GUILD_NOT_FOUND = 1029;
+  ERR_GUILD_NAME_TAKEN = 1030;
+  ERR_ALREADY_IN_GUILD = 1031;
+  ERR_GUILD_FULL = 1032;
+  ERR_NOT_IN_GUILD = 1033;
   ERR_INTERNAL = 1999;
 }
 
@@ -54,6 +61,12 @@ enum QuestStatus {
   QUEST_ACTIVE = 1;
   QUEST_READY = 2;
   QUEST_COMPLETED = 3;
+}
+
+enum ChatChannel {
+  CHAT_WORLD = 0;
+  CHAT_NEARBY = 1;
+  CHAT_GUILD = 2;
 }
 
 // 1. Handshake (MsgId: 1001 / 1002)
@@ -240,6 +253,9 @@ message EnterWorldResp {
   int32 exp = 16;
   int32 exp_to_next = 17;
   int32 effective_max_mp = 18;
+  string guild_id = 19;
+  string guild_name = 20;
+  string guild_rank = 21;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -535,7 +551,82 @@ message LevelUpNotify {
   int32 mp = 13;
 }
 
-// 13. Server / Lua Notice (MsgId: 3001)
+
+// 13. Guild (MsgId: 2501–2508)
+message GuildCreateReq {
+  string name = 1;
+}
+
+message GuildCreateResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string guild_id = 4;
+  string guild_name = 5;
+  string guild_rank = 6;
+  int32 gold = 7;
+  int32 member_count = 8;
+}
+
+message GuildJoinReq {
+  string guild_name = 1;
+}
+
+message GuildJoinResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string guild_id = 4;
+  string guild_name = 5;
+  string guild_rank = 6;
+  int32 member_count = 7;
+}
+
+message GuildLeaveReq {
+}
+
+message GuildLeaveResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message GuildInfoReq {
+  string guild_id = 1; // empty = own guild
+}
+
+message GuildMemberInfo {
+  string character_id = 1;
+  string name = 2;
+  string rank = 3;
+}
+
+message GuildInfoResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string guild_id = 4;
+  string guild_name = 5;
+  string leader_character_id = 6;
+  repeated GuildMemberInfo members = 7;
+}
+
+// 14. Chat (MsgId: 2509–2510)
+message ChatReq {
+  ChatChannel channel = 1;
+  string content = 2;
+}
+
+message ChatNotify {
+  ChatChannel channel = 1;
+  string sender_entity_id = 2;
+  string sender_name = 3;
+  string content = 4;
+  string guild_id = 5;
+  int64 unix_ms = 6;
+}
+
+// 15. Server / Lua Notice (MsgId: 3001)
 message ServerNotice {
   string notice_type = 1;
   string title = 2;

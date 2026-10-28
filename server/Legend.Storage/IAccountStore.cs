@@ -21,7 +21,20 @@ public interface ICharacterStore
     Task SaveQuestsAsync(string characterId, string questJson, CancellationToken ct = default);
     Task SaveEquipmentAsync(string characterId, string equipmentJson, CancellationToken ct = default);
     Task SaveLevelExpAsync(string characterId, int level, int exp, int maxHp, int maxMp, CancellationToken ct = default);
+    Task SaveGuildIdAsync(string characterId, string? guildId, CancellationToken ct = default);
 }
+
+public interface IGuildStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<GuildRecord?> GetByIdAsync(string guildId, CancellationToken ct = default);
+    Task<GuildRecord?> GetByNameAsync(string name, CancellationToken ct = default);
+    Task<(bool Ok, string? Error, GuildRecord? Guild)> CreateAsync(string name, string leaderCharacterId, CancellationToken ct = default);
+    Task<(bool Ok, string? Error, GuildRecord? Guild)> AddMemberAsync(string guildId, string characterId, CancellationToken ct = default);
+    Task<(bool Ok, string? Error)> RemoveMemberAsync(string guildId, string characterId, CancellationToken ct = default);
+    Task DeleteAsync(string guildId, CancellationToken ct = default);
+}
+
 
 
 public interface ISessionStore
@@ -40,6 +53,7 @@ public interface ILegendStorage : IAsyncDisposable
     IAccountStore Accounts { get; }
     ICharacterStore Characters { get; }
     ISessionStore Sessions { get; }
+    IGuildStore Guilds { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
 }

@@ -53,7 +53,7 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.5.0";
+    public string ProtocolVersion { get; set; } = "1.6.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
@@ -67,6 +67,7 @@ public sealed class VersionPackManifest
     public string QuestsConfigFile { get; set; } = "";
     public string ItemsConfigFile { get; set; } = "";
     public string LevelsConfigFile { get; set; } = "";
+    public string GuildConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -336,6 +337,18 @@ public sealed class ClassGrowthConfig
     public int MpPerLevel { get; set; }
 }
 
+public sealed class GuildConfig
+{
+    public int CreateCostGold { get; set; } = 50;
+    public int MinNameLength { get; set; } = 2;
+    public int MaxNameLength { get; set; } = 12;
+    public int MaxMembers { get; set; } = 20;
+    public int ChatMaxLength { get; set; } = 80;
+    public int ChatCooldownMs { get; set; } = 50;
+    /// <summary>Chebyshev distance for Nearby chat (same map).</summary>
+    public int NearbyChebyshev { get; set; } = 14;
+}
+
 public sealed class LevelsConfigFile
 {
     public int MaxLevel { get; set; } = 10;
@@ -398,6 +411,7 @@ public sealed class LoadedVersionPack
     public IReadOnlyDictionary<string, ItemTemplate> Items { get; init; } = new Dictionary<string, ItemTemplate>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<int, EnhanceRuleConfig> EnhanceRules { get; init; } = new Dictionary<int, EnhanceRuleConfig>();
     public LevelsConfigFile Levels { get; init; } = new();
+    public GuildConfig Guild { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -424,4 +438,7 @@ public sealed record ItemEquippedEvent(IClientSession Session, string PlayerName
 public sealed record EquipmentEnhancedEvent(IClientSession Session, string PlayerName, string CharacterId, string Slot, string ItemId, int EnhanceLevel, bool Succeeded, int CostGold, int EffectiveAtk);
 public sealed record PlayerLeveledUpEvent(IClientSession Session, string PlayerName, string CharacterId, int OldLevel, int NewLevel, int Exp, int EffectiveAtk, int EffectiveDef, int EffectiveMaxHp);
 public sealed record ItemUsedEvent(IClientSession Session, string PlayerName, string CharacterId, string ItemId, int HealHp, int HealMp, int Hp, int Mp);
+public sealed record GuildCreatedEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName);
+public sealed record GuildJoinedEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName);
+public sealed record GuildLeftEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName);
 

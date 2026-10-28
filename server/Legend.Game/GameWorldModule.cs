@@ -14,7 +14,7 @@ namespace Legend.Game;
 /// - Player death: revive at current map spawn with full HP/MP.
 /// - NPC talk/buy/quest: Chebyshev range; gold + quest_json persisted.
 /// </summary>
-public sealed class GameWorldModule : IGameModule
+public sealed partial class GameWorldModule : IGameModule
 {
     private readonly IEventBus _eventBus;
     private readonly LoadedVersionPack _versionPack;
@@ -66,7 +66,9 @@ public sealed class GameWorldModule : IGameModule
     public bool CanHandle(MsgId msgId) => msgId is
         MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq or
         MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
-        MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq;
+        MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq or
+        MsgId.GuildCreateReq or MsgId.GuildJoinReq or MsgId.GuildLeaveReq or MsgId.GuildInfoReq or
+        MsgId.ChatReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -178,6 +180,21 @@ public sealed class GameWorldModule : IGameModule
             case MsgId.UseItemReq:
                 await HandleUseItemAsync(session, frame, ct);
                 break;
+            case MsgId.GuildCreateReq:
+                await HandleGuildCreateAsync(session, frame, ct);
+                break;
+            case MsgId.GuildJoinReq:
+                await HandleGuildJoinAsync(session, frame, ct);
+                break;
+            case MsgId.GuildLeaveReq:
+                await HandleGuildLeaveAsync(session, frame, ct);
+                break;
+            case MsgId.GuildInfoReq:
+                await HandleGuildInfoAsync(session, frame, ct);
+                break;
+            case MsgId.ChatReq:
+                await HandleChatAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -285,8 +302,23 @@ public sealed class GameWorldModule : IGameModule
             Inventory = InventoryHelper.Parse(character.InventoryJson),
             Gold = character.Gold,
             Quests = QuestHelper.Parse(character.QuestJson),
-            Equipment = EquipmentHelper.Parse(character.EquipmentJson)
+            Equipment = EquipmentHelper.Parse(character.EquipmentJson),
+            GuildId = character.GuildId ?? string.Empty
         };
+        if (!string.IsNullOrEmpty(entity.GuildId))
+        {
+            var guild = await _storage.Guilds.GetByIdAsync(entity.GuildId, ct);
+            if (guild != null)
+            {
+                entity.GuildName = guild.Name;
+                entity.GuildRank = string.Equals(guild.LeaderCharacterId, character.CharacterId, StringComparison.Ordinal)
+                    ? "leader" : "member";
+            }
+            else
+            {
+                entity.GuildId = string.Empty;
+            }
+        }
         LevelCurve.ApplyBaseStats(entity, cls, _versionPack.Levels);
         EquipmentHelper.RecalculateStats(entity, _versionPack.Items);
         if (entity.Hp > entity.MaxHp) entity.Hp = entity.MaxHp;
@@ -309,7 +341,10 @@ public sealed class GameWorldModule : IGameModule
             Level = entity.Level,
             Exp = entity.Exp,
             ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, entity.Level),
-            EffectiveMaxMp = entity.MaxMp
+            EffectiveMaxMp = entity.MaxMp,
+            GuildId = entity.GuildId,
+            GuildName = entity.GuildName,
+            GuildRank = entity.GuildRank
         };
         foreach (var other in nearbyPlayers)
             resp.NearbyEntities.Add(other.ToSnapshot());

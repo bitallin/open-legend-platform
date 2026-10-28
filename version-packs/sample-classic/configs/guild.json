@@ -1,0 +1,9 @@
+{
+  "createCostGold": 50,
+  "minNameLength": 2,
+  "maxNameLength": 12,
+  "maxMembers": 20,
+  "chatMaxLength": 80,
+  "chatCooldownMs": 0,
+  "nearbyChebyshev": 14
+}

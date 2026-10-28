@@ -112,7 +112,7 @@ public class M3IntegrationTests
 
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        Assert.True((await client.HandshakeAsync("1.5.0")).Accepted);
+        Assert.True((await client.HandshakeAsync("1.6.0")).Accepted);
         await client.RegisterAndLoginAsync("m3_trader", "secret1");
         var create = await client.CreateCharAsync("商旅甲", "warrior");
         Assert.True(create.Success, create.Message);
@@ -202,7 +202,7 @@ public class M3IntegrationTests
         await engine2.StartAsync();
         await using var client2 = new LegendTcpClient();
         await client2.ConnectAsync("127.0.0.1", engine2.BoundPort);
-        await client2.HandshakeAsync("1.5.0");
+        await client2.HandshakeAsync("1.6.0");
         await client2.LoginAsync("m3_trader", "secret1");
         await client2.SelectCharAsync(charId);
         var enter2 = await client2.EnterWorldAsync("realm-classic-01", charId);
@@ -217,7 +217,7 @@ public class M3IntegrationTests
     {
         var loader = new Legend.Core.VersionPackLoader();
         var pack = loader.LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.5.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.6.0", pack.Manifest.ProtocolVersion);
         Assert.True(pack.Npcs.ContainsKey("npc_village_merchant"));
         Assert.True(pack.Shops.ContainsKey("shop_novice_general"));
         Assert.True(pack.Quests.ContainsKey("quest_slime_hunt"));
@@ -233,7 +233,7 @@ public class M3IntegrationTests
 
         await using var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.5.0");
+        await client.HandshakeAsync("1.6.0");
         await client.RegisterAndLoginAsync("m3_poor", "secret1");
         var create = await client.CreateCharAsync("穷鬼", "warrior");
         await client.SelectCharAsync(create.Character.CharacterId);
