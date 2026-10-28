@@ -6,7 +6,9 @@
       "templateMapId": "dungeon_slime_cave",
       "minLevel": 1,
       "entryCostGold": 10,
-      "dailyLimit": 0,
+      "dailyLimit": 5,
+      "cooldownSeconds": 0,
+      "resetHourLocal": 0,
       "enterX": 5,
       "enterY": 5,
       "exitMapId": "novice_plain",
@@ -28,6 +30,8 @@
       "minLevel": 99,
       "entryCostGold": 0,
       "dailyLimit": 0,
+      "cooldownSeconds": 0,
+      "resetHourLocal": 0,
       "enterX": 5,
       "enterY": 5,
       "exitMapId": "novice_plain",
@@ -38,6 +42,27 @@
         { "monsterId": "slime_cave", "x": 14, "y": 12, "count": 1 }
       ],
       "rewardGold": 1,
+      "rewardItems": []
+    },
+    {
+      "dungeonId": "dungeon_daily_quota",
+      "displayName": "每日限额测试本",
+      "templateMapId": "dungeon_slime_cave",
+      "minLevel": 1,
+      "entryCostGold": 0,
+      "dailyLimit": 1,
+      "cooldownSeconds": 2,
+      "resetHourLocal": 0,
+      "enterX": 5,
+      "enterY": 5,
+      "exitMapId": "novice_plain",
+      "exitX": 10,
+      "exitY": 10,
+      "objective": "kill_all",
+      "spawns": [
+        { "monsterId": "slime_cave", "x": 14, "y": 12, "count": 1 }
+      ],
+      "rewardGold": 5,
       "rewardItems": []
     }
   ]

@@ -4,7 +4,7 @@
 
 ## 当前里程碑：M12（独立副本实例与进本清怪奖励回城闭环）
 
-协议版本 **1.12.0**。在 M11 邮件基础上新增独立副本最小闭环：进本 → 实例内清怪 → 结算奖励 → 回城。
+协议版本 **1.13.0**。在 M11 邮件基础上新增独立副本最小闭环：进本 → 实例内清怪 → 结算奖励 → 回城。
 
 | 项 | 约定 |
 |----|------|
@@ -42,7 +42,7 @@
 ## 1. 目录结构
 ```text
 legend-platform/
-├── protocol/                    # Protobuf 契约 (VERSION=1.12.0)
+├── protocol/                    # Protobuf 契约 (VERSION=1.13.0)
 ├── server/
 │   ├── Legend.Contracts/        # MsgId … 3201–3206 副本
 │   ├── Legend.Core/             # VersionPackLoader(+dungeons.json)
@@ -51,7 +51,7 @@ legend-platform/
 │   ├── Legend.Script/           # on_dungeon_enter/complete/leave
 │   ├── Legend.CliClient/        # --dungeon 验收
 │   └── Legend.Tests/            # M0–M12
-├── client/unity-sdk/            # DungeonEnter/Leave + Progress/Complete (1.12.0)
+├── client/unity-sdk/            # DungeonEnter/Leave + Progress/Complete (1.13.0)
 ├── version-packs/sample-classic/# dungeons.json + dungeon_slime_cave map + dungeon.lua
 └── scripts/verify-m12.sh
 ```
@@ -73,7 +73,7 @@ dotnet run --project server/Legend.Host -- --port 7100 \
 ```
 
 ### 手动验收（副本闭环）
-1. Handshake `1.12.0` → Register/Login → CreateChar → EnterWorld
+1. Handshake `1.13.0` → Register/Login → CreateChar → EnterWorld
 2. `DungeonEnter dungeon_level_gate` → `ErrDungeonLevel`；`DungeonEnter dungeon_slime_cave` 扣门票进 `inst_*`
 3. 清怪 → `DungeonProgressNotify` → `DungeonCompleteNotify` 发奖并回城
 4. 再进本后 `DungeonLeave`（未完成无清怪奖励）回城
@@ -82,7 +82,7 @@ dotnet run --project server/Legend.Host -- --port 7100 \
 CLI：`dotnet run --project server/Legend.CliClient -- --host 127.0.0.1 --port 7100 --dungeon`
 
 ## 3. Unity 接入
-见 `client/unity-sdk/README.md`。协议 `1.12.0`；新增 `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`，事件 `OnDungeonProgress` / `OnDungeonComplete`。
+见 `client/unity-sdk/README.md`。协议 `1.13.0`；新增 `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`，事件 `OnDungeonProgress` / `OnDungeonComplete`。
 
 ## 4. 环境变量
 | 变量 | 含义 |

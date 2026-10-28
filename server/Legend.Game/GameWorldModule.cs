@@ -75,7 +75,7 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.LearnSkillReq or MsgId.SkillListReq or
         MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq or
         MsgId.MailListReq or MsgId.MailReadReq or MsgId.MailClaimAttachmentReq or MsgId.MailDeleteReq or MsgId.MailSendReq or
-        MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq;
+        MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq or MsgId.DungeonStatusReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -276,6 +276,9 @@ public sealed partial class GameWorldModule : IGameModule
             case MsgId.DungeonLeaveReq:
                 await HandleDungeonLeaveAsync(session, frame, ct);
                 break;
+            case MsgId.DungeonStatusReq:
+                await HandleDungeonStatusAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -393,7 +396,8 @@ public sealed partial class GameWorldModule : IGameModule
             Quests = QuestHelper.Parse(character.QuestJson),
             Equipment = EquipmentHelper.Parse(character.EquipmentJson),
             GuildId = character.GuildId ?? string.Empty,
-            LearnedSkills = SkillHelper.Parse(character.SkillsJson)
+            LearnedSkills = SkillHelper.Parse(character.SkillsJson),
+            DungeonProgress = DungeonProgressJson.Parse(character.DungeonProgressJson)
         };
         EnsureStarterSkills(entity);
         await PersistSkillsAsync(entity, ct);

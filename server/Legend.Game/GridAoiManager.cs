@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Legend.Contracts;
 using Legend.Contracts.Proto;
+using Legend.Storage;
 
 namespace Legend.Game;
 
@@ -43,6 +44,7 @@ public sealed class WorldPlayerEntity
     public string? DungeonId { get; set; }
     public string? DungeonInstanceId { get; set; }
     public bool DungeonCompleted { get; set; }
+    public Dictionary<string, DungeonProgressEntry> DungeonProgress { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public EntitySnapshot ToSnapshot() => new()
     {

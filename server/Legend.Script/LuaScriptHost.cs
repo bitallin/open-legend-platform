@@ -129,6 +129,7 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<DungeonEnteredEvent>(OnDungeonEnteredAsync);
         _eventBus.Subscribe<DungeonCompletedEvent>(OnDungeonCompletedAsync);
         _eventBus.Subscribe<DungeonLeftEvent>(OnDungeonLeftAsync);
+        _eventBus.Subscribe<DungeonPartyEnteredEvent>(OnDungeonPartyEnteredAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -940,4 +941,26 @@ public sealed class LuaScriptHost
         }
         return Task.CompletedTask;
     }
+
+    private Task OnDungeonPartyEnteredAsync(DungeonPartyEnteredEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_dungeon_party_enter");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.LeaderName, evt.DungeonId, evt.InstanceId, evt.EnteredCount, evt.DeniedCount);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_dungeon_party_enter failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
 }
+

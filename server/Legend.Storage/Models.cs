@@ -31,6 +31,7 @@ public sealed class CharacterRecord
     public string EquipmentJson { get; set; } = "[]";
     public string GuildId { get; set; } = string.Empty;
     public string SkillsJson { get; set; } = "[]";
+    public string DungeonProgressJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -55,6 +56,7 @@ public sealed class CharacterRecord
         EquipmentJson = EquipmentJson,
         GuildId = GuildId,
         SkillsJson = SkillsJson,
+        DungeonProgressJson = DungeonProgressJson,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt
     };
@@ -246,3 +248,94 @@ public static class MailItemsJson
         }
     }
 }
+
+public sealed class DungeonProgressEntry
+{
+    public int UsedToday { get; set; }
+    public long LastEnterUnix { get; set; }
+    public string DayKey { get; set; } = "";
+}
+
+/// <summary>
+/// Per-character dungeon daily/CD progress.
+/// Day boundary: Asia/Shanghai local clock, reset at ResetHourLocal (default 0 = midnight).
+/// dayKey format: yyyy-MM-dd of the active game-day in Shanghai.
+/// </summary>
+public static class DungeonProgressJson
+{
+    public static readonly TimeZoneInfo ShanghaiTz = ResolveShanghai();
+
+    private static TimeZoneInfo ResolveShanghai()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Asia/Shanghai"); }
+        catch
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById("China Standard Time"); }
+            catch { return TimeZoneInfo.CreateCustomTimeZone("Asia/Shanghai", TimeSpan.FromHours(8), "Asia/Shanghai", "Asia/Shanghai"); }
+        }
+    }
+
+    public static string ComputeDayKey(DateTimeOffset utcNow, int resetHourLocal)
+    {
+        var local = TimeZoneInfo.ConvertTime(utcNow, ShanghaiTz);
+        int hour = Math.Clamp(resetHourLocal, 0, 23);
+        var day = local.DateTime;
+        if (day.Hour < hour)
+            day = day.AddDays(-1);
+        return day.ToString("yyyy-MM-dd");
+    }
+
+    public static Dictionary<string, DungeonProgressEntry> Parse(string? json)
+    {
+        var map = new Dictionary<string, DungeonProgressEntry>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(json) || json == "{}")
+            return map;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                var e = new DungeonProgressEntry();
+                if (prop.Value.TryGetProperty("usedToday", out var u)) e.UsedToday = u.GetInt32();
+                if (prop.Value.TryGetProperty("lastEnterUnix", out var l)) e.LastEnterUnix = l.GetInt64();
+                if (prop.Value.TryGetProperty("dayKey", out var d)) e.DayKey = d.GetString() ?? "";
+                map[prop.Name] = e;
+            }
+        }
+        catch { /* treat as empty */ }
+        return map;
+    }
+
+    public static string Serialize(Dictionary<string, DungeonProgressEntry> map)
+    {
+        var obj = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (k, v) in map)
+        {
+            obj[k] = new Dictionary<string, object>
+            {
+                ["usedToday"] = v.UsedToday,
+                ["lastEnterUnix"] = v.LastEnterUnix,
+                ["dayKey"] = v.DayKey ?? ""
+            };
+        }
+        return JsonSerializer.Serialize(obj);
+    }
+
+    public static DungeonProgressEntry GetOrCreate(
+        Dictionary<string, DungeonProgressEntry> map, string dungeonId, int resetHourLocal, DateTimeOffset utcNow)
+    {
+        string dayKey = ComputeDayKey(utcNow, resetHourLocal);
+        if (!map.TryGetValue(dungeonId, out var e) || e is null)
+        {
+            e = new DungeonProgressEntry { DayKey = dayKey };
+            map[dungeonId] = e;
+        }
+        if (!string.Equals(e.DayKey, dayKey, StringComparison.Ordinal))
+        {
+            e.UsedToday = 0;
+            e.DayKey = dayKey;
+        }
+        return e;
+    }
+}
+

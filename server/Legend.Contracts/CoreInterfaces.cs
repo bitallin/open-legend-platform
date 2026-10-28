@@ -443,6 +443,10 @@ public sealed class DungeonDefinition
     public int MinLevel { get; set; } = 1;
     public int EntryCostGold { get; set; }
     public int DailyLimit { get; set; }
+    /// <summary>Seconds between successful enters. 0 = none.</summary>
+    public int CooldownSeconds { get; set; }
+    /// <summary>Local day boundary hour in Asia/Shanghai (0 = midnight).</summary>
+    public int ResetHourLocal { get; set; }
     public int EnterX { get; set; }
     public int EnterY { get; set; }
     public string ExitMapId { get; set; } = "novice_plain";
@@ -599,3 +603,4 @@ public sealed record MailClaimedEvent(IClientSession Session, string PlayerName,
 public sealed record DungeonEnteredEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId);
 public sealed record DungeonCompletedEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId, int RewardGold);
 public sealed record DungeonLeftEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId, bool Completed);
+public sealed record DungeonPartyEnteredEvent(IClientSession Session, string LeaderName, string LeaderCharacterId, string DungeonId, string InstanceId, int EnteredCount, int DeniedCount);

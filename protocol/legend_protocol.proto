@@ -72,6 +72,8 @@ enum ProtocolErrorCode {
   ERR_DUNGEON_COST = 1064;
   ERR_DUNGEON_NOT_IN = 1065;
   ERR_DUNGEON_FULL = 1066;
+  ERR_DUNGEON_DAILY_LIMIT = 1067;
+  ERR_DUNGEON_COOLDOWN = 1068;
   ERR_INTERNAL = 1999;
 }
 
@@ -1082,9 +1084,11 @@ message MailSendResp {
   string mail_id = 4;
 }
 
-// ========== M12 Dungeon Instance ==========
+// ========== M12/M13 Dungeon Instance + Party/Daily ==========
 message DungeonEnterReq {
   string dungeon_id = 1;
+  // true: pull eligible online party members on same map into the same instance
+  bool party_enter = 2;
 }
 
 message DungeonEnterResp {
@@ -1099,6 +1103,8 @@ message DungeonEnterResp {
   int32 remaining_kills = 9;
   int32 target_kills = 10;
   int32 gold = 11;
+  int32 remaining_daily = 12;
+  int32 daily_limit = 13;
 }
 
 message DungeonProgressNotify {
@@ -1130,4 +1136,38 @@ message DungeonLeaveResp {
   string map_id = 4;
   int32 x = 5;
   int32 y = 6;
+}
+
+message DungeonPartyMemberResult {
+  string character_id = 1;
+  string name = 2;
+  bool entered = 3;
+  ProtocolErrorCode error_code = 4;
+  string message = 5;
+}
+
+// Broadcast to initiator (and optionally party) after party enter attempt
+message DungeonPartyEnterNotify {
+  string dungeon_id = 1;
+  string instance_id = 2;
+  repeated DungeonPartyMemberResult members = 3;
+}
+
+message DungeonStatusReq {
+  string dungeon_id = 1;
+}
+
+message DungeonStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string dungeon_id = 4;
+  int32 daily_limit = 5;
+  int32 used_today = 6;
+  int32 remaining_daily = 7;
+  int32 cooldown_seconds = 8;
+  int64 next_enter_unix = 9; // 0 if can enter now (unix seconds)
+  bool can_enter = 10;
+  int32 min_level = 11;
+  int32 entry_cost_gold = 12;
 }

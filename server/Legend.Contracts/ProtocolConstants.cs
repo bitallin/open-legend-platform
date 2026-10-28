@@ -127,13 +127,16 @@ public enum MsgId : ushort
     DungeonProgressNotify = 3203,
     DungeonCompleteNotify = 3204,
     DungeonLeaveReq = 3205,
-    DungeonLeaveResp = 3206
+    DungeonLeaveResp = 3206,
+    DungeonStatusReq = 3207,
+    DungeonStatusResp = 3208,
+    DungeonPartyEnterNotify = 3209
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.12.0";
-    public const string MinCompatibleVersion = "1.12.0";
+    public const string CurrentVersion = "1.13.0";
+    public const string MinCompatibleVersion = "1.13.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

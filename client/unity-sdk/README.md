@@ -2,7 +2,7 @@
 
 100% original Legend protocol client for **Unity 2022 LTS** (PC + Android). No 996 / third-party engine protocol.
 
-Protocol version: **1.9.0**
+Protocol version: **1.13.0**
 
 ## Import
 
@@ -58,4 +58,6 @@ Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId …2601–2609 st
 - Network callbacks via `PumpMainThreadEvents()` in `Update()`.
 - Safe zone: all attacks banned; stall listing requires safe zone when `requireSafeZone: true`.
 
-M12: `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`, events `OnDungeonProgress` / `OnDungeonComplete` (protocol 1.12.0).
+M12: `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`, events `OnDungeonProgress` / `OnDungeonComplete` (protocol 1.13.0).
+
+M13: `RequestDungeonEnterAsync(dungeonId, partyEnter: true)` / `RequestDungeonStatusAsync`, event `OnDungeonPartyEnter` (protocol 1.13.0). Day boundary Asia/Shanghai + resetHourLocal.

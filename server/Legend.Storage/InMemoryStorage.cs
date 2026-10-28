@@ -115,6 +115,8 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
             character.EquipmentJson = EquipmentJson.Empty;
         if (string.IsNullOrEmpty(character.SkillsJson))
             character.SkillsJson = "[]";
+        if (string.IsNullOrEmpty(character.DungeonProgressJson))
+            character.DungeonProgressJson = "{}";
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
 
@@ -239,12 +241,23 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         }
         return Task.CompletedTask;
     }
+
+    public Task SaveDungeonProgressAsync(string characterId, string dungeonProgressJson, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.DungeonProgressJson = string.IsNullOrWhiteSpace(dungeonProgressJson) ? "{}" : dungeonProgressJson;
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class InMemorySessionStore : ISessionStore
 {
     private readonly ConcurrentDictionary<string, SessionRecord> _sessions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, bool> _online = new(StringComparer.Ordinal);
+
 
     public Task EnsureReadyAsync(CancellationToken ct = default) => Task.CompletedTask;
 
