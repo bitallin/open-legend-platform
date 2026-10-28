@@ -198,12 +198,15 @@ namespace Legend.UnitySdk
 
         public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
+            // Ignore stale MoveSync if a portal already changed our map.
+            string? mapBefore = SelfEntity?.MapId;
             var frame = await SendRequestAsync(MsgId.MoveReq, new MoveReq
             {
                 ToX = toX, ToY = toY, Direction = direction
             }, ct).ConfigureAwait(false);
             var sync = MoveSync.Parser.ParseFrom(frame.Payload);
-            if (sync.Accepted && SelfEntity != null)
+            if (sync.Accepted && SelfEntity != null &&
+                (mapBefore is null || string.Equals(SelfEntity.MapId, mapBefore, System.StringComparison.Ordinal)))
             {
                 SelfEntity.X = sync.ToX;
                 SelfEntity.Y = sync.ToY;

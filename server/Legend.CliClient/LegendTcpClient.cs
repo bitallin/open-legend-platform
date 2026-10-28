@@ -307,6 +307,9 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task<MoveSync> MoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
     {
+        // Capture map before request: a portal MapChangeNotify may arrive before this
+        // MoveSync is applied; never overwrite post-teleport coordinates with the pre-portal sync.
+        string? mapBefore = SelfEntity?.MapId;
         var frame = await SendRequestAsync(MsgId.MoveReq, new MoveReq
         {
             ToX = toX,
@@ -315,7 +318,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
         }, ct);
 
         var sync = MoveSync.Parser.ParseFrom(frame.Payload);
-        if (sync.Accepted && SelfEntity != null)
+        if (sync.Accepted && SelfEntity != null &&
+            (mapBefore is null || string.Equals(SelfEntity.MapId, mapBefore, StringComparison.Ordinal)))
         {
             SelfEntity.X = sync.ToX;
             SelfEntity.Y = sync.ToY;
