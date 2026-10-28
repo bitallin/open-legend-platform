@@ -198,7 +198,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task<HandshakeResp> HandshakeAsync(
         string protocolVersion = ProtocolConstants.CurrentVersion,
-        string clientBuild = "pc-cli-1.3.0",
+        string clientBuild = "pc-cli-1.4.0",
         CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.HandshakeReq, new HandshakeReq
@@ -428,6 +428,37 @@ public sealed class LegendTcpClient : IAsyncDisposable
             QuestId = questId
         }, ct);
         var resp = QuestTurnInResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
+    public async Task<EquipResp> EquipAsync(string itemId, string slot = "", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.EquipReq, new EquipReq
+        {
+            ItemId = itemId,
+            Slot = slot
+        }, ct);
+        return EquipResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<UnequipResp> UnequipAsync(string slot, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.UnequipReq, new UnequipReq
+        {
+            Slot = slot
+        }, ct);
+        return UnequipResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<EnhanceEquipResp> EnhanceEquipAsync(string slot = "weapon", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.EnhanceEquipReq, new EnhanceEquipReq
+        {
+            Slot = slot
+        }, ct);
+        var resp = EnhanceEquipResp.Parser.ParseFrom(frame.Payload);
         if (resp.Success)
             Gold = resp.Gold;
         return resp;

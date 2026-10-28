@@ -15,17 +15,23 @@ public sealed class WorldPlayerEntity
     public int X { get; set; }
     public int Y { get; set; }
     public int Direction { get; set; }
+    public int Level { get; set; } = 1;
+    public int BaseMaxHp { get; set; }
+    public int BaseAtk { get; set; }
+    public int BaseDef { get; set; }
     public int Hp { get; set; }
     public int MaxHp { get; set; }
     public int Mp { get; set; }
     public int MaxMp { get; set; }
     public int Atk { get; set; }
+    public int Def { get; set; }
     public bool InSafeZone { get; set; }
     public bool IsDead { get; set; }
     public Dictionary<string, long> SkillReadyAtUnixMs { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<InventorySlot> Inventory { get; set; } = new();
     public int Gold { get; set; }
     public List<QuestProgressState> Quests { get; set; } = new();
+    public List<EquippedItemState> Equipment { get; set; } = new();
 
     public EntitySnapshot ToSnapshot() => new()
     {

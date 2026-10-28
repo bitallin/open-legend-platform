@@ -101,6 +101,8 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
             character.InventoryJson = InventoryJson.Empty;
         if (string.IsNullOrEmpty(character.QuestJson))
             character.QuestJson = QuestJson.Empty;
+        if (string.IsNullOrEmpty(character.EquipmentJson))
+            character.EquipmentJson = EquipmentJson.Empty;
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
 
@@ -165,6 +167,16 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         if (_byId.TryGetValue(characterId, out var c))
         {
             c.QuestJson = string.IsNullOrWhiteSpace(questJson) ? QuestJson.Empty : questJson;
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task SaveEquipmentAsync(string characterId, string equipmentJson, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.EquipmentJson = string.IsNullOrWhiteSpace(equipmentJson) ? EquipmentJson.Empty : equipmentJson;
             c.UpdatedAt = DateTimeOffset.UtcNow;
         }
         return Task.CompletedTask;

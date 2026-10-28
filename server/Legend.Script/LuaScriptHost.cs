@@ -103,6 +103,8 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<ShopBoughtEvent>(OnShopBoughtAsync);
         _eventBus.Subscribe<QuestAcceptedEvent>(OnQuestAcceptedAsync);
         _eventBus.Subscribe<QuestCompletedEvent>(OnQuestCompletedAsync);
+        _eventBus.Subscribe<ItemEquippedEvent>(OnItemEquippedAsync);
+        _eventBus.Subscribe<EquipmentEnhancedEvent>(OnEquipmentEnhancedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -320,6 +322,68 @@ public sealed class LuaScriptHost
                 ["reward_gold"] = evt.RewardGold
             };
             _luaVm.Call(fn, ctx);
+            notices = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
+        }
+        foreach (var n in notices)
+            await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
+    }
+
+    private async Task OnItemEquippedAsync(ItemEquippedEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> notices = new();
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_equip");
+            if (fn.Type != DataType.Function)
+                return;
+            _bridge.ClearPendingNotices();
+            var playerTbl = new Table(_luaVm)
+            {
+                ["name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId
+            };
+            var infoTbl = new Table(_luaVm)
+            {
+                ["slot"] = evt.Slot,
+                ["item_id"] = evt.ItemId,
+                ["enhance_level"] = evt.EnhanceLevel,
+                ["effective_atk"] = evt.EffectiveAtk,
+                ["effective_def"] = evt.EffectiveDef,
+                ["effective_max_hp"] = evt.EffectiveMaxHp
+            };
+            _luaVm.Call(fn, playerTbl, infoTbl);
+            notices = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
+        }
+        foreach (var n in notices)
+            await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
+    }
+
+    private async Task OnEquipmentEnhancedAsync(EquipmentEnhancedEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> notices = new();
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_enhance");
+            if (fn.Type != DataType.Function)
+                return;
+            _bridge.ClearPendingNotices();
+            var playerTbl = new Table(_luaVm)
+            {
+                ["name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId
+            };
+            var infoTbl = new Table(_luaVm)
+            {
+                ["slot"] = evt.Slot,
+                ["item_id"] = evt.ItemId,
+                ["enhance_level"] = evt.EnhanceLevel,
+                ["succeeded"] = evt.Succeeded,
+                ["cost_gold"] = evt.CostGold,
+                ["effective_atk"] = evt.EffectiveAtk
+            };
+            _luaVm.Call(fn, playerTbl, infoTbl);
             notices = _bridge.PendingNotices.ToList();
             _bridge.ClearPendingNotices();
         }

@@ -27,6 +27,7 @@ public sealed class CharacterRecord
     public string InventoryJson { get; set; } = "[]";
     public int Gold { get; set; } = 100;
     public string QuestJson { get; set; } = "[]";
+    public string EquipmentJson { get; set; } = "[]";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -47,6 +48,7 @@ public sealed class CharacterRecord
         InventoryJson = InventoryJson,
         Gold = Gold,
         QuestJson = QuestJson,
+        EquipmentJson = EquipmentJson,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt
     };
@@ -76,4 +78,9 @@ public static class QuestJson
 {
     public static string Empty => "[]";
     public const int StartingGold = 100;
+}
+
+public static class EquipmentJson
+{
+    public const string Empty = "[]";
 }

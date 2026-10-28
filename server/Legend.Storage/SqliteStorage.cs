@@ -163,6 +163,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
               inventory_json TEXT NOT NULL,
               gold INTEGER NOT NULL DEFAULT 100,
               quest_json TEXT NOT NULL DEFAULT '[]',
+              equipment_json TEXT NOT NULL DEFAULT '[]',
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
@@ -174,7 +175,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         foreach (string alter in new[]
                  {
                      "ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 100",
-                     "ALTER TABLE characters ADD COLUMN quest_json TEXT NOT NULL DEFAULT '[]'"
+                     "ALTER TABLE characters ADD COLUMN quest_json TEXT NOT NULL DEFAULT '[]'",
+                     "ALTER TABLE characters ADD COLUMN equipment_json TEXT NOT NULL DEFAULT '[]'"
                  })
         {
             try
@@ -215,6 +217,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             character.InventoryJson = InventoryJson.Empty;
         if (string.IsNullOrEmpty(character.QuestJson))
             character.QuestJson = QuestJson.Empty;
+        if (string.IsNullOrEmpty(character.EquipmentJson))
+            character.EquipmentJson = EquipmentJson.Empty;
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
         character.CreatedAt = DateTimeOffset.UtcNow;
@@ -236,8 +240,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, created_at, updated_at)
-                VALUES($cid,$aid,$n,$cl,$lv,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$c,$u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$c,$u)
                 """;
             BindCharacter(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -326,6 +330,18 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveEquipmentAsync(string characterId, string equipmentJson, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET equipment_json=$eqj, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$eqj", string.IsNullOrWhiteSpace(equipmentJson) ? EquipmentJson.Empty : equipmentJson);
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord ReadCharacter(SqliteDataReader reader)
         => new()
         {
@@ -344,6 +360,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             InventoryJson = reader.GetString(reader.GetOrdinal("inventory_json")),
             Gold = reader.GetInt32(reader.GetOrdinal("gold")),
             QuestJson = reader.GetString(reader.GetOrdinal("quest_json")),
+            EquipmentJson = reader.GetString(reader.GetOrdinal("equipment_json")),
             CreatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at"))),
             UpdatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")))
         };
@@ -365,6 +382,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$inv", c.InventoryJson);
         cmd.Parameters.AddWithValue("$gold", c.Gold);
         cmd.Parameters.AddWithValue("$qj", c.QuestJson);
+        cmd.Parameters.AddWithValue("$eqj", c.EquipmentJson);
         cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
         cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
     }

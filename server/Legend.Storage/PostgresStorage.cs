@@ -157,6 +157,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
               inventory_json JSONB NOT NULL DEFAULT '[]'::jsonb,
               gold INTEGER NOT NULL DEFAULT 100,
               quest_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+              equipment_json JSONB NOT NULL DEFAULT '[]'::jsonb,
               created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
               updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
@@ -164,6 +165,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             CREATE INDEX IF NOT EXISTS idx_characters_account ON characters(account_id);
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS gold INTEGER NOT NULL DEFAULT 100;
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS quest_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+            ALTER TABLE characters ADD COLUMN IF NOT EXISTS equipment_json JSONB NOT NULL DEFAULT '[]'::jsonb;
             """, conn);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -173,7 +175,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, created_at, updated_at FROM characters WHERE account_id=@a ORDER BY created_at", conn);
+            "SELECT character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, created_at, updated_at FROM characters WHERE account_id=@a ORDER BY created_at", conn);
         cmd.Parameters.AddWithValue("a", accountId);
         var list = new List<CharacterRecord>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -193,6 +195,8 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             character.InventoryJson = InventoryJson.Empty;
         if (string.IsNullOrEmpty(character.QuestJson))
             character.QuestJson = QuestJson.Empty;
+        if (string.IsNullOrEmpty(character.EquipmentJson))
+            character.EquipmentJson = EquipmentJson.Empty;
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
         character.CreatedAt = DateTimeOffset.UtcNow;
@@ -212,8 +216,8 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         try
         {
             await using var cmd = new NpgsqlCommand("""
-                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, created_at, updated_at)
-                VALUES(@cid,@aid,@n,@cl,@lv,@m,@x,@y,@hp,@mp,@mhp,@mmp,@inv::jsonb,@gold,@qj::jsonb,@c,@u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
+                VALUES(@cid,@aid,@n,@cl,@lv,@m,@x,@y,@hp,@mp,@mhp,@mmp,@inv::jsonb,@gold,@qj::jsonb,@eqj::jsonb,@c,@u)
                 """, conn);
             Bind(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -241,7 +245,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, created_at, updated_at FROM characters WHERE character_id=@id", conn);
+            "SELECT character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, created_at, updated_at FROM characters WHERE character_id=@id", conn);
         cmd.Parameters.AddWithValue("id", characterId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -297,6 +301,17 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveEquipmentAsync(string characterId, string equipmentJson, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "UPDATE characters SET equipment_json=@eqj::jsonb, updated_at=NOW() WHERE character_id=@id", conn);
+        cmd.Parameters.AddWithValue("eqj", string.IsNullOrWhiteSpace(equipmentJson) ? "[]" : equipmentJson);
+        cmd.Parameters.AddWithValue("id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord Read(NpgsqlDataReader reader)
         => new()
         {
@@ -315,8 +330,9 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             InventoryJson = reader.GetString(12),
             Gold = reader.GetInt32(13),
             QuestJson = reader.GetString(14),
-            CreatedAt = reader.GetFieldValue<DateTimeOffset>(15),
-            UpdatedAt = reader.GetFieldValue<DateTimeOffset>(16)
+            EquipmentJson = reader.GetString(15),
+            CreatedAt = reader.GetFieldValue<DateTimeOffset>(16),
+            UpdatedAt = reader.GetFieldValue<DateTimeOffset>(17)
         };
 
     private static void Bind(NpgsqlCommand cmd, CharacterRecord c)
@@ -336,6 +352,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("inv", c.InventoryJson);
         cmd.Parameters.AddWithValue("gold", c.Gold);
         cmd.Parameters.AddWithValue("qj", c.QuestJson);
+        cmd.Parameters.AddWithValue("eqj", c.EquipmentJson);
         cmd.Parameters.AddWithValue("c", c.CreatedAt);
         cmd.Parameters.AddWithValue("u", c.UpdatedAt);
     }

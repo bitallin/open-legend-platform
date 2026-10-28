@@ -29,6 +29,8 @@ enum ProtocolErrorCode {
   ERR_QUEST_DENIED = 1021;
   ERR_NPC_TOO_FAR = 1022;
   ERR_UNKNOWN_NPC = 1023;
+  ERR_EQUIP_DENIED = 1024;
+  ERR_ENHANCE_DENIED = 1025;
   ERR_INTERNAL = 1999;
 }
 
@@ -228,6 +230,10 @@ message EnterWorldResp {
   repeated InventoryItem inventory = 8;
   int32 gold = 9;
   repeated QuestProgress quests = 10;
+  repeated EquippedSlot equipment = 11;
+  int32 effective_atk = 12;
+  int32 effective_def = 13;
+  int32 effective_max_hp = 14;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -421,7 +427,65 @@ message QuestProgressNotify {
   string reason = 3;
 }
 
-// 11. Server / Lua Notice (MsgId: 3001)
+// 11. Equipment & Enhancement (MsgId: 2301–2306)
+message EquippedSlot {
+  string slot = 1;
+  string item_id = 2;
+  int32 enhance_level = 3;
+  int32 atk_bonus = 4;
+  int32 def_bonus = 5;
+  int32 max_hp_bonus = 6;
+}
+
+message EquipReq {
+  string item_id = 1;
+  string slot = 2;
+}
+
+message EquipResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated EquippedSlot equipment = 4;
+  repeated InventoryItem inventory = 5;
+  int32 effective_atk = 6;
+  int32 effective_def = 7;
+  int32 effective_max_hp = 8;
+}
+
+message UnequipReq {
+  string slot = 1;
+}
+
+message UnequipResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated EquippedSlot equipment = 4;
+  repeated InventoryItem inventory = 5;
+  int32 effective_atk = 6;
+  int32 effective_def = 7;
+  int32 effective_max_hp = 8;
+}
+
+message EnhanceEquipReq {
+  string slot = 1;
+}
+
+message EnhanceEquipResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  bool enhance_succeeded = 4;
+  EquippedSlot updated_slot = 5;
+  repeated EquippedSlot equipment = 6;
+  int32 gold = 7;
+  int32 effective_atk = 8;
+  int32 effective_def = 9;
+  int32 effective_max_hp = 10;
+}
+
+// 12. Server / Lua Notice (MsgId: 3001)
 message ServerNotice {
   string notice_type = 1;
   string title = 2;

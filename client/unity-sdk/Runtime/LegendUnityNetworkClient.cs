@@ -270,6 +270,37 @@ namespace Legend.UnitySdk
             return resp;
         }
 
+        public async Task<EquipResp> RequestEquipAsync(string itemId, string slot = "", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.EquipReq, new EquipReq
+            {
+                ItemId = itemId,
+                Slot = slot
+            }, ct).ConfigureAwait(false);
+            return EquipResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<UnequipResp> RequestUnequipAsync(string slot, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.UnequipReq, new UnequipReq
+            {
+                Slot = slot
+            }, ct).ConfigureAwait(false);
+            return UnequipResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<EnhanceEquipResp> RequestEnhanceEquipAsync(string slot = "weapon", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.EnhanceEquipReq, new EnhanceEquipReq
+            {
+                Slot = slot
+            }, ct).ConfigureAwait(false);
+            var resp = EnhanceEquipResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success)
+                Gold = resp.Gold;
+            return resp;
+        }
+
         public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
             // Ignore stale MoveSync if a portal already changed our map.

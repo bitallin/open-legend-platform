@@ -4,6 +4,7 @@ using Legend.Contracts.Proto;
 string host = "127.0.0.1";
 int port = 7100;
 bool combat = true;
+bool equipTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -13,6 +14,11 @@ for (int i = 0; i < args.Length; i++)
         port = p;
     else if (args[i] == "--no-combat")
         combat = false;
+    else if (args[i] == "--equip")
+    {
+        equipTest = true;
+        combat = false;
+    }
 }
 
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -22,7 +28,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.3.0", "pc-smoke-1.3.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.4.0", "pc-smoke-1.4.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -69,7 +75,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.3.0", "android-smoke-1.3.0", cts.Token);
+await clientB.HandshakeAsync("1.4.0", "android-smoke-1.4.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)
@@ -141,6 +147,7 @@ async Task Walk(int tx, int ty)
 }
 
 // --- M3: NPC shop + quest ---
+if (!equipTest)
 {
     var npc = enterA.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
     if (npc is null)
@@ -288,4 +295,104 @@ if (combat)
     Console.WriteLine($"[Step M3.4] QuestTurnIn OK: gold={turn.Gold} reward={turn.GoldReward} status={turn.Quest.Status}");
 }
 
-Console.WriteLine("[SUCCESS] All M3 full-chain verification steps passed!");
+if (equipTest)
+{
+    Console.WriteLine($"[Step M4.0] EnterWorld stats: effectiveAtk={enterA.EffectiveAtk} effectiveDef={enterA.EffectiveDef} effectiveMaxHp={enterA.EffectiveMaxHp} equipped={enterA.Equipment.Count} gold={enterA.Gold}");
+    var existingWeapon = enterA.Equipment.FirstOrDefault(e => e.Slot == "weapon");
+    if (existingWeapon != null && existingWeapon.EnhanceLevel >= 1)
+    {
+        if (existingWeapon.ItemId != "item_wooden_sword" || enterA.EffectiveAtk < 39)
+            throw new Exception($"Restart persistence mismatch: item={existingWeapon.ItemId} +={existingWeapon.EnhanceLevel} atk={enterA.EffectiveAtk}");
+        Console.WriteLine($"[Step M4.RestartVerify] Persisted equipment & stats OK: weapon={existingWeapon.ItemId}+{existingWeapon.EnhanceLevel} effectiveAtk={enterA.EffectiveAtk} effectiveDef={enterA.EffectiveDef} effectiveMaxHp={enterA.EffectiveMaxHp}");
+    }
+    else
+    {
+        int baseEffectiveAtk = enterA.EffectiveAtk;
+
+        // 1) Measure unequipped basic_slash damage on a slime
+        await Walk(22, 10);
+        EntitySnapshot? mTarget = enterA.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityMonster);
+        for (int i = 0; i < 40 && mTarget is null; i++)
+        {
+            while (clientA.ReceivedAoiEnters.TryDequeue(out var en))
+                if (en.Entity.Kind == EntityKind.EntityMonster) { mTarget = en.Entity; break; }
+            while (mTarget is null && clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
+                if (sp.Entity.Kind == EntityKind.EntityMonster) { mTarget = sp.Entity; break; }
+            if (mTarget is null)
+            {
+                await Walk(i % 2 == 0 ? 25 : 28, i % 2 == 0 ? 10 : 12);
+                await Task.Delay(50, cts.Token);
+            }
+        }
+        if (mTarget is null)
+            throw new Exception("No monster found for M4 damage comparison");
+
+        await Walk(mTarget.X - 1, mTarget.Y);
+        await Task.Delay(650, cts.Token);
+        var (atkBefore, csBefore) = await clientA.AttackAsync(mTarget.EntityId, "basic_slash", cts.Token);
+        if (!atkBefore.Success || csBefore is null)
+            throw new Exception($"Unequipped attack failed: {atkBefore.Message}");
+        int dmgBeforeEquip = csBefore.Damage;
+        Console.WriteLine($"[Step M4.1] Unequipped basic_slash damage={dmgBeforeEquip} (effectiveAtk={baseEffectiveAtk})");
+
+        // 2) Return to NPC, buy sword + cloth armor, equip both
+        await Walk(12, 12);
+        var buySword = await clientA.ShopBuyAsync("npc_village_merchant", "item_wooden_sword", 1, cts.Token);
+        if (!buySword.Success)
+            throw new Exception($"ShopBuy sword failed: {buySword.ErrorCode} {buySword.Message}");
+        var buyArmor = await clientA.ShopBuyAsync("npc_village_merchant", "item_cloth_armor", 1, cts.Token);
+        if (!buyArmor.Success)
+            throw new Exception($"ShopBuy armor failed: {buyArmor.ErrorCode} {buyArmor.Message}");
+        Console.WriteLine($"[Step M4.2] Bought item_wooden_sword & item_cloth_armor: gold={buyArmor.Gold}");
+
+        var eqSword = await clientA.EquipAsync("item_wooden_sword", "weapon", cts.Token);
+        if (!eqSword.Success || eqSword.EffectiveAtk <= baseEffectiveAtk)
+            throw new Exception($"Equip sword failed or atk did not increase: {eqSword.Message}");
+        var eqArmor = await clientA.EquipAsync("item_cloth_armor", "armor", cts.Token);
+        if (!eqArmor.Success || eqArmor.EffectiveDef <= 0)
+            throw new Exception($"Equip armor failed: {eqArmor.Message}");
+        Console.WriteLine($"[Step M4.3] Equipped weapon+armor: effectiveAtk={eqArmor.EffectiveAtk} effectiveDef={eqArmor.EffectiveDef} effectiveMaxHp={eqArmor.EffectiveMaxHp}");
+
+        // 3) Enhance weapon +1
+        int goldBeforeEnhance = clientA.Gold;
+        var enhResp = await clientA.EnhanceEquipAsync("weapon", cts.Token);
+        if (!enhResp.Success || !enhResp.EnhanceSucceeded || enhResp.UpdatedSlot.EnhanceLevel != 1 || enhResp.EffectiveAtk <= eqArmor.EffectiveAtk)
+            throw new Exception($"EnhanceEquip failed: {enhResp.ErrorCode} {enhResp.Message}");
+        Console.WriteLine($"[Step M4.4] Enhanced weapon to +{enhResp.UpdatedSlot.EnhanceLevel}: gold {goldBeforeEnhance}->{enhResp.Gold}, effectiveAtk={enhResp.EffectiveAtk}");
+
+        // 4) Attack monster again and verify damage increased after equip + enhance
+        await Walk(mTarget.X - 1, mTarget.Y);
+        await Task.Delay(650, cts.Token);
+        if (csBefore.TargetDied)
+        {
+            // Find another alive monster if the first one died
+            EntitySnapshot? mNext = null;
+            for (int i = 0; i < 40 && mNext is null; i++)
+            {
+                while (clientA.ReceivedAoiEnters.TryDequeue(out var en))
+                    if (en.Entity.Kind == EntityKind.EntityMonster && en.Entity.EntityId != mTarget.EntityId) { mNext = en.Entity; break; }
+                while (mNext is null && clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
+                    if (sp.Entity.Kind == EntityKind.EntityMonster) { mNext = sp.Entity; break; }
+                if (mNext is null)
+                {
+                    await Walk(i % 2 == 0 ? 28 : 25, i % 2 == 0 ? 12 : 10);
+                    await Task.Delay(50, cts.Token);
+                }
+            }
+            if (mNext != null)
+            {
+                mTarget = mNext;
+                await Walk(mTarget.X - 1, mTarget.Y);
+            }
+        }
+        var (atkAfter, csAfter) = await clientA.AttackAsync(mTarget.EntityId, "basic_slash", cts.Token);
+        if (!atkAfter.Success || csAfter is null)
+            throw new Exception($"Equipped attack failed: {atkAfter.Message}");
+        int dmgAfterEquip = csAfter.Damage;
+        if (dmgAfterEquip <= dmgBeforeEquip)
+            throw new Exception($"Expected damage after equip+enhance ({dmgAfterEquip}) > unequipped ({dmgBeforeEquip})");
+        Console.WriteLine($"[Step M4.5] Equipped+Enhanced basic_slash damage={dmgAfterEquip} > unequipped={dmgBeforeEquip} (VERIFIED)");
+    }
+}
+
+Console.WriteLine("[SUCCESS] All M4 full-chain verification steps passed!");

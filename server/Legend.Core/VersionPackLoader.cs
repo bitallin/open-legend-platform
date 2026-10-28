@@ -205,6 +205,32 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+        // Items & Enhance rules
+        var itemDict = new Dictionary<string, ItemTemplate>(StringComparer.OrdinalIgnoreCase);
+        var enhanceRuleDict = new Dictionary<int, EnhanceRuleConfig>();
+        if (!string.IsNullOrWhiteSpace(manifest.ItemsConfigFile))
+        {
+            string itemsPath = Path.Combine(baseDir, manifest.ItemsConfigFile);
+            if (!File.Exists(itemsPath))
+                throw new FileNotFoundException($"Items config not found: {itemsPath}");
+            string itemsJson = File.ReadAllText(itemsPath, Encoding.UTF8);
+            hashInput.Append(itemsJson);
+            var itemsFile = JsonSerializer.Deserialize<ItemsConfigFile>(itemsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize items.json");
+            foreach (var item in itemsFile.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.ItemId))
+                    throw new InvalidDataException("ItemTemplate.ItemId cannot be empty.");
+                itemDict[item.ItemId] = item;
+            }
+            foreach (var r in itemsFile.EnhanceRules)
+            {
+                if (r.TargetLevel <= 0)
+                    throw new InvalidDataException("EnhanceRuleConfig.TargetLevel must be > 0.");
+                enhanceRuleDict[r.TargetLevel] = r;
+            }
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -246,6 +272,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 npcCount = npcDict.Count,
                 shopCount = shopDict.Count,
                 questCount = questDict.Count,
+                itemCount = itemDict.Count,
+                enhanceRuleCount = enhanceRuleDict.Count,
                 scriptCount = luaScripts.Count,
                 packHash
             });
@@ -264,6 +292,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Npcs = npcDict,
             Shops = shopDict,
             Quests = questDict,
+            Items = itemDict,
+            EnhanceRules = enhanceRuleDict,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

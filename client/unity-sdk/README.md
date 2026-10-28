@@ -2,7 +2,7 @@
 
 100% original Legend protocol client for **Unity 2022 LTS** (PC + Android). No 996 / third-party engine protocol.
 
-Protocol version: **1.3.0**
+Protocol version: **1.4.0**
 
 ## Import
 
@@ -20,20 +20,21 @@ Protocol version: **1.3.0**
 5. Enter Play Mode → IMGUI panel: Login → Create/Select character → WASD / left-side virtual stick to move.
 6. Combat (M2): leave safe zone, `RequestAttackAsync` / `RequestPickupAsync`.
 7. Shop/Quest (M3): near NPC `npc_village_merchant`, `RequestTalkAsync` → `RequestShopBuyAsync` / `RequestQuestAcceptAsync` / `RequestQuestTurnInAsync`.
+8. Equipment/Enhance (M4): `RequestEquipAsync(itemId, slot)` / `RequestUnequipAsync(slot)` / `RequestEnhanceEquipAsync(slot)`.
 
 ## API flow
 
 ```
-Connect → Handshake(1.3.0) → Register → Login
+Connect → Handshake(1.4.0) → Register → Login
   → CharList / CreateChar / DeleteChar / SelectChar
-  → EnterWorld  // Gold + Inventory + Quests + nearby NPCs/monsters
+  → EnterWorld  // Gold + Inventory + Quests + Equipment + EffectiveAtk/Def/MaxHp + nearby NPCs/monsters
   → MoveReq / Attack / Pickup
   → TalkReq / ShopBuyReq / QuestAcceptReq / QuestTurnInReq
-  → QuestProgressNotify
+  → EquipReq / UnequipReq / EnhanceEquipReq
 ```
 
-Helpers: `RequestTalkAsync`, `RequestShopBuyAsync`, `RequestQuestAcceptAsync`, `RequestQuestTurnInAsync`.
-Property: `Gold`. Event: `OnQuestProgress`.
+Helpers: `RequestTalkAsync`, `RequestShopBuyAsync`, `RequestQuestAcceptAsync`, `RequestQuestTurnInAsync`, `RequestEquipAsync`, `RequestUnequipAsync`, `RequestEnhanceEquipAsync`.
+Properties: `Gold`, `EffectiveAtk`, `EffectiveDef`, `EffectiveMaxHp`, `Equipment`. Events: `OnQuestProgress`, `OnEquipmentChanged`.
 
 ## Regenerating protocol stubs
 
@@ -42,9 +43,9 @@ dotnet build server/Legend.Contracts/Legend.Contracts.csproj -c Release
 cp server/Legend.Contracts/obj/Release/net8.0/LegendProtocol.cs client/unity-sdk/Runtime/LegendProtocol.cs
 ```
 
-Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId 2201–2209, version 1.3.0).
+Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId 2301–2306, version 1.4.0).
 
 ## Notes
 
 - Network callbacks via `PumpMainThreadEvents()` in `Update()`.
-- Safe zone: all attacks banned. NPC interact Chebyshev ≤ 3. Shop purchase authoritative + persisted.
+- Safe zone: all attacks banned. NPC interact Chebyshev ≤ 3. Shop purchase & equipment enhancement authoritative + persisted.

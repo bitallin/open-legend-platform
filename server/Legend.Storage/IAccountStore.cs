@@ -19,6 +19,7 @@ public interface ICharacterStore
     Task SaveInventoryAsync(string characterId, string inventoryJson, CancellationToken ct = default);
     Task SaveGoldAsync(string characterId, int gold, CancellationToken ct = default);
     Task SaveQuestsAsync(string characterId, string questJson, CancellationToken ct = default);
+    Task SaveEquipmentAsync(string characterId, string equipmentJson, CancellationToken ct = default);
 }
 
 

@@ -205,3 +205,90 @@ public static class CombatMath
         return Math.Max(1, raw - Math.Max(0, def));
     }
 }
+
+public static class EquipmentHelper
+{
+    public static readonly HashSet<string> ValidSlots = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "weapon",
+        "armor",
+        "ring"
+    };
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    public static List<EquippedItemState> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<EquippedItemState>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<EquippedItemState>>(json, JsonOpts) ?? new List<EquippedItemState>();
+        }
+        catch
+        {
+            return new List<EquippedItemState>();
+        }
+    }
+
+    public static string Serialize(IReadOnlyList<EquippedItemState> list)
+        => JsonSerializer.Serialize(list, JsonOpts);
+
+    public static (int AtkBonus, int DefBonus, int MaxHpBonus) ComputeSlotBonus(
+        EquippedItemState eq, IReadOnlyDictionary<string, ItemTemplate> items)
+    {
+        if (!items.TryGetValue(eq.ItemId, out var tmpl))
+            return (0, 0, 0);
+        int lvl = Math.Max(0, eq.EnhanceLevel);
+        int atk = tmpl.AtkBonus + lvl * tmpl.EnhanceAtkPerLevel;
+        int def = tmpl.DefBonus + lvl * tmpl.EnhanceDefPerLevel;
+        int hp = tmpl.MaxHpBonus + lvl * tmpl.EnhanceHpPerLevel;
+        return (atk, def, hp);
+    }
+
+    public static EquippedSlot ToSlotProto(EquippedItemState eq, IReadOnlyDictionary<string, ItemTemplate> items)
+    {
+        var (atk, def, hp) = ComputeSlotBonus(eq, items);
+        return new EquippedSlot
+        {
+            Slot = eq.Slot,
+            ItemId = eq.ItemId,
+            EnhanceLevel = eq.EnhanceLevel,
+            AtkBonus = atk,
+            DefBonus = def,
+            MaxHpBonus = hp
+        };
+    }
+
+    public static IEnumerable<EquippedSlot> ToProto(
+        IReadOnlyList<EquippedItemState> list,
+        IReadOnlyDictionary<string, ItemTemplate> items)
+        => list.Select(s => ToSlotProto(s, items));
+
+    public static void RecalculateStats(
+        WorldPlayerEntity player,
+        IReadOnlyDictionary<string, ItemTemplate> items)
+    {
+        int totalAtk = player.BaseAtk;
+        int totalDef = player.BaseDef;
+        int totalMaxHp = player.BaseMaxHp;
+
+        foreach (var eq in player.Equipment)
+        {
+            var (atk, def, hp) = ComputeSlotBonus(eq, items);
+            totalAtk += atk;
+            totalDef += def;
+            totalMaxHp += hp;
+        }
+
+        player.Atk = totalAtk;
+        player.Def = totalDef;
+        player.MaxHp = Math.Max(1, totalMaxHp);
+        if (player.Hp > player.MaxHp)
+            player.Hp = player.MaxHp;
+    }
+}

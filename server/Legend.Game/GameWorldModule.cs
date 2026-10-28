@@ -65,7 +65,8 @@ public sealed class GameWorldModule : IGameModule
 
     public bool CanHandle(MsgId msgId) => msgId is
         MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq or
-        MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq;
+        MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
+        MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -165,6 +166,15 @@ public sealed class GameWorldModule : IGameModule
             case MsgId.QuestTurnInReq:
                 await HandleQuestTurnInAsync(session, frame, ct);
                 break;
+            case MsgId.EquipReq:
+                await HandleEquipAsync(session, frame, ct);
+                break;
+            case MsgId.UnequipReq:
+                await HandleUnequipAsync(session, frame, ct);
+                break;
+            case MsgId.EnhanceEquipReq:
+                await HandleEnhanceEquipAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -244,8 +254,12 @@ public sealed class GameWorldModule : IGameModule
         }
 
         int atk = 15;
+        int baseMaxHp = character.MaxHp > 0 ? character.MaxHp : 120;
         if (_versionPack.Classes.TryGetValue(character.ClassId, out var cls))
+        {
             atk = cls.BaseAtk;
+            baseMaxHp = cls.BaseHp;
+        }
 
         var entity = new WorldPlayerEntity
         {
@@ -259,14 +273,20 @@ public sealed class GameWorldModule : IGameModule
             Y = y,
             Direction = 4,
             Hp = Math.Max(1, character.Hp),
-            MaxHp = character.MaxHp,
+            MaxHp = baseMaxHp,
+            BaseMaxHp = baseMaxHp,
             Mp = character.Mp,
             MaxMp = character.MaxMp,
+            BaseAtk = atk,
+            BaseDef = 0,
             Atk = atk,
+            Def = 0,
             Inventory = InventoryHelper.Parse(character.InventoryJson),
             Gold = character.Gold,
-            Quests = QuestHelper.Parse(character.QuestJson)
+            Quests = QuestHelper.Parse(character.QuestJson),
+            Equipment = EquipmentHelper.Parse(character.EquipmentJson)
         };
+        EquipmentHelper.RecalculateStats(entity, _versionPack.Items);
 
         var aoiMgr = GetAoi(map.MapId);
         var nearbyPlayers = aoiMgr.AddOrUpdateEntity(entity);
@@ -278,7 +298,10 @@ public sealed class GameWorldModule : IGameModule
             MapId = map.MapId,
             SelfEntity = entity.ToSnapshot(),
             Message = $"Entered map '{map.MapName}' ({map.MapId})",
-            InSafeZone = entity.InSafeZone
+            InSafeZone = entity.InSafeZone,
+            EffectiveAtk = entity.Atk,
+            EffectiveDef = entity.Def,
+            EffectiveMaxHp = entity.MaxHp
         };
         foreach (var other in nearbyPlayers)
             resp.NearbyEntities.Add(other.ToSnapshot());
@@ -292,6 +315,8 @@ public sealed class GameWorldModule : IGameModule
             _versionPack.Quests.TryGetValue(q.QuestId, out var qt);
             resp.Quests.Add(QuestHelper.ToProto(q, qt));
         }
+        foreach (var eq in EquipmentHelper.ToProto(entity.Equipment, _versionPack.Items))
+            resp.Equipment.Add(eq);
 
         await session.SendAsync(MsgId.EnterWorldResp, frame.Seq, resp, ct);
 
@@ -923,7 +948,7 @@ public sealed class GameWorldModule : IGameModule
                 }
 
                 monster.NextAttackUnixMs = now + monster.Template.AttackCooldownMs;
-                int dmg = CombatMath.CalcDamage(monster.Template.Atk, 0, 1.0);
+                int dmg = CombatMath.CalcDamage(monster.Template.Atk, target.Def, 1.0);
                 target.Hp = Math.Max(0, target.Hp - dmg);
                 bool died = target.Hp <= 0;
                 var sync = new CombatSync
@@ -1564,6 +1589,8 @@ public sealed class GameWorldModule : IGameModule
                 entity.CharacterId, entity.MapId, entity.X, entity.Y, entity.Hp, entity.Mp, ct);
             await _storage.Characters.SaveInventoryAsync(
                 entity.CharacterId, InventoryHelper.Serialize(entity.Inventory), ct);
+            await _storage.Characters.SaveEquipmentAsync(
+                entity.CharacterId, EquipmentHelper.Serialize(entity.Equipment), ct);
 
             var viewers = aoi.RemoveEntity(session.EntityId);
             var leaveMsg = new EntityLeaveAoi { EntityId = session.EntityId, Reason = "Disconnected" };
@@ -1574,6 +1601,307 @@ public sealed class GameWorldModule : IGameModule
 
         if (!string.IsNullOrEmpty(session.AccountId))
             await _storage.Sessions.SetOnlineAsync(session.AccountId, false, ct);
+    }
+
+    private async Task PersistEquipmentAsync(WorldPlayerEntity player, CancellationToken ct)
+    {
+        await _storage.Characters.SaveInventoryAsync(
+            player.CharacterId, InventoryHelper.Serialize(player.Inventory), ct);
+        await _storage.Characters.SaveEquipmentAsync(
+            player.CharacterId, EquipmentHelper.Serialize(player.Equipment), ct);
+        await _storage.Characters.SavePositionAsync(
+            player.CharacterId, player.MapId, player.X, player.Y, player.Hp, player.Mp, ct);
+    }
+
+    private async Task HandleEquipAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = EquipReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(req.ItemId) ||
+            !_versionPack.Items.TryGetValue(req.ItemId, out var tmpl) ||
+            !string.Equals(tmpl.Kind, "equipment", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(tmpl.Slot) ||
+            !EquipmentHelper.ValidSlots.Contains(tmpl.Slot))
+        {
+            await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEquipDenied,
+                Message = "Item is not equippable"
+            }, ct);
+            return;
+        }
+
+        string targetSlot = string.IsNullOrWhiteSpace(req.Slot)
+            ? tmpl.Slot.ToLowerInvariant()
+            : req.Slot.Trim().ToLowerInvariant();
+
+        if (!string.Equals(targetSlot, tmpl.Slot, StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEquipDenied,
+                Message = $"Item '{tmpl.ItemId}' belongs to slot '{tmpl.Slot}', not '{targetSlot}'"
+            }, ct);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(tmpl.RequiredClass) &&
+            !string.Equals(tmpl.RequiredClass, player.ClassId, StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEquipDenied,
+                Message = $"Requires class '{tmpl.RequiredClass}'"
+            }, ct);
+            return;
+        }
+
+        if (player.Level < tmpl.RequiredLevel)
+        {
+            await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEquipDenied,
+                Message = $"Requires level {tmpl.RequiredLevel}"
+            }, ct);
+            return;
+        }
+
+        if (!InventoryHelper.TryRemoveItem(player.Inventory, tmpl.ItemId, 1))
+        {
+            await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEquipDenied,
+                Message = "Item not in inventory"
+            }, ct);
+            return;
+        }
+
+        var existingSlot = player.Equipment.FirstOrDefault(e =>
+            string.Equals(e.Slot, targetSlot, StringComparison.OrdinalIgnoreCase));
+        int preservedEnhance = 0;
+        if (existingSlot != null)
+        {
+            if (!string.IsNullOrEmpty(existingSlot.ItemId))
+                InventoryHelper.AddItem(player.Inventory, existingSlot.ItemId, 1);
+            preservedEnhance = existingSlot.EnhanceLevel;
+            existingSlot.ItemId = tmpl.ItemId;
+        }
+        else
+        {
+            player.Equipment.Add(new EquippedItemState
+            {
+                Slot = targetSlot,
+                ItemId = tmpl.ItemId,
+                EnhanceLevel = 0
+            });
+        }
+
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+        await PersistEquipmentAsync(player, ct);
+
+        var resp = new EquipResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "Equipped",
+            EffectiveAtk = player.Atk,
+            EffectiveDef = player.Def,
+            EffectiveMaxHp = player.MaxHp
+        };
+        foreach (var eq in EquipmentHelper.ToProto(player.Equipment, _versionPack.Items))
+            resp.Equipment.Add(eq);
+        foreach (var inv in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(inv);
+
+        await session.SendAsync(MsgId.EquipResp, frame.Seq, resp, ct);
+        await session.SendAsync(MsgId.InventoryNotify, 0, new InventoryNotify
+        {
+            CharacterId = player.CharacterId,
+            Reason = "Equip",
+            Gold = player.Gold
+        }.Also(n => { foreach (var i in InventoryHelper.ToProto(player.Inventory)) n.Items.Add(i); }), ct);
+
+        await _eventBus.PublishAsync(new ItemEquippedEvent(
+            session, player.Name, player.CharacterId, targetSlot, tmpl.ItemId, preservedEnhance,
+            player.Atk, player.Def, player.MaxHp), ct);
+    }
+
+    private async Task HandleUnequipAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = UnequipReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.UnequipResp, frame.Seq, new UnequipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+
+        string slot = (req.Slot ?? string.Empty).Trim().ToLowerInvariant();
+        var existingSlot = player.Equipment.FirstOrDefault(e =>
+            string.Equals(e.Slot, slot, StringComparison.OrdinalIgnoreCase));
+        if (existingSlot is null || string.IsNullOrEmpty(existingSlot.ItemId))
+        {
+            await session.SendAsync(MsgId.UnequipResp, frame.Seq, new UnequipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEquipDenied,
+                Message = "Slot is empty"
+            }, ct);
+            return;
+        }
+
+        InventoryHelper.AddItem(player.Inventory, existingSlot.ItemId, 1);
+        player.Equipment.Remove(existingSlot);
+
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+        await PersistEquipmentAsync(player, ct);
+
+        var resp = new UnequipResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "Unequipped",
+            EffectiveAtk = player.Atk,
+            EffectiveDef = player.Def,
+            EffectiveMaxHp = player.MaxHp
+        };
+        foreach (var eq in EquipmentHelper.ToProto(player.Equipment, _versionPack.Items))
+            resp.Equipment.Add(eq);
+        foreach (var inv in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(inv);
+
+        await session.SendAsync(MsgId.UnequipResp, frame.Seq, resp, ct);
+        await session.SendAsync(MsgId.InventoryNotify, 0, new InventoryNotify
+        {
+            CharacterId = player.CharacterId,
+            Reason = "Unequip",
+            Gold = player.Gold
+        }.Also(n => { foreach (var i in InventoryHelper.ToProto(player.Inventory)) n.Items.Add(i); }), ct);
+    }
+
+    private async Task HandleEnhanceEquipAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = EnhanceEquipReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.EnhanceEquipResp, frame.Seq, new EnhanceEquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world"
+            }, ct);
+            return;
+        }
+
+        string slot = string.IsNullOrWhiteSpace(req.Slot)
+            ? "weapon"
+            : req.Slot.Trim().ToLowerInvariant();
+
+        var equipped = player.Equipment.FirstOrDefault(e =>
+            string.Equals(e.Slot, slot, StringComparison.OrdinalIgnoreCase));
+        if (equipped is null || string.IsNullOrEmpty(equipped.ItemId))
+        {
+            await session.SendAsync(MsgId.EnhanceEquipResp, frame.Seq, new EnhanceEquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEnhanceDenied,
+                Message = $"No equipment in slot '{slot}'"
+            }, ct);
+            return;
+        }
+
+        int targetLevel = equipped.EnhanceLevel + 1;
+        if (!_versionPack.EnhanceRules.TryGetValue(targetLevel, out var rule))
+        {
+            await session.SendAsync(MsgId.EnhanceEquipResp, frame.Seq, new EnhanceEquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrEnhanceDenied,
+                Message = $"Max enhance level (+{equipped.EnhanceLevel}) reached"
+            }, ct);
+            return;
+        }
+
+        if (player.Gold < rule.CostGold)
+        {
+            await session.SendAsync(MsgId.EnhanceEquipResp, frame.Seq, new EnhanceEquipResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrNotEnoughGold,
+                Message = $"Need {rule.CostGold} gold, have {player.Gold}",
+                Gold = player.Gold,
+                EffectiveAtk = player.Atk,
+                EffectiveDef = player.Def,
+                EffectiveMaxHp = player.MaxHp
+            }, ct);
+            return;
+        }
+
+        player.Gold -= rule.CostGold;
+        bool succeeded;
+        if (rule.SuccessRate >= 1.0)
+        {
+            succeeded = true;
+        }
+        else if (rule.SuccessRate <= 0.0)
+        {
+            succeeded = false;
+        }
+        else
+        {
+            double roll;
+            lock (Rng) roll = Rng.NextDouble();
+            succeeded = roll <= rule.SuccessRate;
+        }
+
+        if (succeeded)
+            equipped.EnhanceLevel = targetLevel;
+
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items);
+        await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
+        await _storage.Characters.SaveEquipmentAsync(
+            player.CharacterId, EquipmentHelper.Serialize(player.Equipment), ct);
+
+        var updatedProto = EquipmentHelper.ToSlotProto(equipped, _versionPack.Items);
+        var resp = new EnhanceEquipResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = succeeded ? $"Enhanced to +{equipped.EnhanceLevel}" : "Enhance roll failed",
+            EnhanceSucceeded = succeeded,
+            UpdatedSlot = updatedProto,
+            Gold = player.Gold,
+            EffectiveAtk = player.Atk,
+            EffectiveDef = player.Def,
+            EffectiveMaxHp = player.MaxHp
+        };
+        foreach (var eq in EquipmentHelper.ToProto(player.Equipment, _versionPack.Items))
+            resp.Equipment.Add(eq);
+
+        await session.SendAsync(MsgId.EnhanceEquipResp, frame.Seq, resp, ct);
+
+        await _eventBus.PublishAsync(new EquipmentEnhancedEvent(
+            session, player.Name, player.CharacterId, slot, equipped.ItemId, equipped.EnhanceLevel,
+            succeeded, rule.CostGold, player.Atk), ct);
     }
 
     public async ValueTask DisposeAiAsync()

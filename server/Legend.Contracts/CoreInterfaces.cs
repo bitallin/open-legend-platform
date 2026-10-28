@@ -53,7 +53,7 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.3.0";
+    public string ProtocolVersion { get; set; } = "1.4.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
@@ -65,6 +65,7 @@ public sealed class VersionPackManifest
     public string NpcsConfigFile { get; set; } = "";
     public string ShopsConfigFile { get; set; } = "";
     public string QuestsConfigFile { get; set; } = "";
+    public string ItemsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -296,6 +297,44 @@ public sealed class QuestProgressState
     public int Progress { get; set; }
 }
 
+public sealed class ItemTemplate
+{
+    public string ItemId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    /// <summary>consumable | material | equipment</summary>
+    public string Kind { get; set; } = "consumable";
+    /// <summary>weapon | armor | ring | ""</summary>
+    public string Slot { get; set; } = string.Empty;
+    public int AtkBonus { get; set; }
+    public int DefBonus { get; set; }
+    public int MaxHpBonus { get; set; }
+    public int EnhanceAtkPerLevel { get; set; }
+    public int EnhanceDefPerLevel { get; set; }
+    public int EnhanceHpPerLevel { get; set; }
+    public string RequiredClass { get; set; } = string.Empty;
+    public int RequiredLevel { get; set; } = 1;
+}
+
+public sealed class EnhanceRuleConfig
+{
+    public int TargetLevel { get; set; }
+    public int CostGold { get; set; } = 20;
+    public double SuccessRate { get; set; } = 1.0;
+}
+
+public sealed class ItemsConfigFile
+{
+    public List<ItemTemplate> Items { get; set; } = new();
+    public List<EnhanceRuleConfig> EnhanceRules { get; set; } = new();
+}
+
+public sealed class EquippedItemState
+{
+    public string Slot { get; set; } = string.Empty;
+    public string ItemId { get; set; } = string.Empty;
+    public int EnhanceLevel { get; set; }
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -310,6 +349,8 @@ public sealed class LoadedVersionPack
     public required IReadOnlyDictionary<string, NpcTemplate> Npcs { get; init; }
     public required IReadOnlyDictionary<string, ShopConfig> Shops { get; init; }
     public required IReadOnlyDictionary<string, QuestTemplate> Quests { get; init; }
+    public IReadOnlyDictionary<string, ItemTemplate> Items { get; init; } = new Dictionary<string, ItemTemplate>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<int, EnhanceRuleConfig> EnhanceRules { get; init; } = new Dictionary<int, EnhanceRuleConfig>();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -332,4 +373,6 @@ public sealed record NpcTalkedEvent(IClientSession Session, string PlayerName, s
 public sealed record ShopBoughtEvent(IClientSession Session, string PlayerName, string CharacterId, string NpcId, string ItemId, int Count, int PricePaid, int GoldRemaining);
 public sealed record QuestAcceptedEvent(IClientSession Session, string PlayerName, string CharacterId, string QuestId, string QuestTitle);
 public sealed record QuestCompletedEvent(IClientSession Session, string PlayerName, string CharacterId, string QuestId, string QuestTitle, int RewardGold);
+public sealed record ItemEquippedEvent(IClientSession Session, string PlayerName, string CharacterId, string Slot, string ItemId, int EnhanceLevel, int EffectiveAtk, int EffectiveDef, int EffectiveMaxHp);
+public sealed record EquipmentEnhancedEvent(IClientSession Session, string PlayerName, string CharacterId, string Slot, string ItemId, int EnhanceLevel, bool Succeeded, int CostGold, int EffectiveAtk);
 

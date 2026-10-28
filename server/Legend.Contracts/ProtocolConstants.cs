@@ -48,13 +48,19 @@ public enum MsgId : ushort
     QuestTurnInReq = 2207,
     QuestTurnInResp = 2208,
     QuestProgressNotify = 2209,
+    EquipReq = 2301,
+    EquipResp = 2302,
+    UnequipReq = 2303,
+    UnequipResp = 2304,
+    EnhanceEquipReq = 2305,
+    EnhanceEquipResp = 2306,
     ServerNotice = 3001
 }
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.3.0";
-    public const string MinCompatibleVersion = "1.3.0";
+    public const string CurrentVersion = "1.4.0";
+    public const string MinCompatibleVersion = "1.4.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

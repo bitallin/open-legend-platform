@@ -1,0 +1,83 @@
+{
+  "items": [
+    {
+      "itemId": "item_hp_potion",
+      "displayName": "金创药(小)",
+      "kind": "consumable",
+      "slot": ""
+    },
+    {
+      "itemId": "item_mp_potion",
+      "displayName": "魔法药(小)",
+      "kind": "consumable",
+      "slot": ""
+    },
+    {
+      "itemId": "item_dried_meat",
+      "displayName": "风干肉干",
+      "kind": "consumable",
+      "slot": ""
+    },
+    {
+      "itemId": "item_copper_coin",
+      "displayName": "古旧铜币",
+      "kind": "material",
+      "slot": ""
+    },
+    {
+      "itemId": "item_wooden_blade",
+      "displayName": "新手木刀",
+      "kind": "equipment",
+      "slot": "weapon",
+      "atkBonus": 5,
+      "defBonus": 0,
+      "maxHpBonus": 0,
+      "enhanceAtkPerLevel": 2,
+      "enhanceDefPerLevel": 0,
+      "enhanceHpPerLevel": 0
+    },
+    {
+      "itemId": "item_wooden_sword",
+      "displayName": "铁皮木剑",
+      "kind": "equipment",
+      "slot": "weapon",
+      "atkBonus": 10,
+      "defBonus": 0,
+      "maxHpBonus": 0,
+      "enhanceAtkPerLevel": 4,
+      "enhanceDefPerLevel": 0,
+      "enhanceHpPerLevel": 0
+    },
+    {
+      "itemId": "item_cloth_armor",
+      "displayName": "粗布战衣",
+      "kind": "equipment",
+      "slot": "armor",
+      "atkBonus": 0,
+      "defBonus": 5,
+      "maxHpBonus": 30,
+      "enhanceAtkPerLevel": 0,
+      "enhanceDefPerLevel": 2,
+      "enhanceHpPerLevel": 10
+    },
+    {
+      "itemId": "item_bronze_ring",
+      "displayName": "青铜指环",
+      "kind": "equipment",
+      "slot": "ring",
+      "atkBonus": 3,
+      "defBonus": 1,
+      "maxHpBonus": 10,
+      "enhanceAtkPerLevel": 2,
+      "enhanceDefPerLevel": 1,
+      "enhanceHpPerLevel": 5
+    }
+  ],
+  "enhanceRules": [
+    { "targetLevel": 1, "costGold": 20, "successRate": 1.0 },
+    { "targetLevel": 2, "costGold": 30, "successRate": 1.0 },
+    { "targetLevel": 3, "costGold": 50, "successRate": 1.0 },
+    { "targetLevel": 4, "costGold": 80, "successRate": 0.8 },
+    { "targetLevel": 5, "costGold": 120, "successRate": 0.6 }
+  ]
+}
