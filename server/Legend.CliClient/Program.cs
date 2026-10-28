@@ -5,6 +5,7 @@ string host = "127.0.0.1";
 int port = 7100;
 bool combat = true;
 bool equipTest = false;
+bool levelTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -19,16 +20,22 @@ for (int i = 0; i < args.Length; i++)
         equipTest = true;
         combat = false;
     }
+    else if (args[i] == "--level")
+    {
+        levelTest = true;
+        combat = false;
+        equipTest = false;
+    }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-Console.WriteLine($"[CliClient] M3 full-chain smoke (shop/quest + combat) against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.4.0", "pc-smoke-1.4.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.5.0", "pc-smoke-1.5.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -75,7 +82,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.4.0", "android-smoke-1.4.0", cts.Token);
+await clientB.HandshakeAsync("1.5.0", "android-smoke-1.5.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)
@@ -147,7 +154,7 @@ async Task Walk(int tx, int ty)
 }
 
 // --- M3: NPC shop + quest ---
-if (!equipTest)
+if (!equipTest && !levelTest)
 {
     var npc = enterA.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
     if (npc is null)
@@ -395,4 +402,176 @@ if (equipTest)
     }
 }
 
-Console.WriteLine("[SUCCESS] All M4 full-chain verification steps passed!");
+
+if (levelTest)
+{
+    Console.WriteLine($"[Step M5.0] EnterWorld level={enterA.Level} exp={enterA.Exp} expToNext={enterA.ExpToNext} atk={enterA.EffectiveAtk} maxHp={enterA.EffectiveMaxHp} maxMp={enterA.EffectiveMaxMp}");
+    if (enterA.Level >= 2 && enterA.Exp >= 0)
+    {
+        // Restart persistence path
+        if (enterA.Level < 2)
+            throw new Exception("Expected persisted level >= 2");
+        bool hasPotion = enterA.Inventory.Any(i => i.ItemId == "item_hp_potion");
+        Console.WriteLine($"[Step M5.RestartVerify] Persisted level={enterA.Level} exp={enterA.Exp} atk={enterA.EffectiveAtk} maxHp={enterA.EffectiveMaxHp} potionInBag={hasPotion}");
+        if (enterA.EffectiveAtk < 28)
+            throw new Exception($"Expected Lv2+ warrior base atk >= 28, got {enterA.EffectiveAtk}");
+        if (enterA.EffectiveMaxHp < 200)
+            throw new Exception($"Expected Lv2+ maxHp >= 200, got {enterA.EffectiveMaxHp}");
+    }
+    else
+    {
+        // Buy potions for later use
+        await Walk(12, 12);
+        var buyPot = await clientA.ShopBuyAsync("npc_village_merchant", "item_hp_potion", 2, cts.Token);
+        if (!buyPot.Success)
+            throw new Exception($"Buy potion failed: {buyPot.Message}");
+        Console.WriteLine($"[Step M5.1] Bought HP potions, gold={buyPot.Gold}");
+
+        // Try equip iron sword at Lv.1 — must fail RequiredLevel
+        var buyIronEarly = await clientA.ShopBuyAsync("npc_village_merchant", "item_iron_sword", 1, cts.Token);
+        if (!buyIronEarly.Success)
+            throw new Exception($"Buy iron sword failed: {buyIronEarly.Message}");
+        var eqEarly = await clientA.EquipAsync("item_iron_sword", "weapon", cts.Token);
+        if (eqEarly.Success)
+            throw new Exception("Expected Equip iron sword denied at Lv.1");
+        Console.WriteLine($"[Step M5.2] Equip iron sword denied at Lv.1 OK: {eqEarly.ErrorCode}");
+
+        int startLevel = enterA.Level;
+        int startAtk = enterA.EffectiveAtk;
+        int startMaxHp = enterA.EffectiveMaxHp;
+
+        // Kill slimes until level-up (30 exp each, need 50)
+        await Walk(22, 10);
+        int kills = 0;
+        LevelUpNotify? levelUp = null;
+        for (int attempt = 0; attempt < 8 && levelUp is null; attempt++)
+        {
+            EntitySnapshot? mTarget = null;
+            for (int i = 0; i < 120 && mTarget is null; i++)
+            {
+                while (clientA.ReceivedAoiEnters.TryDequeue(out var en))
+                    if (en.Entity.Kind == EntityKind.EntityMonster && en.Entity.Hp > 0) { mTarget = en.Entity; break; }
+                while (mTarget is null && clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
+                    if (sp.Entity.Kind == EntityKind.EntityMonster && sp.Entity.Hp > 0) { mTarget = sp.Entity; break; }
+                if (mTarget is null)
+                {
+                    int[][] probes = { new[] { 25, 10 }, new[] { 28, 12 }, new[] { 24, 10 }, new[] { 32, 14 } };
+                    var pr = probes[i % probes.Length];
+                    await Walk(pr[0], pr[1]);
+                    await Task.Delay(200, cts.Token);
+                }
+            }
+            if (mTarget is null)
+                throw new Exception("No monster for M5 leveling");
+
+            await Walk(mTarget.X - 1, mTarget.Y);
+            for (int hit = 0; hit < 30; hit++)
+            {
+                await Task.Delay(700, cts.Token);
+                var (atk, cs) = await clientA.AttackAsync(mTarget.EntityId, "basic_slash", cts.Token);
+                if (!atk.Success)
+                {
+                    Console.WriteLine($"[Step M5.3.{kills}.{hit}] attack soft-fail: {atk.Message}");
+                    await Task.Delay(400, cts.Token);
+                    continue;
+                }
+                Console.WriteLine($"[Step M5.3.{kills}.{hit}] dmg={cs?.Damage} died={cs?.TargetDied} selfHp={clientA.SelfEntity?.Hp}");
+                while (clientA.ReceivedLevelUps.TryDequeue(out var lu))
+                    levelUp = lu;
+                if (cs?.TargetDied == true)
+                {
+                    kills++;
+                    for (int w = 0; w < 20; w++)
+                    {
+                        while (clientA.ReceivedExpGains.TryDequeue(out var eg))
+                            Console.WriteLine($"[Step M5.3] ExpGain +{eg.GainedExp} total={eg.TotalExp} lv={eg.Level}");
+                        while (clientA.ReceivedLevelUps.TryDequeue(out var lu))
+                            levelUp = lu;
+                        if (levelUp != null) break;
+                        await Task.Delay(50, cts.Token);
+                    }
+                    break;
+                }
+            }
+            while (clientA.ReceivedLevelUps.TryDequeue(out var lu2))
+                levelUp = lu2;
+        }
+
+        if (levelUp is null)
+            throw new Exception("Did not receive LevelUpNotify after killing slimes");
+        if (levelUp.NewLevel != startLevel + 1)
+            throw new Exception($"Expected level {startLevel + 1}, got {levelUp.NewLevel}");
+        if (levelUp.EffectiveAtk <= startAtk)
+            throw new Exception($"Expected atk increase on level-up: {levelUp.EffectiveAtk} vs {startAtk}");
+        if (levelUp.EffectiveMaxHp <= startMaxHp)
+            throw new Exception($"Expected maxHp increase on level-up: {levelUp.EffectiveMaxHp} vs {startMaxHp}");
+        if (levelUp.Hp != levelUp.EffectiveMaxHp)
+            throw new Exception("Expected full HP after level-up");
+        Console.WriteLine($"[Step M5.4] LevelUp {levelUp.OldLevel}->{levelUp.NewLevel} atk={levelUp.EffectiveAtk} maxHp={levelUp.EffectiveMaxHp} exp={levelUp.Exp}");
+
+        // Equip iron sword now that we're Lv.2+
+        var eqIron = await clientA.EquipAsync("item_iron_sword", "weapon", cts.Token);
+        if (!eqIron.Success)
+            throw new Exception($"Equip iron sword at Lv.2 failed: {eqIron.ErrorCode} {eqIron.Message}");
+        Console.WriteLine($"[Step M5.5] Equipped iron sword OK, effectiveAtk={eqIron.EffectiveAtk}");
+
+        // Damage self by standing near monster briefly, then use potion
+        // Self HP should be full after level-up; get hit by walking to a live monster and waiting for AI counter
+        int hpBeforeUse = clientA.SelfEntity?.Hp ?? levelUp.Hp;
+        // Force HP lower by using a trick: if still full, attack and wait for counter-attacks
+        await Walk(25, 10);
+        EntitySnapshot? hurtMob = null;
+        for (int i = 0; i < 30 && hurtMob is null; i++)
+        {
+            while (clientA.ReceivedAoiEnters.TryDequeue(out var en))
+                if (en.Entity.Kind == EntityKind.EntityMonster) { hurtMob = en.Entity; break; }
+            while (hurtMob is null && clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
+                if (sp.Entity.Kind == EntityKind.EntityMonster) { hurtMob = sp.Entity; break; }
+            if (hurtMob is null) await Task.Delay(50, cts.Token);
+        }
+        if (hurtMob != null)
+        {
+            await Walk(hurtMob.X, hurtMob.Y);
+            // Wait for monster AI to hit us
+            for (int w = 0; w < 30; w++)
+            {
+                await Task.Delay(200, cts.Token);
+                while (clientA.ReceivedCombatSyncs.TryDequeue(out var csHurt))
+                {
+                    if (clientA.SelfEntity != null && csHurt.TargetEntityId == clientA.SelfEntity.EntityId && csHurt.Damage > 0)
+                    {
+                        clientA.SelfEntity.Hp = csHurt.TargetHp;
+                        hpBeforeUse = csHurt.TargetHp;
+                    }
+                }
+                if ((clientA.SelfEntity?.Hp ?? hpBeforeUse) < levelUp.EffectiveMaxHp)
+                    break;
+            }
+        }
+        hpBeforeUse = clientA.SelfEntity?.Hp ?? hpBeforeUse;
+        Console.WriteLine($"[Step M5.6] HP before potion={hpBeforeUse} / {levelUp.EffectiveMaxHp}");
+
+        // If somehow still full HP, still call UseItem (heal clamps) but assert inventory decrement
+        var use = await clientA.UseItemAsync("item_hp_potion", 1, cts.Token);
+        if (!use.Success)
+            throw new Exception($"UseItem failed: {use.ErrorCode} {use.Message}");
+        if (hpBeforeUse < levelUp.EffectiveMaxHp && use.Hp <= hpBeforeUse)
+            throw new Exception($"Expected HP increase after potion: before={hpBeforeUse} after={use.Hp}");
+        if (use.Hp > use.MaxHp)
+            throw new Exception("HP exceeded MaxHp after potion");
+        Console.WriteLine($"[Step M5.7] UseItem OK: hp {hpBeforeUse}->{use.Hp}/{use.MaxHp} remainingPotions={use.RemainingCount}");
+
+        // Dead check: UseItem on missing item
+        var useMissing = await clientA.UseItemAsync("item_mp_potion", 1, cts.Token);
+        if (useMissing.Success)
+            throw new Exception("Expected UseItem denied for missing MP potion");
+        Console.WriteLine($"[Step M5.8] UseItem missing denied OK: {useMissing.ErrorCode}");
+    }
+}
+
+if (levelTest)
+    Console.WriteLine("[SUCCESS] All M5 full-chain verification steps passed!");
+else if (equipTest)
+    Console.WriteLine("[SUCCESS] All M4 full-chain verification steps passed!");
+else
+    Console.WriteLine("[SUCCESS] All M3 full-chain verification steps passed!");

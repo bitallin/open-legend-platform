@@ -105,6 +105,8 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<QuestCompletedEvent>(OnQuestCompletedAsync);
         _eventBus.Subscribe<ItemEquippedEvent>(OnItemEquippedAsync);
         _eventBus.Subscribe<EquipmentEnhancedEvent>(OnEquipmentEnhancedAsync);
+        _eventBus.Subscribe<PlayerLeveledUpEvent>(OnPlayerLeveledUpAsync);
+        _eventBus.Subscribe<ItemUsedEvent>(OnItemUsedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -382,6 +384,67 @@ public sealed class LuaScriptHost
                 ["succeeded"] = evt.Succeeded,
                 ["cost_gold"] = evt.CostGold,
                 ["effective_atk"] = evt.EffectiveAtk
+            };
+            _luaVm.Call(fn, playerTbl, infoTbl);
+            notices = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
+        }
+        foreach (var n in notices)
+            await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
+    }
+
+    private async Task OnPlayerLeveledUpAsync(PlayerLeveledUpEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> notices = new();
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_level_up");
+            if (fn.Type != DataType.Function)
+                return;
+            _bridge.ClearPendingNotices();
+            var playerTbl = new Table(_luaVm)
+            {
+                ["name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId
+            };
+            var infoTbl = new Table(_luaVm)
+            {
+                ["old_level"] = evt.OldLevel,
+                ["new_level"] = evt.NewLevel,
+                ["exp"] = evt.Exp,
+                ["effective_atk"] = evt.EffectiveAtk,
+                ["effective_def"] = evt.EffectiveDef,
+                ["effective_max_hp"] = evt.EffectiveMaxHp
+            };
+            _luaVm.Call(fn, playerTbl, infoTbl);
+            notices = _bridge.PendingNotices.ToList();
+            _bridge.ClearPendingNotices();
+        }
+        foreach (var n in notices)
+            await evt.Session.SendAsync(MsgId.ServerNotice, 0, n, ct);
+    }
+
+    private async Task OnItemUsedAsync(ItemUsedEvent evt, CancellationToken ct)
+    {
+        List<ServerNotice> notices = new();
+        lock (_luaLock)
+        {
+            DynValue fn = _luaVm.Globals.Get("on_use_item");
+            if (fn.Type != DataType.Function)
+                return;
+            _bridge.ClearPendingNotices();
+            var playerTbl = new Table(_luaVm)
+            {
+                ["name"] = evt.PlayerName,
+                ["character_id"] = evt.CharacterId
+            };
+            var infoTbl = new Table(_luaVm)
+            {
+                ["item_id"] = evt.ItemId,
+                ["heal_hp"] = evt.HealHp,
+                ["heal_mp"] = evt.HealMp,
+                ["hp"] = evt.Hp,
+                ["mp"] = evt.Mp
             };
             _luaVm.Call(fn, playerTbl, infoTbl);
             notices = _bridge.PendingNotices.ToList();

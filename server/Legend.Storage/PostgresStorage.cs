@@ -147,6 +147,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
               name TEXT NOT NULL,
               class_id TEXT NOT NULL,
               level INTEGER NOT NULL,
+              exp INTEGER NOT NULL DEFAULT 0,
               map_id TEXT NOT NULL,
               x INTEGER NOT NULL,
               y INTEGER NOT NULL,
@@ -166,6 +167,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS gold INTEGER NOT NULL DEFAULT 100;
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS quest_json JSONB NOT NULL DEFAULT '[]'::jsonb;
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS equipment_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+            ALTER TABLE characters ADD COLUMN IF NOT EXISTS exp INTEGER NOT NULL DEFAULT 0;
             """, conn);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -175,7 +177,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, created_at, updated_at FROM characters WHERE account_id=@a ORDER BY created_at", conn);
+            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, created_at, updated_at FROM characters WHERE account_id=@a ORDER BY created_at", conn);
         cmd.Parameters.AddWithValue("a", accountId);
         var list = new List<CharacterRecord>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -216,8 +218,8 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         try
         {
             await using var cmd = new NpgsqlCommand("""
-                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
-                VALUES(@cid,@aid,@n,@cl,@lv,@m,@x,@y,@hp,@mp,@mhp,@mmp,@inv::jsonb,@gold,@qj::jsonb,@eqj::jsonb,@c,@u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
+                VALUES(@cid,@aid,@n,@cl,@lv,@exp,@m,@x,@y,@hp,@mp,@mhp,@mmp,@inv::jsonb,@gold,@qj::jsonb,@eqj::jsonb,@c,@u)
                 """, conn);
             Bind(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -245,7 +247,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, created_at, updated_at FROM characters WHERE character_id=@id", conn);
+            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, created_at, updated_at FROM characters WHERE character_id=@id", conn);
         cmd.Parameters.AddWithValue("id", characterId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -312,6 +314,20 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveLevelExpAsync(string characterId, int level, int exp, int maxHp, int maxMp, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "UPDATE characters SET level=@lv, exp=@exp, max_hp=@mhp, max_mp=@mmp, updated_at=NOW() WHERE character_id=@id", conn);
+        cmd.Parameters.AddWithValue("lv", Math.Max(1, level));
+        cmd.Parameters.AddWithValue("exp", Math.Max(0, exp));
+        cmd.Parameters.AddWithValue("mhp", Math.Max(1, maxHp));
+        cmd.Parameters.AddWithValue("mmp", Math.Max(0, maxMp));
+        cmd.Parameters.AddWithValue("id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord Read(NpgsqlDataReader reader)
         => new()
         {
@@ -320,19 +336,20 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             Name = reader.GetString(2),
             ClassId = reader.GetString(3),
             Level = reader.GetInt32(4),
-            MapId = reader.GetString(5),
-            X = reader.GetInt32(6),
-            Y = reader.GetInt32(7),
-            Hp = reader.GetInt32(8),
-            Mp = reader.GetInt32(9),
-            MaxHp = reader.GetInt32(10),
-            MaxMp = reader.GetInt32(11),
-            InventoryJson = reader.GetString(12),
-            Gold = reader.GetInt32(13),
-            QuestJson = reader.GetString(14),
-            EquipmentJson = reader.GetString(15),
-            CreatedAt = reader.GetFieldValue<DateTimeOffset>(16),
-            UpdatedAt = reader.GetFieldValue<DateTimeOffset>(17)
+            Exp = reader.GetInt32(5),
+            MapId = reader.GetString(6),
+            X = reader.GetInt32(7),
+            Y = reader.GetInt32(8),
+            Hp = reader.GetInt32(9),
+            Mp = reader.GetInt32(10),
+            MaxHp = reader.GetInt32(11),
+            MaxMp = reader.GetInt32(12),
+            InventoryJson = reader.GetString(13),
+            Gold = reader.GetInt32(14),
+            QuestJson = reader.GetString(15),
+            EquipmentJson = reader.GetString(16),
+            CreatedAt = reader.GetFieldValue<DateTimeOffset>(17),
+            UpdatedAt = reader.GetFieldValue<DateTimeOffset>(18)
         };
 
     private static void Bind(NpgsqlCommand cmd, CharacterRecord c)
@@ -342,6 +359,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("n", c.Name);
         cmd.Parameters.AddWithValue("cl", c.ClassId);
         cmd.Parameters.AddWithValue("lv", c.Level);
+        cmd.Parameters.AddWithValue("exp", c.Exp);
         cmd.Parameters.AddWithValue("m", c.MapId);
         cmd.Parameters.AddWithValue("x", c.X);
         cmd.Parameters.AddWithValue("y", c.Y);

@@ -53,7 +53,7 @@ public sealed class VersionPackManifest
 {
     public string VersionId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string ProtocolVersion { get; set; } = "1.4.0";
+    public string ProtocolVersion { get; set; } = "1.5.0";
     public string RealmId { get; set; } = "realm-1";
     public string RealmName { get; set; } = "经典一区（自研原生）";
     public string DefaultMapFile { get; set; } = "maps/novice_plain.json";
@@ -66,6 +66,7 @@ public sealed class VersionPackManifest
     public string ShopsConfigFile { get; set; } = "";
     public string QuestsConfigFile { get; set; } = "";
     public string ItemsConfigFile { get; set; } = "";
+    public string LevelsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -175,6 +176,7 @@ public sealed class ClassConfigItem
     public int BaseHp { get; set; } = 100;
     public int BaseMp { get; set; } = 50;
     public int BaseAtk { get; set; } = 15;
+    public int BaseDef { get; set; } = 0;
 }
 
 
@@ -203,6 +205,7 @@ public sealed class MonsterTemplate
     public int RespawnMs { get; set; } = 10000;
     /// <summary>chase | stationary</summary>
     public string Ai { get; set; } = "chase";
+    public int ExpReward { get; set; }
 }
 
 public sealed class MonsterSpawnPoint
@@ -313,6 +316,49 @@ public sealed class ItemTemplate
     public int EnhanceHpPerLevel { get; set; }
     public string RequiredClass { get; set; } = string.Empty;
     public int RequiredLevel { get; set; } = 1;
+    /// <summary>Consumable HP restore on use (0 = none).</summary>
+    public int HealHp { get; set; }
+    /// <summary>Consumable MP restore on use (0 = none).</summary>
+    public int HealMp { get; set; }
+}
+
+public sealed class LevelEntryConfig
+{
+    public int Level { get; set; }
+    public int ExpToNext { get; set; }
+}
+
+public sealed class ClassGrowthConfig
+{
+    public int AtkPerLevel { get; set; }
+    public int DefPerLevel { get; set; }
+    public int HpPerLevel { get; set; }
+    public int MpPerLevel { get; set; }
+}
+
+public sealed class LevelsConfigFile
+{
+    public int MaxLevel { get; set; } = 10;
+    public List<LevelEntryConfig> Entries { get; set; } = new();
+    public Dictionary<string, ClassGrowthConfig> ClassGrowth { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public int GetExpToNext(int level)
+    {
+        foreach (var e in Entries)
+            if (e.Level == level)
+                return Math.Max(0, e.ExpToNext);
+        return 0;
+    }
+
+    public ClassGrowthConfig GetGrowth(string classId)
+    {
+        foreach (var kv in ClassGrowth)
+        {
+            if (string.Equals(kv.Key, classId, StringComparison.OrdinalIgnoreCase))
+                return kv.Value;
+        }
+        return new ClassGrowthConfig { AtkPerLevel = 2, DefPerLevel = 1, HpPerLevel = 15, MpPerLevel = 5 };
+    }
 }
 
 public sealed class EnhanceRuleConfig
@@ -351,6 +397,7 @@ public sealed class LoadedVersionPack
     public required IReadOnlyDictionary<string, QuestTemplate> Quests { get; init; }
     public IReadOnlyDictionary<string, ItemTemplate> Items { get; init; } = new Dictionary<string, ItemTemplate>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<int, EnhanceRuleConfig> EnhanceRules { get; init; } = new Dictionary<int, EnhanceRuleConfig>();
+    public LevelsConfigFile Levels { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -375,4 +422,6 @@ public sealed record QuestAcceptedEvent(IClientSession Session, string PlayerNam
 public sealed record QuestCompletedEvent(IClientSession Session, string PlayerName, string CharacterId, string QuestId, string QuestTitle, int RewardGold);
 public sealed record ItemEquippedEvent(IClientSession Session, string PlayerName, string CharacterId, string Slot, string ItemId, int EnhanceLevel, int EffectiveAtk, int EffectiveDef, int EffectiveMaxHp);
 public sealed record EquipmentEnhancedEvent(IClientSession Session, string PlayerName, string CharacterId, string Slot, string ItemId, int EnhanceLevel, bool Succeeded, int CostGold, int EffectiveAtk);
+public sealed record PlayerLeveledUpEvent(IClientSession Session, string PlayerName, string CharacterId, int OldLevel, int NewLevel, int Exp, int EffectiveAtk, int EffectiveDef, int EffectiveMaxHp);
+public sealed record ItemUsedEvent(IClientSession Session, string PlayerName, string CharacterId, string ItemId, int HealHp, int HealMp, int Hp, int Mp);
 

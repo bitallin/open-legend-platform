@@ -16,7 +16,9 @@ public sealed class WorldPlayerEntity
     public int Y { get; set; }
     public int Direction { get; set; }
     public int Level { get; set; } = 1;
+    public int Exp { get; set; }
     public int BaseMaxHp { get; set; }
+    public int BaseMaxMp { get; set; }
     public int BaseAtk { get; set; }
     public int BaseDef { get; set; }
     public int Hp { get; set; }

@@ -181,6 +181,19 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         }
         return Task.CompletedTask;
     }
+
+    public Task SaveLevelExpAsync(string characterId, int level, int exp, int maxHp, int maxMp, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.Level = Math.Max(1, level);
+            c.Exp = Math.Max(0, exp);
+            c.MaxHp = Math.Max(1, maxHp);
+            c.MaxMp = Math.Max(0, maxMp);
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class InMemorySessionStore : ISessionStore

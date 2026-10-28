@@ -66,7 +66,7 @@ public sealed class GameWorldModule : IGameModule
     public bool CanHandle(MsgId msgId) => msgId is
         MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq or
         MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
-        MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq;
+        MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -175,6 +175,9 @@ public sealed class GameWorldModule : IGameModule
             case MsgId.EnhanceEquipReq:
                 await HandleEnhanceEquipAsync(session, frame, ct);
                 break;
+            case MsgId.UseItemReq:
+                await HandleUseItemAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -253,12 +256,15 @@ public sealed class GameWorldModule : IGameModule
             y = map.SpawnY;
         }
 
-        int atk = 15;
-        int baseMaxHp = character.MaxHp > 0 ? character.MaxHp : 120;
-        if (_versionPack.Classes.TryGetValue(character.ClassId, out var cls))
+        if (!_versionPack.Classes.TryGetValue(character.ClassId, out var cls))
         {
-            atk = cls.BaseAtk;
-            baseMaxHp = cls.BaseHp;
+            cls = new ClassConfigItem
+            {
+                ClassId = character.ClassId,
+                BaseAtk = 15,
+                BaseHp = character.MaxHp > 0 ? character.MaxHp : 120,
+                BaseMp = character.MaxMp > 0 ? character.MaxMp : 40
+            };
         }
 
         var entity = new WorldPlayerEntity
@@ -272,21 +278,19 @@ public sealed class GameWorldModule : IGameModule
             X = x,
             Y = y,
             Direction = 4,
+            Level = Math.Max(1, character.Level),
+            Exp = Math.Max(0, character.Exp),
             Hp = Math.Max(1, character.Hp),
-            MaxHp = baseMaxHp,
-            BaseMaxHp = baseMaxHp,
-            Mp = character.Mp,
-            MaxMp = character.MaxMp,
-            BaseAtk = atk,
-            BaseDef = 0,
-            Atk = atk,
-            Def = 0,
+            Mp = Math.Max(0, character.Mp),
             Inventory = InventoryHelper.Parse(character.InventoryJson),
             Gold = character.Gold,
             Quests = QuestHelper.Parse(character.QuestJson),
             Equipment = EquipmentHelper.Parse(character.EquipmentJson)
         };
+        LevelCurve.ApplyBaseStats(entity, cls, _versionPack.Levels);
         EquipmentHelper.RecalculateStats(entity, _versionPack.Items);
+        if (entity.Hp > entity.MaxHp) entity.Hp = entity.MaxHp;
+        if (entity.Mp > entity.MaxMp) entity.Mp = entity.MaxMp;
 
         var aoiMgr = GetAoi(map.MapId);
         var nearbyPlayers = aoiMgr.AddOrUpdateEntity(entity);
@@ -301,7 +305,11 @@ public sealed class GameWorldModule : IGameModule
             InSafeZone = entity.InSafeZone,
             EffectiveAtk = entity.Atk,
             EffectiveDef = entity.Def,
-            EffectiveMaxHp = entity.MaxHp
+            EffectiveMaxHp = entity.MaxHp,
+            Level = entity.Level,
+            Exp = entity.Exp,
+            ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, entity.Level),
+            EffectiveMaxMp = entity.MaxMp
         };
         foreach (var other in nearbyPlayers)
             resp.NearbyEntities.Add(other.ToSnapshot());
@@ -621,6 +629,8 @@ public sealed class GameWorldModule : IGameModule
                 new EntityDespawn { EntityId = monster.EntityId, Reason = "Killed", MapId = monster.MapId }, ct);
 
             await DropLootAsync(monster, attacker, ct);
+
+            await GrantExpFromKillAsync(attacker, monster, ct);
 
             await _eventBus.PublishAsync(new MonsterKilledEvent(
                 session, attacker.EntityId, attacker.Name, attacker.CharacterId,
@@ -1902,6 +1912,221 @@ public sealed class GameWorldModule : IGameModule
         await _eventBus.PublishAsync(new EquipmentEnhancedEvent(
             session, player.Name, player.CharacterId, slot, equipped.ItemId, equipped.EnhanceLevel,
             succeeded, rule.CostGold, player.Atk), ct);
+    }
+
+
+    private async Task GrantExpFromKillAsync(WorldPlayerEntity killer, MonsterEntity monster, CancellationToken ct)
+    {
+        int reward = Math.Max(0, monster.Template.ExpReward);
+        if (reward <= 0)
+            return;
+
+        int maxLv = LevelCurve.MaxLevel(_versionPack.Levels);
+        if (killer.Level >= maxLv)
+        {
+            await killer.Session.SendAsync(MsgId.ExpGainNotify, 0, new ExpGainNotify
+            {
+                GainedExp = 0,
+                TotalExp = killer.Exp,
+                Level = killer.Level,
+                ExpToNext = 0,
+                Source = monster.MonsterId
+            }, ct);
+            return;
+        }
+
+        killer.Exp += reward;
+        await killer.Session.SendAsync(MsgId.ExpGainNotify, 0, new ExpGainNotify
+        {
+            GainedExp = reward,
+            TotalExp = killer.Exp,
+            Level = killer.Level,
+            ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, killer.Level),
+            Source = monster.MonsterId
+        }, ct);
+
+        bool leveled = false;
+        int oldLevel = killer.Level;
+        while (killer.Level < maxLv)
+        {
+            int need = LevelCurve.ExpToNext(_versionPack.Levels, killer.Level);
+            if (need <= 0 || killer.Exp < need)
+                break;
+            killer.Exp -= need;
+            killer.Level++;
+            leveled = true;
+        }
+
+        if (leveled)
+        {
+            if (!_versionPack.Classes.TryGetValue(killer.ClassId, out var cls))
+            {
+                cls = new ClassConfigItem
+                {
+                    ClassId = killer.ClassId,
+                    BaseAtk = killer.BaseAtk,
+                    BaseDef = killer.BaseDef,
+                    BaseHp = killer.BaseMaxHp,
+                    BaseMp = killer.BaseMaxMp
+                };
+            }
+            LevelCurve.ApplyBaseStats(killer, cls, _versionPack.Levels);
+            EquipmentHelper.RecalculateStats(killer, _versionPack.Items);
+            killer.Hp = killer.MaxHp;
+            killer.Mp = killer.MaxMp;
+
+            var notify = new LevelUpNotify
+            {
+                OldLevel = oldLevel,
+                NewLevel = killer.Level,
+                Exp = killer.Exp,
+                ExpToNext = LevelCurve.ExpToNext(_versionPack.Levels, killer.Level),
+                BaseAtk = killer.BaseAtk,
+                BaseDef = killer.BaseDef,
+                BaseMaxHp = killer.BaseMaxHp,
+                BaseMaxMp = killer.BaseMaxMp,
+                EffectiveAtk = killer.Atk,
+                EffectiveDef = killer.Def,
+                EffectiveMaxHp = killer.MaxHp,
+                Hp = killer.Hp,
+                Mp = killer.Mp
+            };
+            await killer.Session.SendAsync(MsgId.LevelUpNotify, 0, notify, ct);
+
+            await _eventBus.PublishAsync(new PlayerLeveledUpEvent(
+                killer.Session, killer.Name, killer.CharacterId, oldLevel, killer.Level,
+                killer.Exp, killer.Atk, killer.Def, killer.MaxHp), ct);
+        }
+
+        await _storage.Characters.SaveLevelExpAsync(
+            killer.CharacterId, killer.Level, killer.Exp, killer.MaxHp, killer.MaxMp, ct);
+        await _storage.Characters.SavePositionAsync(
+            killer.CharacterId, killer.MapId, killer.X, killer.Y, killer.Hp, killer.Mp, ct);
+    }
+
+    private async Task HandleUseItemAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
+    {
+        var req = UseItemReq.Parser.ParseFrom(frame.Payload);
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                Message = "Not in world."
+            }, ct);
+            return;
+        }
+
+        if (player.IsDead || player.Hp <= 0)
+        {
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrDead,
+                Message = "Cannot use items while dead."
+            }, ct);
+            return;
+        }
+
+        string itemId = (req.ItemId ?? string.Empty).Trim();
+        int count = req.Count <= 0 ? 1 : req.Count;
+        if (count != 1)
+        {
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                Message = "Only count=1 is supported."
+            }, ct);
+            return;
+        }
+
+        if (!_versionPack.Items.TryGetValue(itemId, out var tmpl) ||
+            !string.Equals(tmpl.Kind, "consumable", StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                Message = "Item is not a usable consumable."
+            }, ct);
+            return;
+        }
+
+        if (tmpl.HealHp <= 0 && tmpl.HealMp <= 0)
+        {
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                Message = "Item has no useEffect."
+            }, ct);
+            return;
+        }
+
+        if (!InventoryHelper.TryRemoveItem(player.Inventory, itemId, 1))
+        {
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                Message = "Item not in inventory."
+            }, ct);
+            return;
+        }
+
+        int healHp = tmpl.HealHp;
+        int healMp = tmpl.HealMp;
+        int beforeHp = player.Hp;
+        int beforeMp = player.Mp;
+        player.Hp = Math.Min(player.MaxHp, player.Hp + healHp);
+        player.Mp = Math.Min(player.MaxMp, player.Mp + healMp);
+        int actualHp = player.Hp - beforeHp;
+        int actualMp = player.Mp - beforeMp;
+
+        await _storage.Characters.SaveInventoryAsync(
+            player.CharacterId, InventoryHelper.Serialize(player.Inventory), ct);
+        await _storage.Characters.SavePositionAsync(
+            player.CharacterId, player.MapId, player.X, player.Y, player.Hp, player.Mp, ct);
+
+        int remaining = player.Inventory.Where(s =>
+            string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);
+
+        var resp = new UseItemResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            ItemId = itemId,
+            RemainingCount = remaining,
+            Hp = player.Hp,
+            MaxHp = player.MaxHp,
+            Mp = player.Mp,
+            MaxMp = player.MaxMp
+        };
+        foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(slot);
+
+        await session.SendAsync(MsgId.UseItemResp, frame.Seq, resp, ct);
+
+        if (actualHp > 0 || actualMp > 0)
+        {
+            await session.SendAsync(MsgId.CombatSync, 0, new CombatSync
+            {
+                AttackerEntityId = player.EntityId,
+                TargetEntityId = player.EntityId,
+                SkillId = "use_item",
+                Damage = 0,
+                TargetHp = player.Hp,
+                TargetMaxHp = player.MaxHp,
+                Result = CombatResultKind.CombatHeal,
+                TargetDied = false
+            }, ct);
+        }
+
+        await _eventBus.PublishAsync(new ItemUsedEvent(
+            session, player.Name, player.CharacterId, itemId, actualHp, actualMp, player.Hp, player.Mp), ct);
     }
 
     public async ValueTask DisposeAiAsync()

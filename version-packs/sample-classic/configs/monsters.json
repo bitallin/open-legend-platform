@@ -11,7 +11,8 @@
       "attackCooldownMs": 1200,
       "lootTableId": "slime_basic",
       "respawnMs": 8000,
-      "ai": "chase"
+      "ai": "chase",
+      "expReward": 30
     },
     {
       "monsterId": "boar_wild",
@@ -24,7 +25,8 @@
       "attackCooldownMs": 1500,
       "lootTableId": "boar_basic",
       "respawnMs": 12000,
-      "ai": "stationary"
+      "ai": "stationary",
+      "expReward": 60
     }
   ],
   "spawns": [

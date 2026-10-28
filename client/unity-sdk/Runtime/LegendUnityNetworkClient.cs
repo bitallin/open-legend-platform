@@ -42,7 +42,11 @@ namespace Legend.UnitySdk
         public event Action<LootDropNotify>? OnLootDrop;
         public event Action<InventoryNotify>? OnInventoryNotify;
         public event Action<QuestProgressNotify>? OnQuestProgress;
+        public event Action<ExpGainNotify>? OnExpGain;
+        public event Action<LevelUpNotify>? OnLevelUp;
         public int Gold { get; private set; }
+        public int Level { get; private set; } = 1;
+        public int Exp { get; private set; }
 
         public void PumpMainThreadEvents()
         {
@@ -166,6 +170,8 @@ namespace Legend.UnitySdk
                 throw new InvalidOperationException($"EnterWorld failed: {enter.Message}");
             SelfEntity = enter.SelfEntity;
             Gold = enter.Gold;
+            Level = enter.Level;
+            Exp = enter.Exp;
             _mainThreadActions.Enqueue(() =>
             {
                 OnSelfEnteredWorld?.Invoke(enter.SelfEntity);
@@ -301,6 +307,22 @@ namespace Legend.UnitySdk
             return resp;
         }
 
+        public async Task<UseItemResp> RequestUseItemAsync(string itemId, int count = 1, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.UseItemReq, new UseItemReq
+            {
+                ItemId = itemId,
+                Count = count
+            }, ct).ConfigureAwait(false);
+            var resp = UseItemResp.Parser.ParseFrom(frame.Payload);
+            if (resp.Success && SelfEntity != null)
+            {
+                SelfEntity.Hp = resp.Hp;
+                SelfEntity.MaxHp = resp.MaxHp;
+            }
+            return resp;
+        }
+
         public async Task<MoveSync> RequestMoveAsync(int toX, int toY, int direction = 4, CancellationToken ct = default)
         {
             // Ignore stale MoveSync if a portal already changed our map.
@@ -398,6 +420,23 @@ namespace Legend.UnitySdk
                         case MsgId.QuestProgressNotify:
                             var qp = QuestProgressNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnQuestProgress?.Invoke(qp));
+                            break;
+                        case MsgId.ExpGainNotify:
+                            var eg = ExpGainNotify.Parser.ParseFrom(frame.Payload);
+                            Exp = eg.TotalExp;
+                            Level = eg.Level;
+                            _mainThreadActions.Enqueue(() => OnExpGain?.Invoke(eg));
+                            break;
+                        case MsgId.LevelUpNotify:
+                            var lu = LevelUpNotify.Parser.ParseFrom(frame.Payload);
+                            Level = lu.NewLevel;
+                            Exp = lu.Exp;
+                            if (SelfEntity != null)
+                            {
+                                SelfEntity.Hp = lu.Hp;
+                                SelfEntity.MaxHp = lu.EffectiveMaxHp;
+                            }
+                            _mainThreadActions.Enqueue(() => OnLevelUp?.Invoke(lu));
                             break;
                     }
                 }

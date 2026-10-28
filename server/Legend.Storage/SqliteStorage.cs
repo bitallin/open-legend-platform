@@ -153,6 +153,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
               name TEXT NOT NULL COLLATE NOCASE UNIQUE,
               class_id TEXT NOT NULL,
               level INTEGER NOT NULL,
+              exp INTEGER NOT NULL DEFAULT 0,
               map_id TEXT NOT NULL,
               x INTEGER NOT NULL,
               y INTEGER NOT NULL,
@@ -176,7 +177,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
                  {
                      "ALTER TABLE characters ADD COLUMN gold INTEGER NOT NULL DEFAULT 100",
                      "ALTER TABLE characters ADD COLUMN quest_json TEXT NOT NULL DEFAULT '[]'",
-                     "ALTER TABLE characters ADD COLUMN equipment_json TEXT NOT NULL DEFAULT '[]'"
+                     "ALTER TABLE characters ADD COLUMN equipment_json TEXT NOT NULL DEFAULT '[]'",
+                     "ALTER TABLE characters ADD COLUMN exp INTEGER NOT NULL DEFAULT 0"
                  })
         {
             try
@@ -240,8 +242,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO characters(character_id, account_id, name, class_id, level, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
-                VALUES($cid,$aid,$n,$cl,$lv,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$c,$u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$c,$u)
                 """;
             BindCharacter(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -342,6 +344,21 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveLevelExpAsync(string characterId, int level, int exp, int maxHp, int maxMp, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET level=$lv, exp=$exp, max_hp=$mhp, max_mp=$mmp, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$lv", Math.Max(1, level));
+        cmd.Parameters.AddWithValue("$exp", Math.Max(0, exp));
+        cmd.Parameters.AddWithValue("$mhp", Math.Max(1, maxHp));
+        cmd.Parameters.AddWithValue("$mmp", Math.Max(0, maxMp));
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord ReadCharacter(SqliteDataReader reader)
         => new()
         {
@@ -350,6 +367,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             Name = reader.GetString(reader.GetOrdinal("name")),
             ClassId = reader.GetString(reader.GetOrdinal("class_id")),
             Level = reader.GetInt32(reader.GetOrdinal("level")),
+            Exp = SafeGetInt(reader, "exp"),
             MapId = reader.GetString(reader.GetOrdinal("map_id")),
             X = reader.GetInt32(reader.GetOrdinal("x")),
             Y = reader.GetInt32(reader.GetOrdinal("y")),
@@ -372,6 +390,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$n", c.Name);
         cmd.Parameters.AddWithValue("$cl", c.ClassId);
         cmd.Parameters.AddWithValue("$lv", c.Level);
+        cmd.Parameters.AddWithValue("$exp", c.Exp);
         cmd.Parameters.AddWithValue("$m", c.MapId);
         cmd.Parameters.AddWithValue("$x", c.X);
         cmd.Parameters.AddWithValue("$y", c.Y);
@@ -385,5 +404,17 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$eqj", c.EquipmentJson);
         cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
         cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
+    }
+    private static int SafeGetInt(SqliteDataReader reader, string column)
+    {
+        try
+        {
+            int ord = reader.GetOrdinal(column);
+            return reader.IsDBNull(ord) ? 0 : reader.GetInt32(ord);
+        }
+        catch (IndexOutOfRangeException)
+        {
+            return 0;
+        }
     }
 }

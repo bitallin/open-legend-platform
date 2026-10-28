@@ -58,13 +58,17 @@ namespace Legend.Contracts
         UnequipResp = 2304,
         EnhanceEquipReq = 2305,
         EnhanceEquipResp = 2306,
+        UseItemReq = 2401,
+        UseItemResp = 2402,
+        ExpGainNotify = 2403,
+        LevelUpNotify = 2404,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.4.0";
-        public const string MinCompatibleVersion = "1.4.0";
+        public const string CurrentVersion = "1.5.0";
+        public const string MinCompatibleVersion = "1.5.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

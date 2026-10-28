@@ -17,6 +17,7 @@ public sealed class CharacterRecord
     public string Name { get; set; } = string.Empty;
     public string ClassId { get; set; } = string.Empty;
     public int Level { get; set; } = 1;
+    public int Exp { get; set; }
     public string MapId { get; set; } = string.Empty;
     public int X { get; set; }
     public int Y { get; set; }
@@ -38,6 +39,7 @@ public sealed class CharacterRecord
         Name = Name,
         ClassId = ClassId,
         Level = Level,
+        Exp = Exp,
         MapId = MapId,
         X = X,
         Y = Y,

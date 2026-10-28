@@ -4,19 +4,25 @@
       "itemId": "item_hp_potion",
       "displayName": "金创药(小)",
       "kind": "consumable",
-      "slot": ""
+      "slot": "",
+      "healHp": 50,
+      "healMp": 0
     },
     {
       "itemId": "item_mp_potion",
       "displayName": "魔法药(小)",
       "kind": "consumable",
-      "slot": ""
+      "slot": "",
+      "healHp": 0,
+      "healMp": 40
     },
     {
       "itemId": "item_dried_meat",
       "displayName": "风干肉干",
       "kind": "consumable",
-      "slot": ""
+      "slot": "",
+      "healHp": 20,
+      "healMp": 0
     },
     {
       "itemId": "item_copper_coin",
@@ -34,7 +40,8 @@
       "maxHpBonus": 0,
       "enhanceAtkPerLevel": 2,
       "enhanceDefPerLevel": 0,
-      "enhanceHpPerLevel": 0
+      "enhanceHpPerLevel": 0,
+      "requiredLevel": 1
     },
     {
       "itemId": "item_wooden_sword",
@@ -46,7 +53,22 @@
       "maxHpBonus": 0,
       "enhanceAtkPerLevel": 4,
       "enhanceDefPerLevel": 0,
-      "enhanceHpPerLevel": 0
+      "enhanceHpPerLevel": 0,
+      "requiredLevel": 1
+    },
+    {
+      "itemId": "item_iron_sword",
+      "displayName": "精铁长剑",
+      "kind": "equipment",
+      "slot": "weapon",
+      "atkBonus": 15,
+      "defBonus": 0,
+      "maxHpBonus": 0,
+      "enhanceAtkPerLevel": 5,
+      "enhanceDefPerLevel": 0,
+      "enhanceHpPerLevel": 0,
+      "requiredClass": "warrior",
+      "requiredLevel": 2
     },
     {
       "itemId": "item_cloth_armor",
@@ -58,7 +80,8 @@
       "maxHpBonus": 30,
       "enhanceAtkPerLevel": 0,
       "enhanceDefPerLevel": 2,
-      "enhanceHpPerLevel": 10
+      "enhanceHpPerLevel": 10,
+      "requiredLevel": 1
     },
     {
       "itemId": "item_bronze_ring",
@@ -70,7 +93,8 @@
       "maxHpBonus": 10,
       "enhanceAtkPerLevel": 2,
       "enhanceDefPerLevel": 1,
-      "enhanceHpPerLevel": 5
+      "enhanceHpPerLevel": 5,
+      "requiredLevel": 1
     }
   ],
   "enhanceRules": [

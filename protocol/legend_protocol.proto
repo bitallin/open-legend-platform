@@ -31,6 +31,7 @@ enum ProtocolErrorCode {
   ERR_UNKNOWN_NPC = 1023;
   ERR_EQUIP_DENIED = 1024;
   ERR_ENHANCE_DENIED = 1025;
+  ERR_USE_ITEM_DENIED = 1026;
   ERR_INTERNAL = 1999;
 }
 
@@ -146,6 +147,7 @@ message CharacterSummary {
   int32 mp = 10;
   int32 max_mp = 11;
   int32 gold = 12;
+  int32 exp = 13;
 }
 
 message CharListReq {
@@ -234,6 +236,10 @@ message EnterWorldResp {
   int32 effective_atk = 12;
   int32 effective_def = 13;
   int32 effective_max_hp = 14;
+  int32 level = 15;
+  int32 exp = 16;
+  int32 exp_to_next = 17;
+  int32 effective_max_mp = 18;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -485,7 +491,51 @@ message EnhanceEquipResp {
   int32 effective_max_hp = 10;
 }
 
-// 12. Server / Lua Notice (MsgId: 3001)
+
+// 12. Leveling & Consumables (MsgId: 2401–2404)
+message UseItemReq {
+  string item_id = 1;
+  int32 count = 2; // usually 1
+}
+
+message UseItemResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string item_id = 4;
+  int32 remaining_count = 5;
+  int32 hp = 6;
+  int32 max_hp = 7;
+  int32 mp = 8;
+  int32 max_mp = 9;
+  repeated InventoryItem inventory = 10;
+}
+
+message ExpGainNotify {
+  int32 gained_exp = 1;
+  int32 total_exp = 2;
+  int32 level = 3;
+  int32 exp_to_next = 4;
+  string source = 5; // e.g. monsterId
+}
+
+message LevelUpNotify {
+  int32 old_level = 1;
+  int32 new_level = 2;
+  int32 exp = 3;
+  int32 exp_to_next = 4;
+  int32 base_atk = 5;
+  int32 base_def = 6;
+  int32 base_max_hp = 7;
+  int32 base_max_mp = 8;
+  int32 effective_atk = 9;
+  int32 effective_def = 10;
+  int32 effective_max_hp = 11;
+  int32 hp = 12;
+  int32 mp = 13;
+}
+
+// 13. Server / Lua Notice (MsgId: 3001)
 message ServerNotice {
   string notice_type = 1;
   string title = 2;

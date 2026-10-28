@@ -27,6 +27,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<LootDropNotify> ReceivedLootDrops { get; } = new();
     public ConcurrentQueue<InventoryNotify> ReceivedInventoryNotifies { get; } = new();
     public ConcurrentQueue<QuestProgressNotify> ReceivedQuestProgress { get; } = new();
+    public ConcurrentQueue<ExpGainNotify> ReceivedExpGains { get; } = new();
+    public ConcurrentQueue<LevelUpNotify> ReceivedLevelUps { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -166,6 +168,18 @@ public sealed class LegendTcpClient : IAsyncDisposable
                         ReceivedQuestProgress.Enqueue(qp);
                         break;
                     }
+                    case MsgId.ExpGainNotify:
+                    {
+                        var eg = ExpGainNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedExpGains.Enqueue(eg);
+                        break;
+                    }
+                    case MsgId.LevelUpNotify:
+                    {
+                        var lu = LevelUpNotify.Parser.ParseFrom(frame.Payload);
+                        ReceivedLevelUps.Enqueue(lu);
+                        break;
+                    }
                 }
             }
         }
@@ -198,7 +212,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
 
     public async Task<HandshakeResp> HandshakeAsync(
         string protocolVersion = ProtocolConstants.CurrentVersion,
-        string clientBuild = "pc-cli-1.4.0",
+        string clientBuild = "pc-cli-1.5.0",
         CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.HandshakeReq, new HandshakeReq
@@ -464,6 +478,22 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return resp;
     }
 
+
+    public async Task<UseItemResp> UseItemAsync(string itemId, int count = 1, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.UseItemReq, new UseItemReq
+        {
+            ItemId = itemId,
+            Count = count
+        }, ct);
+        var resp = UseItemResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success && SelfEntity != null)
+        {
+            SelfEntity.Hp = resp.Hp;
+            SelfEntity.MaxHp = resp.MaxHp;
+        }
+        return resp;
+    }
 
     public async ValueTask DisposeAsync()
     {

@@ -231,6 +231,21 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+        // Levels / growth curve
+        var levelsConfig = new LevelsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.LevelsConfigFile))
+        {
+            string levelsPath = Path.Combine(baseDir, manifest.LevelsConfigFile);
+            if (!File.Exists(levelsPath))
+                throw new FileNotFoundException($"Levels config not found: {levelsPath}");
+            string levelsJson = File.ReadAllText(levelsPath, Encoding.UTF8);
+            hashInput.Append(levelsJson);
+            levelsConfig = JsonSerializer.Deserialize<LevelsConfigFile>(levelsJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize levels.json");
+            if (levelsConfig.Entries.Count == 0)
+                throw new InvalidDataException("levels.json must define at least one entry.");
+        }
+
         // Cross-check NPC shop / quest refs
         foreach (var n in npcDict.Values)
         {
@@ -274,6 +289,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 questCount = questDict.Count,
                 itemCount = itemDict.Count,
                 enhanceRuleCount = enhanceRuleDict.Count,
+                levelEntryCount = levelsConfig.Entries.Count,
                 scriptCount = luaScripts.Count,
                 packHash
             });
@@ -294,6 +310,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Quests = questDict,
             Items = itemDict,
             EnhanceRules = enhanceRuleDict,
+            Levels = levelsConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

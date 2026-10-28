@@ -8,7 +8,8 @@
       { "itemId": "item_dried_meat", "priceGold": 5, "stock": -1 },
       { "itemId": "item_wooden_sword", "priceGold": 20, "stock": -1 },
       { "itemId": "item_cloth_armor", "priceGold": 15, "stock": -1 },
-      { "itemId": "item_bronze_ring", "priceGold": 25, "stock": -1 }
+      { "itemId": "item_bronze_ring", "priceGold": 25, "stock": -1 },
+      { "itemId": "item_iron_sword", "priceGold": 30, "stock": -1 }
     ]
   }
 ]
