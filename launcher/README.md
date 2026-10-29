@@ -1,21 +1,17 @@
-# Legend.Launcher — Phase H 登录器骨架
+# Legend.Launcher — Phase H/I 登录器
 
-.NET 8 控制台登录器：选区、延迟探测、更新检查骨架、启动客户端（Unity 或 `Legend.ClientStub` / `scripts/fake-client.sh`）。
+.NET 8：Core 逻辑 + 控制台回退 + **Avalonia Desktop GUI**。
 
 ## 结构
 
 ```text
 launcher/
-├── Legend.Launcher.Core/     # 可测纯逻辑
-├── Legend.Launcher/          # 中文交互 + --headless
-├── Legend.ClientStub/        # 占位客户端
+├── Legend.Launcher.Core/
+├── Legend.Launcher/              # 控制台
+├── Legend.Launcher.Desktop/      # Avalonia 窗口
+├── Legend.ClientStub/
 ├── Legend.Launcher.Tests/
-├── config/
-│   ├── launcher.json
-│   ├── realms.json
-│   ├── version.json
-│   └── update-manifest.sample.json
-└── Legend.Launcher.sln
+└── config/
 ```
 
 ## 运行
@@ -23,13 +19,13 @@ launcher/
 ```bash
 cd launcher
 dotnet build Legend.Launcher.sln -c Release
-# 交互
-dotnet run --project Legend.Launcher -c Release --no-build
-# 无头选区启动 stub
+# GUI
+dotnet run --project Legend.Launcher.Desktop -c Release --no-build
+# 控制台无头
 dotnet run --project Legend.Launcher -c Release --no-build -- \
   --headless --probe --check-update --download \
   --launch --realm-id realm-classic-01 \
   --client "$(pwd)/Legend.ClientStub/bin/Release/net8.0/Legend.ClientStub.dll"
 ```
 
-详见 `docs/LAUNCHER.md`。验收：`./scripts/verify-phase-h-launcher.sh`。
+详见 `docs/LAUNCHER.md`。验收：`./scripts/verify-phase-i-launcher-gui.sh`。

@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Legend.Launcher.Desktop.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="520"
+        x:Class="Legend.Launcher.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding Title}"
+        Width="720" Height="520"
+        MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterScreen">
+
+  <Design.DataContext>
+    <vm:MainViewModel />
+  </Design.DataContext>
+
+  <DockPanel Margin="16">
+    <Border DockPanel.Dock="Bottom" Padding="8,6" Margin="0,12,0,0"
+            Background="#22000000" CornerRadius="4">
+      <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" FontSize="12" />
+    </Border>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+      <TextBlock Text="Legend 登录器" FontSize="22" FontWeight="Bold" />
+      <TextBlock Text="选区 · 延迟 · 更新检查 · 启动客户端（复用 Legend.Launcher.Core）"
+                 Opacity="0.75" FontSize="12" />
+      <TextBlock Text="{Binding ClientPath, StringFormat=客户端：{0}}"
+                 FontSize="11" Opacity="0.65" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,16,220" RowDefinitions="Auto,8,*,10,Auto,10,Auto">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="区服列表" FontWeight="SemiBold" />
+      <TextBlock Grid.Row="0" Grid.Column="2" Text="操作" FontWeight="SemiBold" />
+
+      <Border Grid.Row="2" Grid.Column="0" BorderBrush="#44888888" BorderThickness="1" CornerRadius="4" Padding="4">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="1.2*,1.1*,1.2*,0.7*,0.7*" Margin="4,2,4,6">
+            <TextBlock Grid.Column="0" Text="名称" FontWeight="SemiBold" FontSize="11" Opacity="0.8" />
+            <TextBlock Grid.Column="1" Text="ID" FontWeight="SemiBold" FontSize="11" Opacity="0.8" />
+            <TextBlock Grid.Column="2" Text="地址" FontWeight="SemiBold" FontSize="11" Opacity="0.8" />
+            <TextBlock Grid.Column="3" Text="状态" FontWeight="SemiBold" FontSize="11" Opacity="0.8" />
+            <TextBlock Grid.Column="4" Text="延迟" FontWeight="SemiBold" FontSize="11" Opacity="0.8" />
+          </Grid>
+          <ListBox ItemsSource="{Binding Realms}"
+                   SelectedItem="{Binding SelectedRealm}"
+                   MinHeight="180">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:RealmItemViewModel">
+                <Grid ColumnDefinitions="1.2*,1.1*,1.2*,0.7*,0.7*" Margin="0,2">
+                  <TextBlock Grid.Column="0" Text="{Binding RealmName}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="1" Text="{Binding RealmId}" FontSize="11" Opacity="0.85" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="2" Text="{Binding Address}" FontSize="11" />
+                  <TextBlock Grid.Column="3" Text="{Binding Status}" FontSize="11" />
+                  <TextBlock Grid.Column="4" Text="{Binding LatencyText}" FontSize="11" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <StackPanel Grid.Row="2" Grid.Column="2" Spacing="8">
+        <Button Content="刷新区服" Command="{Binding RefreshRealmsCommand}" HorizontalAlignment="Stretch" />
+        <Button Content="探测延迟" Command="{Binding ProbeLatencyCommand}" HorizontalAlignment="Stretch" />
+        <Button Content="检查更新" Command="{Binding CheckUpdateCommand}" HorizontalAlignment="Stretch" />
+        <Button Content="下载更新" Command="{Binding DownloadUpdateCommand}" HorizontalAlignment="Stretch" />
+        <Button Content="启动游戏" Command="{Binding LaunchCommand}"
+                HorizontalAlignment="Stretch" FontWeight="Bold" Padding="10,10" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Spacing="6">
+        <TextBlock Text="更新" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding UpdateSummary}" TextWrapping="Wrap" FontSize="12" />
+        <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadPercent}" Height="10" />
+      </StackPanel>
+
+      <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3"
+                 Text="无头环境请用 Legend.Launcher（控制台）或 verify 脚本；本窗口需显示器 / Xvfb。"
+                 FontSize="11" Opacity="0.55" Margin="0,4,0,0" />
+    </Grid>
+  </DockPanel>
+</Window>

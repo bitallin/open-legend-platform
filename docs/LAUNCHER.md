@@ -1,4 +1,4 @@
-# Phase H — PC 登录器骨架
+# Phase H / I — PC 登录器
 
 协议仍为 **1.21.0**（本阶段未改游戏协议；区服列表与更新清单走本地 JSON / 可选 HTTP）。
 
@@ -7,12 +7,24 @@
 | 功能 | 说明 |
 |------|------|
 | 区服列表 | 读 `launcher/config/realms.json`；可选 `realmListUrl`（http/https/file/本地路径）覆盖合并 |
-| 选区 | 中文菜单或 `--realm-id`；展示区名 / 状态 / TCP connect RTT |
+| 选区 | **Avalonia 窗口**或控制台菜单 / `--realm-id`；展示区名 / 状态 / TCP connect RTT |
 | 更新检查 | 本地 `version.json` vs `update-manifest*.json`（或 URL）；`IUpdateChannel` 可扩展 |
 | 下载骨架 | 无真实包 URL 时假进度并写 `cache/updates/update-*.bin` |
 | 启动客户端 | `clientExecutable`：Unity 玩家、`Legend.ClientStub.dll`、或 `scripts/fake-client.sh` |
 
-**不包含**：完整 CDN 差分热更、登录器 GUI 皮肤、支付。
+**不包含**：完整 CDN 差分热更、精美皮肤、支付。
+
+## 项目结构
+
+```text
+launcher/
+├── Legend.Launcher.Core/       # 可测纯逻辑（Facade）
+├── Legend.Launcher/            # 控制台（无头 / 交互菜单回退）
+├── Legend.Launcher.Desktop/    # Avalonia 窗口 GUI（Phase I）
+├── Legend.ClientStub/
+├── Legend.Launcher.Tests/
+└── config/
+```
 
 ## 配置项（`config/launcher.json`）
 
@@ -31,14 +43,31 @@
 
 ## 如何运行
 
+### Avalonia 窗口 GUI（推荐有显示器时）
+
 ```bash
 cd /path/to/legend-platform/launcher
 dotnet build Legend.Launcher.sln -c Release
 
-# 交互菜单
+# Windows（本机有桌面）
+dotnet run --project Legend.Launcher.Desktop -c Release --no-build
+
+# Linux 有显示器
+dotnet run --project Legend.Launcher.Desktop -c Release --no-build
+
+# Linux 无显示器：先装/起 Xvfb，再跑（仅冒烟窗口能否起来）
+# Xvfb :99 -screen 0 1280x720x24 &
+# DISPLAY=:99 dotnet run --project Legend.Launcher.Desktop -c Release --no-build
+```
+
+窗口按钮：刷新区服 / 探测延迟 / 检查更新 / 下载更新 / 启动游戏；底栏为状态。未配置 `clientExecutable` 时 Desktop 会尝试自动指向已编译的 `Legend.ClientStub.dll` 或 `scripts/fake-client.sh`。
+
+### 控制台回退（无头 CI / SSH）
+
+```bash
+cd /path/to/legend-platform/launcher
 dotnet run --project Legend.Launcher -c Release --no-build
 
-# 无头：探测 + 更新 + 启动 stub
 STUB="$(pwd)/Legend.ClientStub/bin/Release/net8.0/Legend.ClientStub.dll"
 dotnet run --project Legend.Launcher -c Release --no-build -- \
   --headless --probe --check-update --download \
@@ -46,25 +75,21 @@ dotnet run --project Legend.Launcher -c Release --no-build -- \
   --client "$STUB"
 ```
 
-或用 bash 占位客户端：
+## 验收
 
 ```bash
-dotnet run --project Legend.Launcher -c Release --no-build -- \
-  --launch --realm-id realm-classic-01 \
-  --client ../scripts/fake-client.sh
+./scripts/verify-phase-h-launcher.sh   # 控制台 + Core
+./scripts/verify-phase-i-launcher-gui.sh  # Desktop 编译 + Core 单测
 ```
 
-## 验收步骤（人工）
+人工（有显示器）：打开 Desktop → 刷新 → 探测 → 检查更新 → 选区启动 stub，状态栏看到成功信息。
 
-1. 跑 `./scripts/verify-phase-h-launcher.sh` 全绿  
-2. 交互模式：`1` 刷新区服 → `2` 探测延迟 → `3` 检查更新（应提示 0.1.0→0.2.0）→ `5` 选一区启动 stub，看到 `host=` / `port=` / `realm-id=`  
-3. 改 `config/version.json` 的 `clientVersion` 为 `0.2.0` 后再检查，应显示「已是最新」  
-4. （可选）起 `Legend.Host` 后，`2` 探测一区应有 RTT 毫秒数  
+## 限制
+
+- 本仓库默认 Linux 构建机常**无显示器**：`verify-phase-i` 只要求 **headless 编译通过**，不强制弹出窗口。
+- 未做完整热更 CDN / 差分包安装；下载仅为进度骨架。
+- 未推远程 GitHub（按任务约束本地 commit）。
 
 ## 与 Unity
 
-将来把 `clientExecutable` 指到 Unity 播放器或打包后的 Linux/Windows 可执行文件，参数模板保持 `--host/--port/--realm-id`；Unity MVP Bootstrap 可读同名命令行（若尚未接线，先用 stub 验收登录器本身）。
-
-## 目录
-
-见 `launcher/README.md`。
+把 `clientExecutable` 指到 Unity 播放器或打包后的 Linux/Windows 可执行文件，参数模板保持 `--host/--port/--realm-id`。
