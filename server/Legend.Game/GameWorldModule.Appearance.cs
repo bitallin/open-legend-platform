@@ -72,6 +72,7 @@ public sealed partial class GameWorldModule
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
         player.LastMoveUnixMs = 0;
+        LoadPetsOntoPlayer(player, state);
     }
 
     private async Task PersistAppearanceAsync(WorldPlayerEntity player, CancellationToken ct)
@@ -81,7 +82,9 @@ public sealed partial class GameWorldModule
             OwnedMounts = player.OwnedMounts.ToList(),
             ActiveMountId = player.ActiveMountId ?? "",
             OwnedFashions = player.OwnedFashions.ToList(),
-            EquippedFashionId = player.EquippedFashionId ?? ""
+            EquippedFashionId = player.EquippedFashionId ?? "",
+            OwnedPets = player.OwnedPets.ToList(),
+            ActivePetId = player.ActivePetId ?? ""
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);

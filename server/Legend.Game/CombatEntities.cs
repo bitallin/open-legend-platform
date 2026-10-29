@@ -417,3 +417,41 @@ public static class BuffHelper
             player.Def = Math.Max(0, (int)Math.Floor(player.Def * (100.0 + defPct) / 100.0));
     }
 }
+
+/// <summary>M16 companion pet entity (AOI Kind=Pet). One active pet per owner.</summary>
+public sealed class PetEntity
+{
+    public required string EntityId { get; init; }
+    public required string PetId { get; init; }
+    public required string DisplayName { get; init; }
+    public required string OwnerCharacterId { get; init; }
+    public required string OwnerEntityId { get; set; }
+    public required string MapId { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int FollowDistance { get; set; } = 2;
+    public int AssistDamagePercent { get; set; } = 25;
+    public int AssistCooldownMs { get; set; } = 1200;
+    public int AssistRange { get; set; } = 3;
+    public string? AssistTargetEntityId { get; set; }
+    public long NextAssistUnixMs { get; set; }
+    public bool Alive { get; set; } = true;
+
+    public EntitySnapshot ToSnapshot() => new()
+    {
+        EntityId = EntityId,
+        Name = DisplayName,
+        ClassId = "",
+        MapId = MapId,
+        X = X,
+        Y = Y,
+        Direction = 4,
+        Hp = 1,
+        MaxHp = 1,
+        InSafeZone = false,
+        Kind = EntityKind.EntityPet,
+        TemplateId = PetId,
+        OwnerCharacterId = OwnerCharacterId,
+        PetId = PetId
+    };
+}

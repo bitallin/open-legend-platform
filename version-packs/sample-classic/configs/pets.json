@@ -1,0 +1,13 @@
+{
+  "pets": [
+    {
+      "petId": "pet_wolf_pup",
+      "displayName": "幼狼",
+      "itemId": "item_pet_wolf_pup",
+      "followDistance": 2,
+      "assistDamagePercent": 25,
+      "assistCooldownMs": 1200,
+      "assistRange": 3
+    }
+  ]
+}

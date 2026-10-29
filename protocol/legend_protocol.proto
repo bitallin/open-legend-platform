@@ -79,6 +79,7 @@ enum ProtocolErrorCode {
   ERR_MOUNT_DENIED = 1071;
   ERR_FASHION_DENIED = 1072;
   ERR_MOVE_TOO_FAST = 1073;
+  ERR_PET_DENIED = 1074;
   ERR_INTERNAL = 1999;
 }
 
@@ -87,6 +88,7 @@ enum EntityKind {
   ENTITY_MONSTER = 1;
   ENTITY_LOOT = 2;
   ENTITY_NPC = 3;
+  ENTITY_PET = 4;
 }
 
 enum CombatResultKind {
@@ -271,6 +273,8 @@ message EntitySnapshot {
   string mount_id = 15;
   string fashion_id = 16;
   int32 move_interval_ms = 17;
+  // M16 active pet template id on player snapshot
+  string pet_id = 18;
 }
 
 message EnterWorldReq {
@@ -1342,4 +1346,59 @@ message AppearanceSyncNotify {
   string fashion_id = 5;
   int32 move_interval_ms = 6;
   string reason = 7;
+}
+
+// 24. Pet Summon / Follow / Assist (MsgId: 3501–3511) — M16
+message PetInfo {
+  string pet_id = 1;
+  string display_name = 2;
+  int32 assist_damage_percent = 3;
+  int32 assist_cooldown_ms = 4;
+  int32 follow_distance = 5;
+  bool owned = 6;
+  bool active = 7;
+}
+
+message PetStatusReq {}
+
+message PetStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string active_pet_id = 4;
+  string active_pet_entity_id = 5;
+  repeated PetInfo pets = 6;
+}
+
+message PetSummonReq {
+  string pet_id = 1;
+}
+
+message PetSummonResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string active_pet_id = 4;
+  string pet_entity_id = 5;
+  int32 pet_x = 6;
+  int32 pet_y = 7;
+}
+
+message PetDismissReq {}
+
+message PetDismissResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+// Broadcast when pet summons/dismisses/follows (AOI also gets EntitySpawn/Despawn/MoveSync)
+message PetSyncNotify {
+  string owner_entity_id = 1;
+  string owner_character_id = 2;
+  string pet_id = 3;
+  string pet_entity_id = 4;
+  int32 x = 5;
+  int32 y = 6;
+  string reason = 7; // summon | dismiss | owner_death | follow
 }

@@ -77,6 +77,7 @@ public sealed class VersionPackManifest
     public string WorldBossConfigFile { get; set; } = "";
     public string MountsConfigFile { get; set; } = "";
     public string FashionsConfigFile { get; set; } = "";
+    public string PetsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -364,6 +365,8 @@ public sealed class ItemTemplate
     public string UnlockMountId { get; set; } = string.Empty;
     /// <summary>M15: fashion unlock item → fashionId.</summary>
     public string UnlockFashionId { get; set; } = string.Empty;
+    /// <summary>M16: pet unlock item → petId.</summary>
+    public string UnlockPetId { get; set; } = string.Empty;
 }
 
 public sealed class LevelEntryConfig
@@ -526,6 +529,25 @@ public sealed class FashionsConfigFile
     public List<FashionDefinition> Fashions { get; set; } = new();
 }
 
+public sealed class PetDefinition
+{
+    public string PetId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string ItemId { get; set; } = "";
+    /// <summary>Chebyshev distance beyond which pet steps toward owner each tick.</summary>
+    public int FollowDistance { get; set; } = 2;
+    /// <summary>Assist hit damage = floor(owner.Atk * percent / 100), min 1.</summary>
+    public int AssistDamagePercent { get; set; } = 25;
+    public int AssistCooldownMs { get; set; } = 1200;
+    public int AssistRange { get; set; } = 3;
+}
+
+public sealed class PetsConfigFile
+{
+    public List<PetDefinition> Pets { get; set; } = new();
+}
+
+
 public sealed class WorldBossConfigFile
 {
     public List<WorldBossDefinition> Bosses { get; set; } = new();
@@ -620,6 +642,7 @@ public sealed class LoadedVersionPack
     public WorldBossConfigFile WorldBoss { get; init; } = new();
     public MountsConfigFile Mounts { get; init; } = new();
     public FashionsConfigFile Fashions { get; init; } = new();
+    public PetsConfigFile Pets { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -679,3 +702,5 @@ public sealed record WorldBossKilledEvent(string BossId, string DisplayName, str
 public sealed record MountChangedEvent(string CharacterId, string PlayerName, string MountId, string Action, int MoveIntervalMs);
 public sealed record FashionChangedEvent(string CharacterId, string PlayerName, string FashionId, bool Equipped, int EffectiveAtk);
 public sealed record RareLootBroadcastEvent(string BossId, string KillerCharacterId, string KillerName, string ItemId, int ItemCount, int Gold, string Content);
+
+public sealed record PetChangedEvent(string CharacterId, string PlayerName, string PetId, string PetEntityId, string Action, string Reason);

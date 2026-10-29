@@ -112,6 +112,8 @@ public static class AppearanceJson
         public string ActiveMountId { get; set; } = "";
         public List<string> OwnedFashions { get; set; } = new();
         public string EquippedFashionId { get; set; } = "";
+        public List<string> OwnedPets { get; set; } = new();
+        public string ActivePetId { get; set; } = "";
     }
 
     public static State Parse(string? json)
@@ -123,8 +125,10 @@ public static class AppearanceJson
             var s = JsonSerializer.Deserialize<State>(json, Opts) ?? new State();
             s.OwnedMounts ??= new();
             s.OwnedFashions ??= new();
+            s.OwnedPets ??= new();
             s.ActiveMountId ??= "";
             s.EquippedFashionId ??= "";
+            s.ActivePetId ??= "";
             return s;
         }
         catch
@@ -145,12 +149,18 @@ public static class AppearanceJson
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var pets = (state.OwnedPets ?? new())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var payload = new State
         {
             OwnedMounts = mounts,
             ActiveMountId = state.ActiveMountId ?? "",
             OwnedFashions = fashions,
-            EquippedFashionId = state.EquippedFashionId ?? ""
+            EquippedFashionId = state.EquippedFashionId ?? "",
+            OwnedPets = pets,
+            ActivePetId = state.ActivePetId ?? ""
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

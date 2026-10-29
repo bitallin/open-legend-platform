@@ -152,14 +152,21 @@ namespace Legend.Contracts
         FashionEquipReq = 3409,
         FashionEquipResp = 3410,
         AppearanceSyncNotify = 3413,
+        PetStatusReq = 3501,
+        PetStatusResp = 3502,
+        PetSummonReq = 3503,
+        PetSummonResp = 3504,
+        PetDismissReq = 3505,
+        PetDismissResp = 3506,
+        PetSyncNotify = 3511,
         LootBroadcastNotify = 3307,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.15.0";
-        public const string MinCompatibleVersion = "1.15.0";
+        public const string CurrentVersion = "1.16.0";
+        public const string MinCompatibleVersion = "1.16.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

@@ -58,6 +58,13 @@ public sealed class WorldPlayerEntity
     public int MoveIntervalMs { get; set; } = 300;
     public long LastMoveUnixMs { get; set; }
 
+    /// <summary>Owned pet template ids (appearance_json).</summary>
+    public HashSet<string> OwnedPets { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Active summoned pet template id (empty = none). Persisted.</summary>
+    public string ActivePetId { get; set; } = string.Empty;
+    /// <summary>Runtime pet world entity id (not persisted).</summary>
+    public string ActivePetEntityId { get; set; } = string.Empty;
+
     public EntitySnapshot ToSnapshot() => new()
     {
         EntityId = EntityId,
@@ -74,7 +81,8 @@ public sealed class WorldPlayerEntity
         TemplateId = ClassId,
         MountId = ActiveMountId ?? string.Empty,
         FashionId = EquippedFashionId ?? string.Empty,
-        MoveIntervalMs = MoveIntervalMs
+        MoveIntervalMs = MoveIntervalMs,
+        PetId = ActivePetId ?? string.Empty
     };
 }
 

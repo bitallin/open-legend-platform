@@ -58,6 +58,8 @@ namespace Legend.UnitySdk
         public event Action<WorldBossSpawnNotify>? OnWorldBossSpawn;
         public event Action<WorldBossHpNotify>? OnWorldBossHp;
         public event Action<LootBroadcastNotify>? OnLootBroadcast;
+        public event Action<AppearanceSyncNotify>? OnAppearanceSync;
+        public event Action<PetSyncNotify>? OnPetSync;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -751,6 +753,22 @@ namespace Legend.UnitySdk
                             var lbn = LootBroadcastNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnLootBroadcast?.Invoke(lbn));
                             break;
+                        case MsgId.AppearanceSyncNotify:
+                            var asn = AppearanceSyncNotify.Parser.ParseFrom(frame.Payload);
+                            if (SelfEntity != null && asn.EntityId == SelfEntity.EntityId)
+                            {
+                                SelfEntity.MountId = asn.MountId;
+                                SelfEntity.FashionId = asn.FashionId;
+                                SelfEntity.MoveIntervalMs = asn.MoveIntervalMs;
+                            }
+                            _mainThreadActions.Enqueue(() => OnAppearanceSync?.Invoke(asn));
+                            break;
+                        case MsgId.PetSyncNotify:
+                            var psn = PetSyncNotify.Parser.ParseFrom(frame.Payload);
+                            if (SelfEntity != null && psn.OwnerEntityId == SelfEntity.EntityId)
+                                SelfEntity.PetId = psn.PetId;
+                            _mainThreadActions.Enqueue(() => OnPetSync?.Invoke(psn));
+                            break;
                         case MsgId.ChatNotify:
                             var chat = ChatNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnChatNotify?.Invoke(chat));
@@ -779,6 +797,55 @@ namespace Legend.UnitySdk
             }
         }
 
+
+
+        public async Task<PetStatusResp> RequestPetStatusAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PetStatusReq, new PetStatusReq(), ct);
+            return PetStatusResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<PetSummonResp> RequestPetSummonAsync(string petId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PetSummonReq, new PetSummonReq { PetId = petId ?? "" }, ct);
+            return PetSummonResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<PetDismissResp> RequestPetDismissAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.PetDismissReq, new PetDismissReq(), ct);
+            return PetDismissResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MountStatusResp> RequestMountStatusAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MountStatusReq, new MountStatusReq(), ct);
+            return MountStatusResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MountSummonResp> RequestMountSummonAsync(string mountId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MountSummonReq, new MountSummonReq { MountId = mountId ?? "" }, ct);
+            return MountSummonResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<MountDismissResp> RequestMountDismissAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.MountDismissReq, new MountDismissReq(), ct);
+            return MountDismissResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<FashionStatusResp> RequestFashionStatusAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.FashionStatusReq, new FashionStatusReq(), ct);
+            return FashionStatusResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<FashionEquipResp> RequestFashionEquipAsync(string fashionId, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.FashionEquipReq, new FashionEquipReq { FashionId = fashionId ?? "" }, ct);
+            return FashionEquipResp.Parser.ParseFrom(frame.Payload);
+        }
 
         public async Task<WorldBossStatusResp> RequestWorldBossStatusAsync(string bossId = "", CancellationToken ct = default)
         {

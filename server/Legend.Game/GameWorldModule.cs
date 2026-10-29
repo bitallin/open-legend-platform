@@ -80,7 +80,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq or MsgId.DungeonStatusReq or
         MsgId.WorldBossStatusReq or MsgId.WorldBossControlReq or
         MsgId.MountStatusReq or MsgId.MountSummonReq or MsgId.MountDismissReq or
-        MsgId.FashionStatusReq or MsgId.FashionEquipReq;
+        MsgId.FashionStatusReq or MsgId.FashionEquipReq or
+        MsgId.PetStatusReq or MsgId.PetSummonReq or MsgId.PetDismissReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -305,6 +306,15 @@ public sealed partial class GameWorldModule : IGameModule
             case MsgId.FashionEquipReq:
                 await HandleFashionEquipAsync(session, frame, ct);
                 break;
+            case MsgId.PetStatusReq:
+                await HandlePetStatusAsync(session, frame, ct);
+                break;
+            case MsgId.PetSummonReq:
+                await HandlePetSummonAsync(session, frame, ct);
+                break;
+            case MsgId.PetDismissReq:
+                await HandlePetDismissAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -511,6 +521,8 @@ public sealed partial class GameWorldModule : IGameModule
 
         await _eventBus.PublishAsync(new PlayerEnteredWorldEvent(
             session, entityId, character.Name, character.ClassId, map.MapId, x, y), ct);
+
+        await ResummonPetOnEnterAsync(entity, ct);
     }
 
     private IEnumerable<EntitySnapshot> EnumerateNearbyNonPlayers(string mapId, int x, int y)
@@ -536,6 +548,13 @@ public sealed partial class GameWorldModule : IGameModule
                 continue;
             if (CombatMath.Chebyshev(x, y, npc.X, npc.Y) <= view)
                 yield return npc.ToSnapshot();
+        }
+        foreach (var pet in _pets.Values)
+        {
+            if (!pet.Alive || !string.Equals(pet.MapId, mapId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (CombatMath.Chebyshev(x, y, pet.X, pet.Y) <= view)
+                yield return pet.ToSnapshot();
         }
     }
 
@@ -824,6 +843,9 @@ public sealed partial class GameWorldModule : IGameModule
         // Also send to attacker if not already in viewers list via Broadcast (Broadcast includes all near)
         await session.SendAsync(MsgId.CombatSync, 0, combat, ct);
 
+        if (!killed)
+            await TryPetAssistAfterOwnerAttackAsync(attacker, monster, ct);
+
         await _storage.Characters.SavePositionAsync(
             attacker.CharacterId, attacker.MapId, attacker.X, attacker.Y, attacker.Hp, attacker.Mp, ct);
 
@@ -1074,6 +1096,7 @@ public sealed partial class GameWorldModule : IGameModule
             {
                 await Task.Delay(400, ct);
                 await TickMonstersAsync(ct);
+                await TickPetsAsync(ct);
                 await TickWorldBossesAsync(ct);
                 await TickLootExpiryAsync(ct);
                 await TickPlayerBuffsAsync(ct);
@@ -1208,6 +1231,9 @@ public sealed partial class GameWorldModule : IGameModule
                 if (died)
                 {
                     await ClearBuffsOnDeathAsync(target, ct);
+                    // M16 death rule: auto-recall pet on owner death; must re-summon after revive.
+                    if (!string.IsNullOrEmpty(target.ActivePetId))
+                        await DespawnPetEntityAsync(target, "owner_death", persist: true, ct);
                     await RevivePlayerAsync(target, aoi, ct);
                 }
                 else
@@ -1838,6 +1864,18 @@ public sealed partial class GameWorldModule : IGameModule
 
             await CleanupPartyOnDisconnectAsync(entity, ct);
             await OnDungeonPlayerDisconnectedAsync(entity, ct);
+            if (!string.IsNullOrEmpty(entity.ActivePetEntityId))
+            {
+                // Despawn AOI entity but keep ActivePetId so re-enter re-summons.
+                string? eid = entity.ActivePetEntityId;
+                if (!string.IsNullOrEmpty(eid) && _pets.TryRemove(eid, out var petDisc))
+                {
+                    await BroadcastNearAsync(petDisc.MapId, petDisc.X, petDisc.Y, MsgId.EntityDespawn,
+                        new EntityDespawn { EntityId = petDisc.EntityId, Reason = "disconnect", MapId = petDisc.MapId }, ct);
+                }
+                entity.ActivePetEntityId = string.Empty;
+                await PersistAppearanceAsync(entity, ct);
+            }
 
             var viewers = aoi.RemoveEntity(session.EntityId);
             var leaveMsg = new EntityLeaveAoi { EntityId = session.EntityId, Reason = "Disconnected" };
@@ -2316,6 +2354,41 @@ public sealed partial class GameWorldModule : IGameModule
         bool isAppearanceUnlock =
             (string.Equals(tmpl.Kind, "mount_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockMountId))
             || (string.Equals(tmpl.Kind, "fashion_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockFashionId));
+        bool isPetUnlock =
+            string.Equals(tmpl.Kind, "pet_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockPetId);
+
+        if (isPetUnlock)
+        {
+            var (okPet, msgPet) = await TryUnlockPetItemAsync(player, tmpl, itemId, ct);
+            if (!okPet)
+            {
+                await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                    Message = msgPet
+                }, ct);
+                return;
+            }
+            int remPet = player.Inventory.Where(s =>
+                string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);
+            var petResp = new UseItemResp
+            {
+                Success = true,
+                ErrorCode = ProtocolErrorCode.ErrNone,
+                Message = msgPet,
+                ItemId = itemId,
+                RemainingCount = remPet,
+                Hp = player.Hp,
+                MaxHp = player.MaxHp,
+                Mp = player.Mp,
+                MaxMp = player.MaxMp
+            };
+            foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+                petResp.Inventory.Add(slot);
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, petResp, ct);
+            return;
+        }
 
         if (isAppearanceUnlock)
         {

@@ -461,6 +461,24 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        var petsConfig = new PetsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.PetsConfigFile))
+        {
+            string petsPath = Path.Combine(baseDir, manifest.PetsConfigFile);
+            if (!File.Exists(petsPath))
+                throw new FileNotFoundException($"Pets config not found: {petsPath}");
+            string petsJson = File.ReadAllText(petsPath);
+            petsConfig = JsonSerializer.Deserialize<PetsConfigFile>(petsJson, JsonOptions)
+                ?? new PetsConfigFile();
+            hashInput.Append(petsJson);
+            foreach (var pet in petsConfig.Pets)
+            {
+                if (string.IsNullOrWhiteSpace(pet.PetId))
+                    throw new InvalidDataException("Pet missing petId");
+            }
+        }
+
         return new LoadedVersionPack
         {
             Manifest = manifest,
@@ -488,6 +506,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             WorldBoss = worldBossConfig,
             Mounts = mountsConfig,
             Fashions = fashionsConfig,
+            Pets = petsConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

@@ -135,6 +135,7 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<RareLootBroadcastEvent>(OnRareLootBroadcastAsync);
         _eventBus.Subscribe<MountChangedEvent>(OnMountChangedAsync);
         _eventBus.Subscribe<FashionChangedEvent>(OnFashionChangedAsync);
+        _eventBus.Subscribe<PetChangedEvent>(OnPetChangedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -1071,6 +1072,30 @@ public sealed class LuaScriptHost
         }
         return Task.CompletedTask;
     }
+
+    private Task OnPetChangedAsync(PetChangedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                string fnName = string.Equals(evt.Action, "summon", StringComparison.OrdinalIgnoreCase)
+                    ? "on_pet_summon" : "on_pet_dismiss";
+                DynValue fn = _luaVm.Globals.Get(fnName);
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                if (string.Equals(evt.Action, "summon", StringComparison.OrdinalIgnoreCase))
+                    _luaVm.Call(fn, evt.PlayerName, evt.CharacterId, evt.PetId, evt.PetEntityId);
+                else
+                    _luaVm.Call(fn, evt.PlayerName, evt.CharacterId, evt.PetId, evt.Reason);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_pet_* failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
 }
-
-

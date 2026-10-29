@@ -45,6 +45,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<WorldBossSpawnNotify> ReceivedWorldBossSpawns { get; } = new();
     public ConcurrentQueue<WorldBossHpNotify> ReceivedWorldBossHp { get; } = new();
     public ConcurrentQueue<AppearanceSyncNotify> ReceivedAppearanceSyncs { get; } = new();
+    public ConcurrentQueue<PetSyncNotify> ReceivedPetSyncs { get; } = new();
     public ConcurrentQueue<LootBroadcastNotify> ReceivedLootBroadcasts { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
@@ -288,6 +289,11 @@ public sealed class LegendTcpClient : IAsyncDisposable
                         ReceivedAppearanceSyncs.Enqueue(AppearanceSyncNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
+                    case MsgId.PetSyncNotify:
+                    {
+                        ReceivedPetSyncs.Enqueue(PetSyncNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
                     case MsgId.LootBroadcastNotify:
                     {
                         ReceivedLootBroadcasts.Enqueue(LootBroadcastNotify.Parser.ParseFrom(frame.Payload));
@@ -500,6 +506,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
         var resp = AttackResp.Parser.ParseFrom(frame.Payload);
         CombatSync? combat = null;
         string selfId = SelfEntity?.EntityId ?? "";
+        var deferred = new List<CombatSync>();
         for (int i = 0; i < 40 && combat is null; i++)
         {
             while (ReceivedCombatSyncs.TryDequeue(out var c))
@@ -507,12 +514,17 @@ public sealed class LegendTcpClient : IAsyncDisposable
                 if (c.AttackerEntityId == selfId && c.TargetEntityId == targetEntityId)
                 {
                     combat = c;
-                    break;
+                }
+                else
+                {
+                    deferred.Add(c);
                 }
             }
             if (combat is null)
                 await Task.Delay(25, ct);
         }
+        foreach (var d in deferred)
+            ReceivedCombatSyncs.Enqueue(d);
         return (resp, combat);
     }
 
@@ -1126,6 +1138,73 @@ public sealed class LegendTcpClient : IAsyncDisposable
             await Task.Delay(20, ct);
         }
         throw new TimeoutException("AppearanceSyncNotify not received");
+    }
+
+
+    public async Task<PetStatusResp> PetStatusAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PetStatusReq, new PetStatusReq(), ct);
+        return PetStatusResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PetSummonResp> PetSummonAsync(string petId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PetSummonReq, new PetSummonReq { PetId = petId ?? "" }, ct);
+        return PetSummonResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PetDismissResp> PetDismissAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PetDismissReq, new PetDismissReq(), ct);
+        return PetDismissResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PetSyncNotify> WaitPetSyncAsync(Func<PetSyncNotify, bool>? pred = null, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ReceivedPetSyncs.TryDequeue(out var n))
+            {
+                if (pred is null || pred(n))
+                    return n;
+            }
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("PetSyncNotify not received");
+    }
+
+    public async Task<CombatSync> WaitCombatSyncAsync(Func<CombatSync, bool>? pred = null, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ReceivedCombatSyncs.TryDequeue(out var n))
+            {
+                if (pred is null || pred(n))
+                    return n;
+            }
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("CombatSync not received");
+    }
+
+    public async Task<EntitySpawn> WaitEntitySpawnAsync(Func<EntitySpawn, bool>? pred = null, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ReceivedEntitySpawns.TryDequeue(out var n))
+            {
+                if (pred is null || pred(n))
+                    return n;
+            }
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("EntitySpawn not received");
     }
 
     public async ValueTask DisposeAsync()
