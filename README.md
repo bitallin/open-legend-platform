@@ -1,10 +1,23 @@
-# Legend Platform — 原创传奇类三端多版本运营平台 (Phase C/D)
+# Legend Platform — 原创传奇类三端多版本运营平台 (Phase E)
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：Phase C/D（多区开区编排 · 合区工具链 · 支付沙箱闭环）
+## 当前里程碑：Phase E（微信 / 支付宝商户沙箱适配）
 
-协议版本 **1.20.0**。在 M19 Admin API 之上增加：
+协议版本 **1.21.0**。在 Phase C/D 多区 · 合区 · mock 支付之上增加真实商户沙箱对接层（无密钥时走本地 `sandbox_sim`，插密钥即可用）：
+
+| 项 | 约定 |
+|----|------|
+| Provider | `mock` / `wechat` / `alipay`；`--payment-provider` + `LEGEND_PAYMENT_PROVIDER` |
+| 接口 | `IMerchantPaymentProvider`：`CreateCheckoutAsync` / `ParseAndVerifyNotifyAsync` |
+| 微信 | APIv3 风格；`POST /admin/payment/wechat/notify`；env `WECHAT_*` |
+| 支付宝 | RSA2；`POST /admin/payment/alipay/notify`；env `ALIPAY_*` |
+| 协议字段 | `PaymentCreateOrderResp`：`provider_id` / `checkout_url` / `pay_payload` / `provider_order_id` |
+| 本地模拟 | `LocalWechatSandboxSimulator` / `LocalAlipaySandboxSimulator`；Admin `build-notify` |
+| 验收 | `./scripts/verify-phase-e-payment.sh`；`PhaseEPaymentIntegrationTests`；`verify-phase-cd.sh` 仍绿 |
+| 文档 | `docs/PAYMENT_SANDBOX.md` |
+
+### Phase C/D（仍生效）
 
 | 项 | 约定 |
 |----|------|
@@ -13,12 +26,10 @@
 | RealmList | Login 返回 catalog 内全部区服；本区端口为实际 BoundPort |
 | 合区 | `tools/Legend.Merge`：同账号合并角色、重名 `_m` 后缀、同行会改名；`--dry-run` / 正式合区 |
 | 合区规则 | `tools/Legend.Merge/MERGE_RULES.md` |
-| 支付抽象 | `IPaymentProvider` + `MockPaymentProvider`（HMAC）；商品目录 `PaymentCatalog` |
-| 游戏协议 | MsgId 3801–3805 PaymentCreate/Status/Fulfilled；`ERR_PAYMENT_*` |
-| Webhook | `POST /admin/payment/webhook`（`X-Payment-Signature`，不走 Admin Token） |
-| 管理充值 | `POST /admin/recharge`（Bearer Token；`characterName/characterId + productId`） |
-| 发货 | 幂等：Paid→邮件附件金币/道具→Fulfilled；重复回调 `already_fulfilled` |
-| 验收 | `./scripts/verify-phase-cd.sh`；`PhaseCdIntegrationTests` |
+| Mock 支付 | `MockPaymentProvider`（HMAC）；商品 `gold_100` / `gold_1000` / `item_hp_pack` |
+| Webhook | `POST /admin/payment/webhook`（`X-Payment-Signature`） |
+| 管理充值 | `POST /admin/recharge` |
+| 发货 | 幂等；金额与 `PriceCents` 不符拒绝 |
 
 ### M19（Admin 在线/封禁/禁言/攻城/热重载）仍生效
 
@@ -35,7 +46,7 @@
 ## 1. 目录结构
 ```text
 legend-platform/
-├── protocol/                    # Protobuf 契约 (VERSION=1.19.0)
+├── protocol/                    # Protobuf 契约 (VERSION=1.21.0)
 ├── server/
 │   ├── Legend.Contracts/        # MsgId 3601–3608 行会仓；3501–3511 宠物
 │   ├── Legend.Core/             # VersionPackLoader(+guild warehouse 字段)
@@ -48,11 +59,15 @@ legend-platform/
 ├── version-packs/sample-classic/# guild.json 仓权限 + guild.lua
 ├── realms/                     # 多区配置 catalog + realm-*.json
 ├── tools/Legend.Merge/         # 合区工具 + MERGE_RULES.md
-└── scripts/verify-phase-cd.sh / verify-m19.sh
+├── tools/payment-sandbox-sim/ # 微信/支付宝 notify 样例生成
+├── certs/payment/              # *.example.pem 占位（勿放真实密钥）
+├── docs/PAYMENT_SANDBOX.md     # 商户沙箱接入说明
+└── scripts/verify-phase-e-payment.sh / verify-phase-cd.sh / verify-m19.sh
 ```
 
 ## 2. 快速验证
 ```bash
+./scripts/verify-phase-e-payment.sh
 ./scripts/verify-phase-cd.sh
 # 回归：
 ./scripts/verify-m19.sh
@@ -90,10 +105,14 @@ dotnet run --project tools/Legend.Merge -- \
 ```
 
 ### 支付沙箱
-1. 进服后 `PaymentCreateOrder`（商品 `gold_100` / `gold_1000` / `item_hp_pack`）
-2. `POST /admin/payment/webhook`，canonical=`orderId|txn|paid`，`X-Payment-Signature`=HMAC-SHA256(secret)
-3. 或 `POST /admin/recharge` 管理直充；邮件领取金币/道具
-4. 重复 webhook 幂等
+详见 **[docs/PAYMENT_SANDBOX.md](docs/PAYMENT_SANDBOX.md)**。
+
+1. 进服后 `PaymentCreateOrder`（商品 `gold_100` / `gold_1000` / `item_hp_pack`）→ 含 `provider_id` / `pay_payload` / `checkout_url`
+2. Mock：`POST /admin/payment/webhook`，canonical=`orderId|txn|paid`，`X-Payment-Signature`=HMAC-SHA256(secret)
+3. 微信模拟：`POST /admin/payment/wechat/notify`（可用 `/admin/payment/sandbox-sim/build-notify` 生成签名体）
+4. 支付宝模拟：`POST /admin/payment/alipay/notify`
+5. 或 `POST /admin/recharge` 管理直充；邮件领取；重复回调幂等
+6. 真实商户：配置 `WECHAT_*` / `ALIPAY_*` 后 `--payment-provider wechat|alipay`
 
 
 

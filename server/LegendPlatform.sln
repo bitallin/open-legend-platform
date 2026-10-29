@@ -29,6 +29,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Legend.Merge", "..\tools\Le
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cd-phase-seed", "..\tools\cd-phase-seed\cd-phase-seed.csproj", "{C21026CF-F631-4C38-BD36-CED179039F75}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "payment-sandbox-sim", "..\tools\payment-sandbox-sim\payment-sandbox-sim.csproj", "{2F6D76F4-E17F-4038-841E-ECB31C49C18D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "phase-e-payment-seed", "..\tools\phase-e-payment-seed\phase-e-payment-seed.csproj", "{A7D9E959-7DF9-476C-956C-BAA6260D868D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -90,5 +94,13 @@ Global
 		{C21026CF-F631-4C38-BD36-CED179039F75}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C21026CF-F631-4C38-BD36-CED179039F75}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C21026CF-F631-4C38-BD36-CED179039F75}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F6D76F4-E17F-4038-841E-ECB31C49C18D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F6D76F4-E17F-4038-841E-ECB31C49C18D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F6D76F4-E17F-4038-841E-ECB31C49C18D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F6D76F4-E17F-4038-841E-ECB31C49C18D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7D9E959-7DF9-476C-956C-BAA6260D868D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7D9E959-7DF9-476C-956C-BAA6260D868D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7D9E959-7DF9-476C-956C-BAA6260D868D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7D9E959-7DF9-476C-956C-BAA6260D868D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

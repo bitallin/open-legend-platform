@@ -8,10 +8,17 @@ public sealed partial class GameWorldModule
 {
     private IPaymentProvider _paymentProvider = new MockPaymentProvider("legend-mock-pay-secret");
     private readonly SemaphoreSlim _paymentGate = new(1, 1);
+    private string _paymentNotifyBaseUrl = "";
 
     public void ConfigurePaymentProvider(IPaymentProvider provider)
     {
         _paymentProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+    }
+
+    /// <summary>Optional public base for merchant notify_url (e.g. http://host:adminPort).</summary>
+    public void ConfigurePaymentNotifyBaseUrl(string? baseUrl)
+    {
+        _paymentNotifyBaseUrl = (baseUrl ?? "").TrimEnd('/');
     }
 
     public IPaymentProvider PaymentProvider => _paymentProvider;
@@ -44,6 +51,46 @@ public sealed partial class GameWorldModule
 
         string orderId = Guid.NewGuid().ToString("N");
         string token = _paymentProvider.CreatePayToken(orderId, product.ProductId, product.PriceCents);
+
+        string checkoutUrl = "";
+        string payPayload = token;
+        string providerOrderId = orderId;
+        string providerId = _paymentProvider.ProviderId;
+
+        if (_paymentProvider is IMerchantPaymentProvider merchant)
+        {
+            string notifyUrl = providerId switch
+            {
+                "wechat" => string.IsNullOrEmpty(_paymentNotifyBaseUrl) ? "" : _paymentNotifyBaseUrl + "/admin/payment/wechat/notify",
+                "alipay" => string.IsNullOrEmpty(_paymentNotifyBaseUrl) ? "" : _paymentNotifyBaseUrl + "/admin/payment/alipay/notify",
+                _ => ""
+            };
+            var checkout = await merchant.CreateCheckoutAsync(new PaymentCheckoutRequest
+            {
+                OrderId = orderId,
+                ProductId = product.ProductId,
+                Description = product.Name,
+                PriceCents = product.PriceCents,
+                NotifyUrl = notifyUrl
+            }, ct);
+            if (!checkout.Ok)
+            {
+                await session.SendAsync(MsgId.PaymentCreateOrderResp, frame.Seq, new PaymentCreateOrderResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrPaymentInvalid,
+                    Message = checkout.Message,
+                    ProviderId = providerId
+                }, ct);
+                return;
+            }
+            checkoutUrl = checkout.CheckoutUrl ?? "";
+            payPayload = string.IsNullOrWhiteSpace(checkout.PayPayload) ? token : checkout.PayPayload;
+            providerOrderId = string.IsNullOrWhiteSpace(checkout.ProviderOrderId) ? orderId : checkout.ProviderOrderId;
+            if (checkout.UsedSandboxSimulator)
+                StructuredLoggerMaybe($"payment checkout sandbox_sim provider={providerId} order={orderId}");
+        }
+
         var order = new PaymentOrderRecord
         {
             OrderId = orderId,
@@ -55,7 +102,7 @@ public sealed partial class GameWorldModule
             RewardItemId = product.RewardItemId ?? "",
             RewardItemCount = product.RewardItemCount,
             Status = "Pending",
-            Provider = _paymentProvider.ProviderId,
+            Provider = providerId,
             MockPayToken = token,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
@@ -71,8 +118,22 @@ public sealed partial class GameWorldModule
             ProductId = product.ProductId,
             PriceCents = product.PriceCents,
             MockPayToken = token,
-            Status = "Pending"
+            Status = "Pending",
+            ProviderId = providerId,
+            CheckoutUrl = checkoutUrl,
+            PayPayload = payPayload,
+            ProviderOrderId = providerOrderId
         }, ct);
+    }
+
+    private static void StructuredLoggerMaybe(string msg)
+    {
+        try
+        {
+            // Avoid hard dependency if Core logger shape changes
+            Console.Error.WriteLine($"[Legend.Game] {msg}");
+        }
+        catch { /* ignore */ }
     }
 
     private async Task HandlePaymentOrderStatusAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
@@ -115,12 +176,14 @@ public sealed partial class GameWorldModule
 
     /// <summary>
     /// Idempotent fulfill: mark paid (if needed) then deliver mail rewards once.
+    /// When <paramref name="paidAmountCents"/> is set, it must match order.PriceCents.
     /// </summary>
     public async Task<(bool Ok, string Message, PaymentOrderRecord? Order)> FulfillPaymentOrderAsync(
         string orderId,
         string providerTxnId,
         bool requirePaidTransition,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        int? paidAmountCents = null)
     {
         await _paymentGate.WaitAsync(ct);
         try
@@ -128,6 +191,9 @@ public sealed partial class GameWorldModule
             var existing = await _storage.Payments.GetByIdAsync(orderId, ct);
             if (existing is null)
                 return (false, "order_not_found", null);
+
+            if (paidAmountCents is int amt && amt != existing.PriceCents)
+                return (false, "amount_mismatch", existing);
 
             if (string.Equals(existing.Status, "Fulfilled", StringComparison.OrdinalIgnoreCase))
                 return (true, "already_fulfilled", existing);

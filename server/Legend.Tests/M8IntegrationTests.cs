@@ -30,7 +30,7 @@ public class M8IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.20.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.21.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -226,7 +226,7 @@ public class M8IntegrationTests
     {
         var loader = new VersionPackLoader();
         var pack = loader.LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.20.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.21.0", pack.Manifest.ProtocolVersion);
         Assert.Equal(5, pack.Party.MaxMembers);
         Assert.True(pack.Party.ExpShareSameMapOnly);
         Assert.Equal(10, pack.Party.ExpBonusPercent);

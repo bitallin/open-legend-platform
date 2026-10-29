@@ -85,10 +85,20 @@ public sealed class AdminHttpServer : IAsyncDisposable
             string path = ctx.Request.Url?.AbsolutePath?.TrimEnd('/') ?? "";
             string method = ctx.Request.HttpMethod.ToUpperInvariant();
 
-            // Merchant webhook: signature auth (not admin token)
+            // Merchant webhook / notify: signature auth (not admin token)
             if (method == "POST" && path == "/admin/payment/webhook")
             {
                 await HandlePaymentWebhookAsync(ctx, ct);
+                return;
+            }
+            if (method == "POST" && path == "/admin/payment/wechat/notify")
+            {
+                await HandleWechatNotifyAsync(ctx, ct);
+                return;
+            }
+            if (method == "POST" && path == "/admin/payment/alipay/notify")
+            {
+                await HandleAlipayNotifyAsync(ctx, ct);
                 return;
             }
 
@@ -146,6 +156,11 @@ public sealed class AdminHttpServer : IAsyncDisposable
             if (method == "POST" && path == "/admin/recharge")
             {
                 await HandleRechargeAsync(ctx, ct);
+                return;
+            }
+            if (method == "POST" && path == "/admin/payment/sandbox-sim/build-notify")
+            {
+                await HandleSandboxSimBuildNotifyAsync(ctx, ct);
                 return;
             }
 
@@ -367,6 +382,90 @@ public sealed class AdminHttpServer : IAsyncDisposable
         }, ct);
     }
 
+    private async Task HandleWechatNotifyAsync(HttpListenerContext ctx, CancellationToken ct)
+    {
+        string raw;
+        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding ?? Encoding.UTF8))
+            raw = await reader.ReadToEndAsync(ct);
+
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string? key in ctx.Request.Headers.AllKeys ?? Array.Empty<string>())
+        {
+            if (key is null) continue;
+            headers[key] = ctx.Request.Headers[key] ?? "";
+        }
+
+        var provider = _engine.PaymentProviders.Wechat;
+        var parsed = await provider.ParseAndVerifyNotifyAsync(raw, headers, ct);
+        if (!parsed.SignatureValid)
+        {
+            await WriteRawAsync(ctx.Response, 401, parsed.ContentType, parsed.FailureResponseBody, ct);
+            return;
+        }
+        if (!parsed.Paid)
+        {
+            await WriteRawAsync(ctx.Response, 200, parsed.ContentType, parsed.SuccessResponseBody, ct);
+            return;
+        }
+
+        var (ok, msg, order) = await _engine.GameWorldModule.FulfillPaymentOrderAsync(
+            parsed.OrderId, parsed.ProviderTxnId, requirePaidTransition: true, ct, paidAmountCents: parsed.AmountCents);
+        if (!ok)
+        {
+            StructuredLogger.Error("AdminHttp", $"WeChat fulfill failed: {msg} order={parsed.OrderId}");
+            await WriteRawAsync(ctx.Response, 500, parsed.ContentType, parsed.FailureResponseBody, ct);
+            return;
+        }
+        await WriteRawAsync(ctx.Response, 200, parsed.ContentType, parsed.SuccessResponseBody, ct);
+    }
+
+    private async Task HandleAlipayNotifyAsync(HttpListenerContext ctx, CancellationToken ct)
+    {
+        string raw;
+        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding ?? Encoding.UTF8))
+            raw = await reader.ReadToEndAsync(ct);
+
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string? key in ctx.Request.Headers.AllKeys ?? Array.Empty<string>())
+        {
+            if (key is null) continue;
+            headers[key] = ctx.Request.Headers[key] ?? "";
+        }
+
+        var provider = _engine.PaymentProviders.Alipay;
+        var parsed = await provider.ParseAndVerifyNotifyAsync(raw, headers, ct);
+        if (!parsed.SignatureValid)
+        {
+            await WriteRawAsync(ctx.Response, 401, parsed.ContentType, parsed.FailureResponseBody, ct);
+            return;
+        }
+        if (!parsed.Paid)
+        {
+            await WriteRawAsync(ctx.Response, 200, parsed.ContentType, parsed.SuccessResponseBody, ct);
+            return;
+        }
+
+        var (ok, msg, order) = await _engine.GameWorldModule.FulfillPaymentOrderAsync(
+            parsed.OrderId, parsed.ProviderTxnId, requirePaidTransition: true, ct, paidAmountCents: parsed.AmountCents);
+        if (!ok)
+        {
+            StructuredLogger.Error("AdminHttp", $"Alipay fulfill failed: {msg} order={parsed.OrderId}");
+            await WriteRawAsync(ctx.Response, 500, parsed.ContentType, parsed.FailureResponseBody, ct);
+            return;
+        }
+        await WriteRawAsync(ctx.Response, 200, parsed.ContentType, parsed.SuccessResponseBody, ct);
+    }
+
+    private static async Task WriteRawAsync(HttpListenerResponse resp, int status, string contentType, string body, CancellationToken ct)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(body ?? "");
+        resp.StatusCode = status;
+        resp.ContentType = string.IsNullOrWhiteSpace(contentType) ? "text/plain; charset=utf-8" : contentType;
+        resp.ContentLength64 = bytes.Length;
+        await resp.OutputStream.WriteAsync(bytes, ct);
+        resp.OutputStream.Close();
+    }
+
     private async Task HandleRechargeAsync(HttpListenerContext ctx, CancellationToken ct)
     {
         var body = await ReadBodyAsync<RechargeBody>(ctx.Request, ct) ?? new RechargeBody();
@@ -387,6 +486,47 @@ public sealed class AdminHttpServer : IAsyncDisposable
             mailId = order?.FulfilledMailId,
             characterId = order?.CharacterId
         }, ct);
+    }
+
+
+    private async Task HandleSandboxSimBuildNotifyAsync(HttpListenerContext ctx, CancellationToken ct)
+    {
+        var body = await ReadBodyAsync<SandboxSimBody>(ctx.Request, ct) ?? new SandboxSimBody();
+        string provider = (body.Provider ?? "").Trim().ToLowerInvariant();
+        string orderId = body.OrderId ?? "";
+        string txn = string.IsNullOrWhiteSpace(body.ProviderTxnId) ? ("sim-" + Guid.NewGuid().ToString("N")) : body.ProviderTxnId!;
+        int amount = body.AmountCents ?? 0;
+        if (string.IsNullOrWhiteSpace(orderId) || amount <= 0)
+        {
+            await WriteJsonAsync(ctx.Response, 400, new { ok = false, error = "orderId_and_amountCents_required" }, ct);
+            return;
+        }
+
+        if (provider == "wechat")
+        {
+            var sim = _engine.PaymentProviders.Wechat.Simulator;
+            if (sim is null)
+            {
+                await WriteJsonAsync(ctx.Response, 400, new { ok = false, error = "wechat_not_in_sandbox_sim" }, ct);
+                return;
+            }
+            var (raw, headers) = sim.BuildPaidNotify(orderId, txn, amount);
+            await WriteJsonAsync(ctx.Response, 200, new { ok = true, mode = "sandbox_sim", provider, body = raw, headers, notifyPath = "/admin/payment/wechat/notify" }, ct);
+            return;
+        }
+        if (provider == "alipay")
+        {
+            var sim = _engine.PaymentProviders.Alipay.Simulator;
+            if (sim is null)
+            {
+                await WriteJsonAsync(ctx.Response, 400, new { ok = false, error = "alipay_not_in_sandbox_sim" }, ct);
+                return;
+            }
+            var (raw, headers) = sim.BuildPaidNotify(orderId, txn, amount);
+            await WriteJsonAsync(ctx.Response, 200, new { ok = true, mode = "sandbox_sim", provider, body = raw, headers, notifyPath = "/admin/payment/alipay/notify" }, ct);
+            return;
+        }
+        await WriteJsonAsync(ctx.Response, 400, new { ok = false, error = "provider_must_be_wechat_or_alipay" }, ct);
     }
 
     private sealed class BanMuteBody
@@ -425,5 +565,13 @@ public sealed class AdminHttpServer : IAsyncDisposable
         public string? CharacterId { get; set; }
         public string? CharacterName { get; set; }
         public string? ProductId { get; set; }
+    }
+
+    private sealed class SandboxSimBody
+    {
+        public string? Provider { get; set; }
+        public string? OrderId { get; set; }
+        public string? ProviderTxnId { get; set; }
+        public int? AmountCents { get; set; }
     }
 }

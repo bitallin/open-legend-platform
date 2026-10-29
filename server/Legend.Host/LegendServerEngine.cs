@@ -1,5 +1,6 @@
 using System.Net;
 using Legend.Contracts;
+using Legend.Contracts.Payment;
 using Legend.Core;
 using Legend.Game;
 using Legend.Gate;
@@ -28,6 +29,8 @@ public sealed class LegendServerEngine : IAsyncDisposable
     public IReadOnlyList<RealmConfig> RealmCatalog { get; private set; } = Array.Empty<RealmConfig>();
     public RealmConfig? LocalRealm { get; private set; }
     public string PaymentSecret { get; private set; } = "legend-mock-pay-secret";
+    public string PaymentProviderId { get; private set; } = "mock";
+    public PaymentProviderRegistry PaymentProviders { get; private set; } = null!;
 
     public LegendServerEngine(
         string manifestPath,
@@ -36,7 +39,8 @@ public sealed class LegendServerEngine : IAsyncDisposable
         ILegendStorage? storage = null,
         IReadOnlyList<RealmConfig>? realmCatalog = null,
         RealmConfig? localRealm = null,
-        string? paymentSecret = null)
+        string? paymentSecret = null,
+        string? paymentProvider = null)
     {
         ManifestPath = Path.GetFullPath(manifestPath);
         EventBus = new InMemoryEventBus();
@@ -51,7 +55,11 @@ public sealed class LegendServerEngine : IAsyncDisposable
 
         GameWorldModule = new GameWorldModule(EventBus, VersionPack, Storage);
         PaymentSecret = string.IsNullOrWhiteSpace(paymentSecret) ? "legend-mock-pay-secret" : paymentSecret!;
-        GameWorldModule.ConfigurePaymentProvider(new Legend.Contracts.MockPaymentProvider(PaymentSecret));
+        PaymentProviderId = string.IsNullOrWhiteSpace(paymentProvider)
+            ? (Environment.GetEnvironmentVariable("LEGEND_PAYMENT_PROVIDER") ?? "mock")
+            : paymentProvider!;
+        PaymentProviders = new PaymentProviderRegistry(PaymentProviderId, PaymentSecret);
+        GameWorldModule.ConfigurePaymentProvider(PaymentProviders.Active);
 
         LocalRealm = localRealm;
         RealmCatalog = realmCatalog ?? Array.Empty<RealmConfig>();
@@ -83,12 +91,13 @@ public sealed class LegendServerEngine : IAsyncDisposable
         IReadOnlyList<RealmConfig>? realmCatalog = null,
         RealmConfig? localRealm = null,
         string? paymentSecret = null,
+        string? paymentProvider = null,
         CancellationToken ct = default)
     {
         var opts = storageOptions ?? StorageFactory.FromEnvironment();
         var storage = await StorageFactory.CreateAsync(opts, ct);
         StructuredLogger.Info("Legend.Host", $"Storage backend: {storage.BackendName}");
-        var engine = new LegendServerEngine(manifestPath, port, bindAddress, storage, realmCatalog, localRealm, paymentSecret);
+        var engine = new LegendServerEngine(manifestPath, port, bindAddress, storage, realmCatalog, localRealm, paymentSecret, paymentProvider);
         return engine;
     }
 
@@ -113,6 +122,9 @@ public sealed class LegendServerEngine : IAsyncDisposable
 
         AdminServer = new AdminHttpServer(this, adminPort, adminToken, bindIp);
         await AdminServer.StartAsync(ct);
+        GameWorldModule.ConfigurePaymentNotifyBaseUrl($"http://{bindIp}:{AdminServer.BoundPort}");
+        StructuredLogger.Info("Legend.Host",
+            $"Payment provider={PaymentProviderId} (wechat_sim={PaymentProviders.Wechat.IsSimulator}, alipay_sim={PaymentProviders.Alipay.IsSimulator})");
     }
 
     public async Task<(bool Ok, string Message, string? OldHash, string? NewHash, string? VersionId)> ReloadVersionPackAsync(
@@ -165,6 +177,7 @@ public sealed class LegendServerEngine : IAsyncDisposable
             await AdminServer.DisposeAsync();
         await GateServer.DisposeAsync();
         await GameWorldModule.DisposeAiAsync();
+        PaymentProviders.Dispose();
         await Storage.DisposeAsync();
     }
 }

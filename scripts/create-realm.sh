@@ -45,7 +45,7 @@ cat > "$CFG" << JSON
   "sqlitePath": "${DB}",
   "manifestPath": "${MANIFEST}",
   "status": "OPEN",
-  "versionPackId": "sample-classic-1.20.0"
+  "versionPackId": "sample-classic-1.21.0"
 }
 JSON
 

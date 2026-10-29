@@ -13,3 +13,10 @@ data/
 *.db-*
 
 data/
+
+# payment secrets (keep *.example.pem)
+certs/payment/**
+!certs/payment/README.md
+!certs/payment/*.example.pem
+*.pem
+!certs/payment/*.example.pem

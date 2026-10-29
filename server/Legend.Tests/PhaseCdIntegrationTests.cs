@@ -46,7 +46,7 @@ public sealed class PhaseCdIntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.20.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.21.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -83,10 +83,10 @@ public sealed class PhaseCdIntegrationTests
     [Fact]
     public void Protocol_Version_Is_1_20()
     {
-        Assert.Equal("1.20.0", ProtocolConstants.CurrentVersion);
-        Assert.Equal("1.20.0", ProtocolConstants.MinCompatibleVersion);
+        Assert.Equal("1.21.0", ProtocolConstants.CurrentVersion);
+        Assert.Equal("1.21.0", ProtocolConstants.MinCompatibleVersion);
         var pack = new VersionPackLoader().LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.20.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.21.0", pack.Manifest.ProtocolVersion);
         Assert.Equal(MsgId.PaymentCreateOrderReq, (MsgId)3801);
         Assert.Equal(MsgId.PaymentFulfilledNotify, (MsgId)3805);
     }
@@ -116,7 +116,7 @@ public sealed class PhaseCdIntegrationTests
         {
             var client = new LegendTcpClient();
             await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-            Assert.True((await client.HandshakeAsync("1.20.0", "pc-cd-realm", default)).Accepted);
+            Assert.True((await client.HandshakeAsync("1.21.0", "pc-cd-realm", default)).Accepted);
             await client.RegisterAsync("cd_realm_user", "secret12345", "PC");
             var login = await client.LoginAsync("cd_realm_user", "secret12345", "PC");
             Assert.True(login.Success, login.Message);

@@ -14,6 +14,7 @@ string? realmConfigPath = Environment.GetEnvironmentVariable("LEGEND_REALM_CONFI
 string? realmCatalogPath = Environment.GetEnvironmentVariable("LEGEND_REALM_CATALOG");
 string? realmId = Environment.GetEnvironmentVariable("LEGEND_REALM_ID");
 string paymentSecret = Environment.GetEnvironmentVariable("LEGEND_PAYMENT_SECRET") ?? "legend-mock-pay-secret";
+string paymentProvider = Environment.GetEnvironmentVariable("LEGEND_PAYMENT_PROVIDER") ?? "mock";
 
 if (int.TryParse(Environment.GetEnvironmentVariable("LEGEND_ADMIN_PORT"), out int envAdminPort))
     adminPortOpt = envAdminPort;
@@ -51,6 +52,8 @@ for (int i = 0; i < args.Length; i++)
         realmId = args[++i];
     else if (args[i] == "--payment-secret" && i + 1 < args.Length)
         paymentSecret = args[++i];
+    else if (args[i] == "--payment-provider" && i + 1 < args.Length)
+        paymentProvider = args[++i];
 }
 
 RealmConfig? localRealm = null;
@@ -111,7 +114,7 @@ Console.CancelKeyPress += (_, e) =>
 AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
 
 await using var engine = await LegendServerEngine.CreateAsync(
-    manifestPath, port, IPAddress.Parse(bindIp), storageOverride, catalog, localRealm, paymentSecret, cts.Token);
+    manifestPath, port, IPAddress.Parse(bindIp), storageOverride, catalog, localRealm, paymentSecret, paymentProvider, cts.Token);
 await engine.StartAsync(cts.Token);
 
 if (adminPortOpt is int adminPort)
@@ -122,7 +125,7 @@ if (adminPortOpt is int adminPort)
 StructuredLogger.Info("Legend.Host",
     $"Legend.Host ready on {bindIp}:{engine.BoundPort} (Realm={localRealm?.RealmId ?? engine.VersionPack.Manifest.RealmId}, VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash}, Storage={engine.Storage.BackendName}" +
     (engine.AdminBoundPort > 0 ? $", Admin={adminBind}:{engine.AdminBoundPort}" : "") +
-    $", CatalogRealms={engine.RealmCatalog.Count})");
+    $", Payment={engine.PaymentProviderId}, CatalogRealms={engine.RealmCatalog.Count})");
 
 try
 {

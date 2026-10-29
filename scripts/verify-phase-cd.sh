@@ -41,8 +41,8 @@ cleanup() {
 trap cleanup EXIT
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION)"
-if [[ "$PROTO_VER" != "1.20.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.20.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.21.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.21.0, got '$PROTO_VER'"
   exit 1
 fi
 
@@ -93,7 +93,7 @@ cat > "$CFG1" << JSON
   "sqlitePath": "${DB1}",
   "manifestPath": "version-packs/sample-classic/manifest.json",
   "status": "OPEN",
-  "versionPackId": "sample-classic-1.20.0"
+  "versionPackId": "sample-classic-1.21.0"
 }
 JSON
 cat > "$CFG2" << JSON
@@ -106,7 +106,7 @@ cat > "$CFG2" << JSON
   "sqlitePath": "${DB2}",
   "manifestPath": "version-packs/sample-classic/manifest.json",
   "status": "OPEN",
-  "versionPackId": "sample-classic-1.20.0"
+  "versionPackId": "sample-classic-1.21.0"
 }
 JSON
 

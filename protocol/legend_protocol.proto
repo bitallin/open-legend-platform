@@ -1537,6 +1537,11 @@ message PaymentCreateOrderResp {
   int32 price_cents = 6;
   string mock_pay_token = 7;
   string status = 8;
+  // Phase E: merchant checkout fields
+  string provider_id = 9;
+  string checkout_url = 10;
+  string pay_payload = 11;
+  string provider_order_id = 12;
 }
 
 message PaymentOrderStatusReq {

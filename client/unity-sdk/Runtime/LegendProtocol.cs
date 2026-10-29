@@ -565,76 +565,78 @@ namespace Legend.Contracts.Proto {
             "b2R1Y3RfaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtwcmljZV9jZW50cxgD",
             "IAEoBRITCgtyZXdhcmRfZ29sZBgEIAEoBRIWCg5yZXdhcmRfaXRlbV9pZBgF",
             "IAEoCRIZChFyZXdhcmRfaXRlbV9jb3VudBgGIAEoBSIrChVQYXltZW50Q3Jl",
-            "YXRlT3JkZXJSZXESEgoKcHJvZHVjdF9pZBgBIAEoCSLYAQoWUGF5bWVudENy",
+            "YXRlT3JkZXJSZXESEgoKcHJvZHVjdF9pZBgBIAEoCSKzAgoWUGF5bWVudENy",
             "ZWF0ZU9yZGVyUmVzcBIPCgdzdWNjZXNzGAEgASgIEjkKCmVycm9yX2NvZGUY",
             "AiABKA4yJS5sZWdlbmQucHJvdG9jb2wudjEuUHJvdG9jb2xFcnJvckNvZGUS",
             "DwoHbWVzc2FnZRgDIAEoCRIQCghvcmRlcl9pZBgEIAEoCRISCgpwcm9kdWN0",
             "X2lkGAUgASgJEhMKC3ByaWNlX2NlbnRzGAYgASgFEhYKDm1vY2tfcGF5X3Rv",
-            "a2VuGAcgASgJEg4KBnN0YXR1cxgIIAEoCSIpChVQYXltZW50T3JkZXJTdGF0",
-            "dXNSZXESEAoIb3JkZXJfaWQYASABKAkixgEKFlBheW1lbnRPcmRlclN0YXR1",
-            "c1Jlc3ASDwoHc3VjY2VzcxgBIAEoCBI5CgplcnJvcl9jb2RlGAIgASgOMiUu",
-            "bGVnZW5kLnByb3RvY29sLnYxLlByb3RvY29sRXJyb3JDb2RlEg8KB21lc3Nh",
-            "Z2UYAyABKAkSEAoIb3JkZXJfaWQYBCABKAkSEgoKcHJvZHVjdF9pZBgFIAEo",
-            "CRIOCgZzdGF0dXMYBiABKAkSGQoRZnVsZmlsbGVkX21haWxfaWQYByABKAki",
-            "lwEKFlBheW1lbnRGdWxmaWxsZWROb3RpZnkSEAoIb3JkZXJfaWQYASABKAkS",
-            "EgoKcHJvZHVjdF9pZBgCIAEoCRIPCgdtYWlsX2lkGAMgASgJEhMKC3Jld2Fy",
-            "ZF9nb2xkGAQgASgFEhYKDnJld2FyZF9pdGVtX2lkGAUgASgJEhkKEXJld2Fy",
-            "ZF9pdGVtX2NvdW50GAYgASgFKrgQChFQcm90b2NvbEVycm9yQ29kZRIMCghF",
-            "UlJfTk9ORRAAEhkKFEVSUl9WRVJTSU9OX01JU01BVENIEOkHEhQKD0VSUl9B",
-            "VVRIX0ZBSUxFRBDqBxIWChFFUlJfSU5WQUxJRF9UT0tFThDrBxIaChVFUlJf",
-            "UkVBTE1fVU5BVkFJTEFCTEUQ7AcSFQoQRVJSX01PVkVfQkxPQ0tFRBDtBxIV",
-            "ChBFUlJfUkFURV9MSU1JVEVEEO4HEhcKEkVSUl9DSEFSX05PVF9GT1VORBDv",
-            "BxIYChNFUlJfQ0hBUl9OQU1FX1RBS0VOEPAHEhYKEUVSUl9JTlZBTElEX0NM",
-            "QVNTEPEHEhMKDkVSUl9DSEFSX0xJTUlUEPIHEhcKEkVSUl9VU0VSTkFNRV9U",
-            "QUtFThDzBxIWChFFUlJfSU5WQUxJRF9TS0lMTBD0BxIXChJFUlJfU0tJTExf",
-            "Q09PTERPV04Q9QcSFQoQRVJSX09VVF9PRl9SQU5HRRD2BxISCg1FUlJfU0FG",
-            "RV9aT05FEPcHEhcKEkVSUl9JTlZBTElEX1RBUkdFVBD4BxIUCg9FUlJfTE9P",
-            "VF9ERU5JRUQQ+QcSDQoIRVJSX0RFQUQQ+gcSGAoTRVJSX05PVF9FTk9VR0hf",
-            "R09MRBD7BxIUCg9FUlJfU0hPUF9ERU5JRUQQ/AcSFQoQRVJSX1FVRVNUX0RF",
-            "TklFRBD9BxIUCg9FUlJfTlBDX1RPT19GQVIQ/gcSFAoPRVJSX1VOS05PV05f",
-            "TlBDEP8HEhUKEEVSUl9FUVVJUF9ERU5JRUQQgAgSFwoSRVJSX0VOSEFOQ0Vf",
-            "REVOSUVEEIEIEhgKE0VSUl9VU0VfSVRFTV9ERU5JRUQQgggSFQoQRVJSX0dV",
-            "SUxEX0RFTklFRBCDCBIUCg9FUlJfQ0hBVF9ERU5JRUQQhAgSGAoTRVJSX0dV",
-            "SUxEX05PVF9GT1VORBCFCBIZChRFUlJfR1VJTERfTkFNRV9UQUtFThCGCBIZ",
-            "ChRFUlJfQUxSRUFEWV9JTl9HVUlMRBCHCBITCg5FUlJfR1VJTERfRlVMTBCI",
-            "CBIVChBFUlJfTk9UX0lOX0dVSUxEEIkIEhUKEEVSUl9UUkFERV9ERU5JRUQQ",
-            "iggSGgoVRVJSX0xJU1RJTkdfTk9UX0ZPVU5EEIsIEhYKEUVSUl9MSVNUSU5H",
-            "X0xJTUlUEIwIEhgKE0VSUl9TRUxGX0JVWV9ERU5JRUQQjQgSFQoQRVJSX1BB",
-            "UlRZX0RFTklFRBCOCBITCg5FUlJfUEFSVFlfRlVMTBCPCBIZChRFUlJfQUxS",
-            "RUFEWV9JTl9QQVJUWRCQCBIVChBFUlJfTk9UX0lOX1BBUlRZEJEIEhgKE0VS",
-            "Ul9QQVJUWV9OT1RfRk9VTkQQkggSFgoRRVJSX0ZSSUVORF9ERU5JRUQQkwgS",
-            "FQoQRVJSX0ZSSUVORF9MSU1JVBCUCBITCg5FUlJfTk9UX0ZSSUVORBCVCBIZ",
-            "ChRFUlJfRlJJRU5EX05PVF9GT1VORBCWCBIXChJFUlJfVEFSR0VUX09GRkxJ",
-            "TkUQlwgSGgoVRVJSX1NLSUxMX05PVF9MRUFSTkVEEJgIEhsKFkVSUl9TS0lM",
-            "TF9MRUFSTl9ERU5JRUQQmQgSGAoTRVJSX1NLSUxMX01BWF9MRVZFTBCaCBIU",
-            "Cg9FUlJfQlVGRl9ERU5JRUQQmwgSFQoQRVJSX1NJRUdFX0RFTklFRBCcCBIZ",
-            "ChRFUlJfU0lFR0VfTk9UX0FDVElWRRCdCBIfChpFUlJfU0lFR0VfQUxSRUFE",
-            "WV9ERUNMQVJFRBCeCBIYChNFUlJfU0lFR0VfQ09OVEVTVEVEEJ8IEhQKD0VS",
-            "Ul9NQUlMX0RFTklFRBCgCBIXChJFUlJfTUFJTF9OT1RfRk9VTkQQoQgSHgoZ",
-            "RVJSX01BSUxfQVRUQUNIX1VOQ0xBSU1FRBCiCBIdChhFUlJfTUFJTF9BTFJF",
-            "QURZX0NMQUlNRUQQowgSFgoRRVJSX01BSUxfQkFHX0ZVTEwQpAgSEgoNRVJS",
-            "X01BSUxfRlVMTBClCBIXChJFUlJfRFVOR0VPTl9ERU5JRUQQpggSFgoRRVJS",
-            "X0RVTkdFT05fTEVWRUwQpwgSFQoQRVJSX0RVTkdFT05fQ09TVBCoCBIXChJF",
-            "UlJfRFVOR0VPTl9OT1RfSU4QqQgSFQoQRVJSX0RVTkdFT05fRlVMTBCqCBIc",
-            "ChdFUlJfRFVOR0VPTl9EQUlMWV9MSU1JVBCrCBIZChRFUlJfRFVOR0VPTl9D",
-            "T09MRE9XThCsCBIaChVFUlJfV09STERfQk9TU19ERU5JRUQQrQgSHgoZRVJS",
-            "X1dPUkxEX0JPU1NfTk9UX0FDVElWRRCuCBIVChBFUlJfTU9VTlRfREVOSUVE",
-            "EK8IEhcKEkVSUl9GQVNISU9OX0RFTklFRBCwCBIWChFFUlJfTU9WRV9UT09f",
-            "RkFTVBCxCBITCg5FUlJfUEVUX0RFTklFRBCyCBIfChpFUlJfR1VJTERfV0FS",
-            "RUhPVVNFX0RFTklFRBCzCBIdChhFUlJfR1VJTERfV0FSRUhPVVNFX0ZVTEwQ",
-            "tAgSGgoVRVJSX0dVSUxEX1JBTktfREVOSUVEELUIEhsKFkVSUl9HVUlMRF9J",
-            "TlZBTElEX1JBTksQtggSDwoKRVJSX0JBTk5FRBC3CBIOCglFUlJfTVVURUQQ",
-            "uAgSFwoSRVJSX1BBWU1FTlRfREVOSUVEELkIEhgKE0VSUl9QQVlNRU5UX0lO",
-            "VkFMSUQQuggSGgoVRVJSX1BBWU1FTlRfRFVQTElDQVRFELsIEhEKDEVSUl9J",
-            "TlRFUk5BTBDPDypkCgpFbnRpdHlLaW5kEhEKDUVOVElUWV9QTEFZRVIQABIS",
-            "Cg5FTlRJVFlfTU9OU1RFUhABEg8KC0VOVElUWV9MT09UEAISDgoKRU5USVRZ",
-            "X05QQxADEg4KCkVOVElUWV9QRVQQBCpVChBDb21iYXRSZXN1bHRLaW5kEg4K",
-            "CkNPTUJBVF9ISVQQABIPCgtDT01CQVRfTUlTUxABEg8KC0NPTUJBVF9IRUFM",
-            "EAISDwoLQ09NQkFUX0tJTEwQAypVCgtRdWVzdFN0YXR1cxIOCgpRVUVTVF9O",
-            "T05FEAASEAoMUVVFU1RfQUNUSVZFEAESDwoLUVVFU1RfUkVBRFkQAhITCg9R",
-            "VUVTVF9DT01QTEVURUQQAypQCgtDaGF0Q2hhbm5lbBIOCgpDSEFUX1dPUkxE",
-            "EAASDwoLQ0hBVF9ORUFSQlkQARIOCgpDSEFUX0dVSUxEEAISEAoMQ0hBVF9X",
-            "SElTUEVSEANCGaoCFkxlZ2VuZC5Db250cmFjdHMuUHJvdG9iBnByb3RvMw=="));
+            "a2VuGAcgASgJEg4KBnN0YXR1cxgIIAEoCRITCgtwcm92aWRlcl9pZBgJIAEo",
+            "CRIUCgxjaGVja291dF91cmwYCiABKAkSEwoLcGF5X3BheWxvYWQYCyABKAkS",
+            "GQoRcHJvdmlkZXJfb3JkZXJfaWQYDCABKAkiKQoVUGF5bWVudE9yZGVyU3Rh",
+            "dHVzUmVxEhAKCG9yZGVyX2lkGAEgASgJIsYBChZQYXltZW50T3JkZXJTdGF0",
+            "dXNSZXNwEg8KB3N1Y2Nlc3MYASABKAgSOQoKZXJyb3JfY29kZRgCIAEoDjIl",
+            "LmxlZ2VuZC5wcm90b2NvbC52MS5Qcm90b2NvbEVycm9yQ29kZRIPCgdtZXNz",
+            "YWdlGAMgASgJEhAKCG9yZGVyX2lkGAQgASgJEhIKCnByb2R1Y3RfaWQYBSAB",
+            "KAkSDgoGc3RhdHVzGAYgASgJEhkKEWZ1bGZpbGxlZF9tYWlsX2lkGAcgASgJ",
+            "IpcBChZQYXltZW50RnVsZmlsbGVkTm90aWZ5EhAKCG9yZGVyX2lkGAEgASgJ",
+            "EhIKCnByb2R1Y3RfaWQYAiABKAkSDwoHbWFpbF9pZBgDIAEoCRITCgtyZXdh",
+            "cmRfZ29sZBgEIAEoBRIWCg5yZXdhcmRfaXRlbV9pZBgFIAEoCRIZChFyZXdh",
+            "cmRfaXRlbV9jb3VudBgGIAEoBSq4EAoRUHJvdG9jb2xFcnJvckNvZGUSDAoI",
+            "RVJSX05PTkUQABIZChRFUlJfVkVSU0lPTl9NSVNNQVRDSBDpBxIUCg9FUlJf",
+            "QVVUSF9GQUlMRUQQ6gcSFgoRRVJSX0lOVkFMSURfVE9LRU4Q6wcSGgoVRVJS",
+            "X1JFQUxNX1VOQVZBSUxBQkxFEOwHEhUKEEVSUl9NT1ZFX0JMT0NLRUQQ7QcS",
+            "FQoQRVJSX1JBVEVfTElNSVRFRBDuBxIXChJFUlJfQ0hBUl9OT1RfRk9VTkQQ",
+            "7wcSGAoTRVJSX0NIQVJfTkFNRV9UQUtFThDwBxIWChFFUlJfSU5WQUxJRF9D",
+            "TEFTUxDxBxITCg5FUlJfQ0hBUl9MSU1JVBDyBxIXChJFUlJfVVNFUk5BTUVf",
+            "VEFLRU4Q8wcSFgoRRVJSX0lOVkFMSURfU0tJTEwQ9AcSFwoSRVJSX1NLSUxM",
+            "X0NPT0xET1dOEPUHEhUKEEVSUl9PVVRfT0ZfUkFOR0UQ9gcSEgoNRVJSX1NB",
+            "RkVfWk9ORRD3BxIXChJFUlJfSU5WQUxJRF9UQVJHRVQQ+AcSFAoPRVJSX0xP",
+            "T1RfREVOSUVEEPkHEg0KCEVSUl9ERUFEEPoHEhgKE0VSUl9OT1RfRU5PVUdI",
+            "X0dPTEQQ+wcSFAoPRVJSX1NIT1BfREVOSUVEEPwHEhUKEEVSUl9RVUVTVF9E",
+            "RU5JRUQQ/QcSFAoPRVJSX05QQ19UT09fRkFSEP4HEhQKD0VSUl9VTktOT1dO",
+            "X05QQxD/BxIVChBFUlJfRVFVSVBfREVOSUVEEIAIEhcKEkVSUl9FTkhBTkNF",
+            "X0RFTklFRBCBCBIYChNFUlJfVVNFX0lURU1fREVOSUVEEIIIEhUKEEVSUl9H",
+            "VUlMRF9ERU5JRUQQgwgSFAoPRVJSX0NIQVRfREVOSUVEEIQIEhgKE0VSUl9H",
+            "VUlMRF9OT1RfRk9VTkQQhQgSGQoURVJSX0dVSUxEX05BTUVfVEFLRU4QhggS",
+            "GQoURVJSX0FMUkVBRFlfSU5fR1VJTEQQhwgSEwoORVJSX0dVSUxEX0ZVTEwQ",
+            "iAgSFQoQRVJSX05PVF9JTl9HVUlMRBCJCBIVChBFUlJfVFJBREVfREVOSUVE",
+            "EIoIEhoKFUVSUl9MSVNUSU5HX05PVF9GT1VORBCLCBIWChFFUlJfTElTVElO",
+            "R19MSU1JVBCMCBIYChNFUlJfU0VMRl9CVVlfREVOSUVEEI0IEhUKEEVSUl9Q",
+            "QVJUWV9ERU5JRUQQjggSEwoORVJSX1BBUlRZX0ZVTEwQjwgSGQoURVJSX0FM",
+            "UkVBRFlfSU5fUEFSVFkQkAgSFQoQRVJSX05PVF9JTl9QQVJUWRCRCBIYChNF",
+            "UlJfUEFSVFlfTk9UX0ZPVU5EEJIIEhYKEUVSUl9GUklFTkRfREVOSUVEEJMI",
+            "EhUKEEVSUl9GUklFTkRfTElNSVQQlAgSEwoORVJSX05PVF9GUklFTkQQlQgS",
+            "GQoURVJSX0ZSSUVORF9OT1RfRk9VTkQQlggSFwoSRVJSX1RBUkdFVF9PRkZM",
+            "SU5FEJcIEhoKFUVSUl9TS0lMTF9OT1RfTEVBUk5FRBCYCBIbChZFUlJfU0tJ",
+            "TExfTEVBUk5fREVOSUVEEJkIEhgKE0VSUl9TS0lMTF9NQVhfTEVWRUwQmggS",
+            "FAoPRVJSX0JVRkZfREVOSUVEEJsIEhUKEEVSUl9TSUVHRV9ERU5JRUQQnAgS",
+            "GQoURVJSX1NJRUdFX05PVF9BQ1RJVkUQnQgSHwoaRVJSX1NJRUdFX0FMUkVB",
+            "RFlfREVDTEFSRUQQnggSGAoTRVJSX1NJRUdFX0NPTlRFU1RFRBCfCBIUCg9F",
+            "UlJfTUFJTF9ERU5JRUQQoAgSFwoSRVJSX01BSUxfTk9UX0ZPVU5EEKEIEh4K",
+            "GUVSUl9NQUlMX0FUVEFDSF9VTkNMQUlNRUQQoggSHQoYRVJSX01BSUxfQUxS",
+            "RUFEWV9DTEFJTUVEEKMIEhYKEUVSUl9NQUlMX0JBR19GVUxMEKQIEhIKDUVS",
+            "Ul9NQUlMX0ZVTEwQpQgSFwoSRVJSX0RVTkdFT05fREVOSUVEEKYIEhYKEUVS",
+            "Ul9EVU5HRU9OX0xFVkVMEKcIEhUKEEVSUl9EVU5HRU9OX0NPU1QQqAgSFwoS",
+            "RVJSX0RVTkdFT05fTk9UX0lOEKkIEhUKEEVSUl9EVU5HRU9OX0ZVTEwQqggS",
+            "HAoXRVJSX0RVTkdFT05fREFJTFlfTElNSVQQqwgSGQoURVJSX0RVTkdFT05f",
+            "Q09PTERPV04QrAgSGgoVRVJSX1dPUkxEX0JPU1NfREVOSUVEEK0IEh4KGUVS",
+            "Ul9XT1JMRF9CT1NTX05PVF9BQ1RJVkUQrggSFQoQRVJSX01PVU5UX0RFTklF",
+            "RBCvCBIXChJFUlJfRkFTSElPTl9ERU5JRUQQsAgSFgoRRVJSX01PVkVfVE9P",
+            "X0ZBU1QQsQgSEwoORVJSX1BFVF9ERU5JRUQQsggSHwoaRVJSX0dVSUxEX1dB",
+            "UkVIT1VTRV9ERU5JRUQQswgSHQoYRVJSX0dVSUxEX1dBUkVIT1VTRV9GVUxM",
+            "ELQIEhoKFUVSUl9HVUlMRF9SQU5LX0RFTklFRBC1CBIbChZFUlJfR1VJTERf",
+            "SU5WQUxJRF9SQU5LELYIEg8KCkVSUl9CQU5ORUQQtwgSDgoJRVJSX01VVEVE",
+            "ELgIEhcKEkVSUl9QQVlNRU5UX0RFTklFRBC5CBIYChNFUlJfUEFZTUVOVF9J",
+            "TlZBTElEELoIEhoKFUVSUl9QQVlNRU5UX0RVUExJQ0FURRC7CBIRCgxFUlJf",
+            "SU5URVJOQUwQzw8qZAoKRW50aXR5S2luZBIRCg1FTlRJVFlfUExBWUVSEAAS",
+            "EgoORU5USVRZX01PTlNURVIQARIPCgtFTlRJVFlfTE9PVBACEg4KCkVOVElU",
+            "WV9OUEMQAxIOCgpFTlRJVFlfUEVUEAQqVQoQQ29tYmF0UmVzdWx0S2luZBIO",
+            "CgpDT01CQVRfSElUEAASDwoLQ09NQkFUX01JU1MQARIPCgtDT01CQVRfSEVB",
+            "TBACEg8KC0NPTUJBVF9LSUxMEAMqVQoLUXVlc3RTdGF0dXMSDgoKUVVFU1Rf",
+            "Tk9ORRAAEhAKDFFVRVNUX0FDVElWRRABEg8KC1FVRVNUX1JFQURZEAISEwoP",
+            "UVVFU1RfQ09NUExFVEVEEAMqUAoLQ2hhdENoYW5uZWwSDgoKQ0hBVF9XT1JM",
+            "RBAAEg8KC0NIQVRfTkVBUkJZEAESDgoKQ0hBVF9HVUlMRBACEhAKDENIQVRf",
+            "V0hJU1BFUhADQhmqAhZMZWdlbmQuQ29udHJhY3RzLlByb3RvYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Legend.Contracts.Proto.ProtocolErrorCode), typeof(global::Legend.Contracts.Proto.EntityKind), typeof(global::Legend.Contracts.Proto.CombatResultKind), typeof(global::Legend.Contracts.Proto.QuestStatus), typeof(global::Legend.Contracts.Proto.ChatChannel), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -826,7 +828,7 @@ namespace Legend.Contracts.Proto {
             new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.GuildWarehouseListAuditResp), global::Legend.Contracts.Proto.GuildWarehouseListAuditResp.Parser, new[]{ "Success", "ErrorCode", "Message", "GuildId", "Entries" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentProduct), global::Legend.Contracts.Proto.PaymentProduct.Parser, new[]{ "ProductId", "Name", "PriceCents", "RewardGold", "RewardItemId", "RewardItemCount" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentCreateOrderReq), global::Legend.Contracts.Proto.PaymentCreateOrderReq.Parser, new[]{ "ProductId" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentCreateOrderResp), global::Legend.Contracts.Proto.PaymentCreateOrderResp.Parser, new[]{ "Success", "ErrorCode", "Message", "OrderId", "ProductId", "PriceCents", "MockPayToken", "Status" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentCreateOrderResp), global::Legend.Contracts.Proto.PaymentCreateOrderResp.Parser, new[]{ "Success", "ErrorCode", "Message", "OrderId", "ProductId", "PriceCents", "MockPayToken", "Status", "ProviderId", "CheckoutUrl", "PayPayload", "ProviderOrderId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentOrderStatusReq), global::Legend.Contracts.Proto.PaymentOrderStatusReq.Parser, new[]{ "OrderId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentOrderStatusResp), global::Legend.Contracts.Proto.PaymentOrderStatusResp.Parser, new[]{ "Success", "ErrorCode", "Message", "OrderId", "ProductId", "Status", "FulfilledMailId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Legend.Contracts.Proto.PaymentFulfilledNotify), global::Legend.Contracts.Proto.PaymentFulfilledNotify.Parser, new[]{ "OrderId", "ProductId", "MailId", "RewardGold", "RewardItemId", "RewardItemCount" }, null, null, null, null)
@@ -61074,6 +61076,10 @@ namespace Legend.Contracts.Proto {
       priceCents_ = other.priceCents_;
       mockPayToken_ = other.mockPayToken_;
       status_ = other.status_;
+      providerId_ = other.providerId_;
+      checkoutUrl_ = other.checkoutUrl_;
+      payPayload_ = other.payPayload_;
+      providerOrderId_ = other.providerOrderId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -61179,6 +61185,57 @@ namespace Legend.Contracts.Proto {
       }
     }
 
+    /// <summary>Field number for the "provider_id" field.</summary>
+    public const int ProviderIdFieldNumber = 9;
+    private string providerId_ = "";
+    /// <summary>
+    /// Phase E: merchant checkout fields
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ProviderId {
+      get { return providerId_; }
+      set {
+        providerId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "checkout_url" field.</summary>
+    public const int CheckoutUrlFieldNumber = 10;
+    private string checkoutUrl_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string CheckoutUrl {
+      get { return checkoutUrl_; }
+      set {
+        checkoutUrl_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "pay_payload" field.</summary>
+    public const int PayPayloadFieldNumber = 11;
+    private string payPayload_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string PayPayload {
+      get { return payPayload_; }
+      set {
+        payPayload_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "provider_order_id" field.</summary>
+    public const int ProviderOrderIdFieldNumber = 12;
+    private string providerOrderId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ProviderOrderId {
+      get { return providerOrderId_; }
+      set {
+        providerOrderId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -61202,6 +61259,10 @@ namespace Legend.Contracts.Proto {
       if (PriceCents != other.PriceCents) return false;
       if (MockPayToken != other.MockPayToken) return false;
       if (Status != other.Status) return false;
+      if (ProviderId != other.ProviderId) return false;
+      if (CheckoutUrl != other.CheckoutUrl) return false;
+      if (PayPayload != other.PayPayload) return false;
+      if (ProviderOrderId != other.ProviderOrderId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -61217,6 +61278,10 @@ namespace Legend.Contracts.Proto {
       if (PriceCents != 0) hash ^= PriceCents.GetHashCode();
       if (MockPayToken.Length != 0) hash ^= MockPayToken.GetHashCode();
       if (Status.Length != 0) hash ^= Status.GetHashCode();
+      if (ProviderId.Length != 0) hash ^= ProviderId.GetHashCode();
+      if (CheckoutUrl.Length != 0) hash ^= CheckoutUrl.GetHashCode();
+      if (PayPayload.Length != 0) hash ^= PayPayload.GetHashCode();
+      if (ProviderOrderId.Length != 0) hash ^= ProviderOrderId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -61267,6 +61332,22 @@ namespace Legend.Contracts.Proto {
         output.WriteRawTag(66);
         output.WriteString(Status);
       }
+      if (ProviderId.Length != 0) {
+        output.WriteRawTag(74);
+        output.WriteString(ProviderId);
+      }
+      if (CheckoutUrl.Length != 0) {
+        output.WriteRawTag(82);
+        output.WriteString(CheckoutUrl);
+      }
+      if (PayPayload.Length != 0) {
+        output.WriteRawTag(90);
+        output.WriteString(PayPayload);
+      }
+      if (ProviderOrderId.Length != 0) {
+        output.WriteRawTag(98);
+        output.WriteString(ProviderOrderId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -61309,6 +61390,22 @@ namespace Legend.Contracts.Proto {
         output.WriteRawTag(66);
         output.WriteString(Status);
       }
+      if (ProviderId.Length != 0) {
+        output.WriteRawTag(74);
+        output.WriteString(ProviderId);
+      }
+      if (CheckoutUrl.Length != 0) {
+        output.WriteRawTag(82);
+        output.WriteString(CheckoutUrl);
+      }
+      if (PayPayload.Length != 0) {
+        output.WriteRawTag(90);
+        output.WriteString(PayPayload);
+      }
+      if (ProviderOrderId.Length != 0) {
+        output.WriteRawTag(98);
+        output.WriteString(ProviderOrderId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -61342,6 +61439,18 @@ namespace Legend.Contracts.Proto {
       }
       if (Status.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Status);
+      }
+      if (ProviderId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ProviderId);
+      }
+      if (CheckoutUrl.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(CheckoutUrl);
+      }
+      if (PayPayload.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(PayPayload);
+      }
+      if (ProviderOrderId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ProviderOrderId);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -61378,6 +61487,18 @@ namespace Legend.Contracts.Proto {
       }
       if (other.Status.Length != 0) {
         Status = other.Status;
+      }
+      if (other.ProviderId.Length != 0) {
+        ProviderId = other.ProviderId;
+      }
+      if (other.CheckoutUrl.Length != 0) {
+        CheckoutUrl = other.CheckoutUrl;
+      }
+      if (other.PayPayload.Length != 0) {
+        PayPayload = other.PayPayload;
+      }
+      if (other.ProviderOrderId.Length != 0) {
+        ProviderOrderId = other.ProviderOrderId;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -61430,6 +61551,22 @@ namespace Legend.Contracts.Proto {
             Status = input.ReadString();
             break;
           }
+          case 74: {
+            ProviderId = input.ReadString();
+            break;
+          }
+          case 82: {
+            CheckoutUrl = input.ReadString();
+            break;
+          }
+          case 90: {
+            PayPayload = input.ReadString();
+            break;
+          }
+          case 98: {
+            ProviderOrderId = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -61479,6 +61616,22 @@ namespace Legend.Contracts.Proto {
           }
           case 66: {
             Status = input.ReadString();
+            break;
+          }
+          case 74: {
+            ProviderId = input.ReadString();
+            break;
+          }
+          case 82: {
+            CheckoutUrl = input.ReadString();
+            break;
+          }
+          case 90: {
+            PayPayload = input.ReadString();
+            break;
+          }
+          case 98: {
+            ProviderOrderId = input.ReadString();
             break;
           }
         }

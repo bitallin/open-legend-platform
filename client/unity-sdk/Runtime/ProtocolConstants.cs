@@ -182,8 +182,8 @@ namespace Legend.Contracts
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.20.0";
-        public const string MinCompatibleVersion = "1.20.0";
+        public const string CurrentVersion = "1.21.0";
+        public const string MinCompatibleVersion = "1.21.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

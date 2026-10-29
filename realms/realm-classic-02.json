@@ -7,5 +7,5 @@
   "sqlitePath": "data/realms/realm-classic-02.db",
   "manifestPath": "version-packs/sample-classic/manifest.json",
   "status": "OPEN",
-  "versionPackId": "sample-classic-1.20.0"
+  "versionPackId": "sample-classic-1.21.0"
 }

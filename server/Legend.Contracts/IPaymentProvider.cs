@@ -10,6 +10,7 @@ public sealed class PaymentProductDef
     public int RewardItemCount { get; set; }
 }
 
+/// <summary>Legacy + shared payment provider surface (mock HMAC still implements this).</summary>
 public interface IPaymentProvider
 {
     string ProviderId { get; }
@@ -20,8 +21,54 @@ public interface IPaymentProvider
     string Sign(string canonicalPayload);
 }
 
+public sealed class PaymentCheckoutRequest
+{
+    public string OrderId { get; set; } = "";
+    public string ProductId { get; set; } = "";
+    public string Description { get; set; } = "";
+    public int PriceCents { get; set; }
+    public string NotifyUrl { get; set; } = "";
+    public string ClientIp { get; set; } = "";
+    public string OpenId { get; set; } = "";
+}
+
+public sealed class PaymentCheckoutResult
+{
+    public bool Ok { get; set; }
+    public string Message { get; set; } = "";
+    public string ProviderOrderId { get; set; } = "";
+    /// <summary>JSON or form string the client uses to invoke payment SDK.</summary>
+    public string PayPayload { get; set; } = "";
+    public string CheckoutUrl { get; set; } = "";
+    public bool UsedSandboxSimulator { get; set; }
+}
+
+public sealed class PaymentNotifyResult
+{
+    public bool SignatureValid { get; set; }
+    public bool Paid { get; set; }
+    public string OrderId { get; set; } = "";
+    public string ProviderTxnId { get; set; } = "";
+    public int? AmountCents { get; set; }
+    public string RawTradeState { get; set; } = "";
+    public string Error { get; set; } = "";
+    public string SuccessResponseBody { get; set; } = "";
+    public string FailureResponseBody { get; set; } = "";
+    public string ContentType { get; set; } = "application/json";
+}
+
+/// <summary>Merchant (WeChat / Alipay) checkout + notify parsing.</summary>
+public interface IMerchantPaymentProvider : IPaymentProvider
+{
+    Task<PaymentCheckoutResult> CreateCheckoutAsync(PaymentCheckoutRequest order, CancellationToken ct = default);
+    Task<PaymentNotifyResult> ParseAndVerifyNotifyAsync(
+        string rawBody,
+        IReadOnlyDictionary<string, string> headers,
+        CancellationToken ct = default);
+}
+
 /// <summary>Sandbox provider (WeChat/Alipay merchants plug in later via same interface).</summary>
-public sealed class MockPaymentProvider : IPaymentProvider
+public sealed class MockPaymentProvider : IMerchantPaymentProvider
 {
     private readonly string _secret;
     public MockPaymentProvider(string secret)
@@ -46,6 +93,35 @@ public sealed class MockPaymentProvider : IPaymentProvider
         if (string.IsNullOrWhiteSpace(signature)) return false;
         string expect = Sign(canonicalPayload);
         return string.Equals(expect, signature.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    public Task<PaymentCheckoutResult> CreateCheckoutAsync(PaymentCheckoutRequest order, CancellationToken ct = default)
+    {
+        string token = CreatePayToken(order.OrderId, order.ProductId, order.PriceCents);
+        return Task.FromResult(new PaymentCheckoutResult
+        {
+            Ok = true,
+            Message = "ok",
+            ProviderOrderId = order.OrderId,
+            PayPayload = token,
+            CheckoutUrl = "",
+            UsedSandboxSimulator = true
+        });
+    }
+
+    public Task<PaymentNotifyResult> ParseAndVerifyNotifyAsync(
+        string rawBody,
+        IReadOnlyDictionary<string, string> headers,
+        CancellationToken ct = default)
+    {
+        // Mock uses AdminHttpServer HandlePaymentWebhookAsync path; this is a fallback.
+        return Task.FromResult(new PaymentNotifyResult
+        {
+            SignatureValid = false,
+            Error = "use_mock_webhook_endpoint",
+            FailureResponseBody = "{\"ok\":false,\"error\":\"use_mock_webhook\"}",
+            ContentType = "application/json"
+        });
     }
 }
 
