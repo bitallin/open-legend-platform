@@ -30,3 +30,4 @@ client/unity-mvp/UserSettings/
 client/unity-mvp/*.csproj
 client/unity-mvp/*.sln
 client/unity-mvp/Assembly-CSharp*.csproj
+dist/legend-host-linux-x64/
