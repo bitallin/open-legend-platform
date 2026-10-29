@@ -30,7 +30,7 @@ public class M10IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.18.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.19.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -236,7 +236,7 @@ public class M10IntegrationTests
     public void VersionPack_Loads_Siege_Config_And_CastleLord_Buff()
     {
         var pack = new VersionPackLoader().LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.18.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.19.0", pack.Manifest.ProtocolVersion);
         Assert.Equal("sabuk_castle", pack.Siege.CastleId);
         Assert.Equal(50, pack.Siege.DeclareCostGold);
         Assert.True(pack.Siege.LeaderOnlyDeclare);

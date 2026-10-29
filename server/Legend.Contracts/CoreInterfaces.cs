@@ -38,6 +38,8 @@ public interface IClientSession
     string? CharacterName { get; set; }
     string? ClassId { get; set; }
     Task SendAsync(MsgId msgId, uint seq, IMessage message, CancellationToken ct = default);
+    /// <summary>Request the underlying transport to close (best-effort kick).</summary>
+    void RequestClose();
 }
 
 public interface IGameModule

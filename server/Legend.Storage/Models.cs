@@ -11,6 +11,36 @@ public sealed class AccountRecord
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class ModerationRecord
+{
+    public string AccountId { get; set; } = string.Empty;
+    public bool IsBanned { get; set; }
+    public string BanReason { get; set; } = string.Empty;
+    /// <summary>0 = permanent when banned.</summary>
+    public long BanExpiresUnixMs { get; set; }
+    public bool IsMuted { get; set; }
+    public string MuteReason { get; set; } = string.Empty;
+    /// <summary>0 = permanent when muted.</summary>
+    public long MuteExpiresUnixMs { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public bool IsBanActive(long nowUnixMs = 0)
+    {
+        if (!IsBanned) return false;
+        if (BanExpiresUnixMs <= 0) return true;
+        if (nowUnixMs <= 0) nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return nowUnixMs < BanExpiresUnixMs;
+    }
+
+    public bool IsMuteActive(long nowUnixMs = 0)
+    {
+        if (!IsMuted) return false;
+        if (MuteExpiresUnixMs <= 0) return true;
+        if (nowUnixMs <= 0) nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return nowUnixMs < MuteExpiresUnixMs;
+    }
+}
+
 public sealed class CharacterRecord
 {
     public string CharacterId { get; set; } = string.Empty;

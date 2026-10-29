@@ -6,6 +6,15 @@ public interface IAccountStore
     Task<(bool Ok, string? Error, AccountRecord? Account)> RegisterAsync(string username, string password, CancellationToken ct = default);
     Task<(bool Ok, string? Error, AccountRecord? Account)> AuthenticateAsync(string username, string password, CancellationToken ct = default);
     Task<AccountRecord?> GetByIdAsync(string accountId, CancellationToken ct = default);
+    Task<AccountRecord?> GetByUsernameAsync(string username, CancellationToken ct = default);
+}
+
+public interface IModerationStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<ModerationRecord?> GetByAccountIdAsync(string accountId, CancellationToken ct = default);
+    Task UpsertBanAsync(string accountId, bool banned, string reason, long expiresUnixMs, CancellationToken ct = default);
+    Task UpsertMuteAsync(string accountId, bool muted, string reason, long expiresUnixMs, CancellationToken ct = default);
 }
 
 public interface ICharacterStore
@@ -109,6 +118,7 @@ public interface ILegendStorage : IAsyncDisposable
     IFriendStore Friends { get; }
     ISiegeStore Siege { get; }
     IMailStore Mails { get; }
+    IModerationStore Moderation { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
 }

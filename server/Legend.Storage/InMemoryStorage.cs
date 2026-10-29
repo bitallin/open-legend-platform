@@ -12,6 +12,7 @@ public sealed class InMemoryStorage : ILegendStorage
     private readonly InMemoryFriendStore _friends = new();
     private readonly InMemorySiegeStore _siege = new();
     private readonly InMemoryMailStore _mails = new();
+    private readonly InMemoryModerationStore _moderation = new();
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
@@ -21,6 +22,7 @@ public sealed class InMemoryStorage : ILegendStorage
     public IFriendStore Friends => _friends;
     public ISiegeStore Siege => _siege;
     public IMailStore Mails => _mails;
+    public IModerationStore Moderation => _moderation;
     public string BackendName => "InMemory";
 
     public Task InitializeAsync(CancellationToken ct = default)
@@ -72,6 +74,13 @@ internal sealed class InMemoryAccountStore : IAccountStore
     {
         _byId.TryGetValue(accountId, out var a);
         return Task.FromResult(a);
+    }
+
+    public Task<AccountRecord?> GetByUsernameAsync(string username, CancellationToken ct = default)
+    {
+        if (!_usernameToId.TryGetValue(username.Trim(), out string? id) || !_byId.TryGetValue(id, out var account))
+            return Task.FromResult<AccountRecord?>(null);
+        return Task.FromResult<AccountRecord?>(account);
     }
 }
 

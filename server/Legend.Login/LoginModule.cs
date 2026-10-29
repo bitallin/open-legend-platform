@@ -8,7 +8,7 @@ namespace Legend.Login;
 public sealed class LoginModule : IGameModule
 {
     private readonly IEventBus _eventBus;
-    private readonly LoadedVersionPack _versionPack;
+    private LoadedVersionPack _versionPack;
     private readonly ILegendStorage _storage;
     private readonly Func<int> _onlineCountProvider;
     private readonly Func<int> _boundPortProvider;
@@ -28,6 +28,12 @@ public sealed class LoginModule : IGameModule
     }
 
     public string ModuleName => "LoginModule";
+
+    public void ReplaceVersionPack(LoadedVersionPack pack)
+    {
+        ArgumentNullException.ThrowIfNull(pack);
+        _versionPack = pack;
+    }
 
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
@@ -178,6 +184,18 @@ public sealed class LoginModule : IGameModule
             return;
         }
 
+        var mod = await _storage.Moderation.GetByAccountIdAsync(account.AccountId, ct);
+        if (mod is not null && mod.IsBanActive())
+        {
+            await session.SendAsync(MsgId.LoginResp, frame.Seq, new LoginResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrBanned,
+                Message = string.IsNullOrWhiteSpace(mod.BanReason) ? "账号已被封禁" : $"账号已被封禁：{mod.BanReason}"
+            }, ct);
+            return;
+        }
+
         string token = await _storage.Sessions.CreateSessionAsync(account.AccountId, account.Username, TimeSpan.FromHours(12), ct);
         session.AccountId = account.AccountId;
         session.SessionToken = token;
@@ -190,13 +208,16 @@ public sealed class LoginModule : IGameModule
 
         StructuredLogger.Info("LoginModule", $"Account logged in: {account.AccountId}", connId: session.ConnectionId, playerId: account.AccountId);
 
+        bool muted = mod is not null && mod.IsMuteActive();
         await session.SendAsync(MsgId.LoginResp, frame.Seq, new LoginResp
         {
             Success = true,
             ErrorCode = ProtocolErrorCode.ErrNone,
             AccountId = account.AccountId,
             SessionToken = token,
-            Message = "Login successful"
+            Message = "Login successful",
+            IsMuted = muted,
+            MuteExpiresUnixMs = muted && mod is not null ? mod.MuteExpiresUnixMs : 0
         }, ct);
     }
 

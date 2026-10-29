@@ -13,6 +13,7 @@ public sealed class PostgresStorage : ILegendStorage
     private readonly PostgresFriendStore _friends;
     private readonly PostgresSiegeStore _siege;
     private readonly PostgresMailStore _mails;
+    private readonly PostgresModerationStore _moderation;
 
     public PostgresStorage(string connectionString, ISessionStore sessions)
     {
@@ -25,6 +26,7 @@ public sealed class PostgresStorage : ILegendStorage
         _friends = new PostgresFriendStore(_connectionString);
         _siege = new PostgresSiegeStore(_connectionString);
         _mails = new PostgresMailStore(_connectionString);
+        _moderation = new PostgresModerationStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -35,6 +37,7 @@ public sealed class PostgresStorage : ILegendStorage
     public IFriendStore Friends => _friends;
     public ISiegeStore Siege => _siege;
     public IMailStore Mails => _mails;
+    public IModerationStore Moderation => _moderation;
     public string BackendName => "PostgreSQL";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -46,6 +49,7 @@ public sealed class PostgresStorage : ILegendStorage
         await _friends.EnsureSchemaAsync(ct);
         await _siege.EnsureSchemaAsync(ct);
         await _mails.EnsureSchemaAsync(ct);
+        await _moderation.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 
@@ -138,6 +142,25 @@ internal sealed class PostgresAccountStore : IAccountStore
         await using var cmd = new NpgsqlCommand(
             "SELECT account_id, username, password_hash, created_at FROM accounts WHERE account_id=@id", conn);
         cmd.Parameters.AddWithValue("id", accountId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+        return new AccountRecord
+        {
+            AccountId = reader.GetString(0),
+            Username = reader.GetString(1),
+            PasswordHash = reader.GetString(2),
+            CreatedAt = reader.GetFieldValue<DateTimeOffset>(3)
+        };
+    }
+
+    public async Task<AccountRecord?> GetByUsernameAsync(string username, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT account_id, username, password_hash, created_at FROM accounts WHERE LOWER(username)=LOWER(@u)", conn);
+        cmd.Parameters.AddWithValue("u", username.Trim());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
             return null;

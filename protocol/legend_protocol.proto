@@ -84,6 +84,8 @@ enum ProtocolErrorCode {
   ERR_GUILD_WAREHOUSE_FULL = 1076;
   ERR_GUILD_RANK_DENIED = 1077;
   ERR_GUILD_INVALID_RANK = 1078;
+  ERR_BANNED = 1079;
+  ERR_MUTED = 1080;
   ERR_INTERNAL = 1999;
 }
 
@@ -160,6 +162,8 @@ message LoginResp {
   string account_id = 3;
   string session_token = 4;
   string message = 5;
+  bool is_muted = 6;
+  int64 mute_expires_unix_ms = 7;
 }
 
 // 4. RealmList (MsgId: 1005 / 1006)
@@ -314,6 +318,8 @@ message EnterWorldResp {
   string siege_owner_guild_id = 24;
   string siege_owner_guild_name = 25;
   bool is_castle_lord_guild = 26;
+  bool is_muted = 27;
+  int64 mute_expires_unix_ms = 28;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)

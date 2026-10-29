@@ -7,6 +7,12 @@ string manifestPath = "../version-packs/sample-classic/manifest.json";
 int port = 7100;
 string bindIp = "0.0.0.0";
 StorageOptions? storageOverride = null;
+int? adminPortOpt = null;
+string adminToken = Environment.GetEnvironmentVariable("LEGEND_ADMIN_TOKEN") ?? string.Empty;
+string adminBind = Environment.GetEnvironmentVariable("LEGEND_ADMIN_BIND") ?? "127.0.0.1";
+
+if (int.TryParse(Environment.GetEnvironmentVariable("LEGEND_ADMIN_PORT"), out int envAdminPort))
+    adminPortOpt = envAdminPort;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -27,6 +33,12 @@ for (int i = 0; i < args.Length; i++)
         storageOverride.Backend = "Sqlite";
         storageOverride.SqlitePath = args[++i];
     }
+    else if (args[i] == "--admin-port" && i + 1 < args.Length && int.TryParse(args[++i], out int ap))
+        adminPortOpt = ap;
+    else if (args[i] == "--admin-token" && i + 1 < args.Length)
+        adminToken = args[++i];
+    else if (args[i] == "--admin-bind" && i + 1 < args.Length)
+        adminBind = args[++i];
 }
 
 if (!File.Exists(manifestPath))
@@ -48,8 +60,14 @@ await using var engine = await LegendServerEngine.CreateAsync(
     manifestPath, port, IPAddress.Parse(bindIp), storageOverride, cts.Token);
 await engine.StartAsync(cts.Token);
 
+if (adminPortOpt is int adminPort)
+{
+    await engine.StartAdminAsync(adminPort, adminToken, adminBind, cts.Token);
+}
+
 StructuredLogger.Info("Legend.Host",
-    $"Legend.Host ready on {bindIp}:{engine.BoundPort} (VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash}, Storage={engine.Storage.BackendName})");
+    $"Legend.Host ready on {bindIp}:{engine.BoundPort} (VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash}, Storage={engine.Storage.BackendName}" +
+    (engine.AdminBoundPort > 0 ? $", Admin={adminBind}:{engine.AdminBoundPort}" : "") + ")");
 
 try
 {

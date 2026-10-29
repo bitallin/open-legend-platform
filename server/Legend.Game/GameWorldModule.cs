@@ -17,7 +17,7 @@ namespace Legend.Game;
 public sealed partial class GameWorldModule : IGameModule
 {
     private readonly IEventBus _eventBus;
-    private readonly LoadedVersionPack _versionPack;
+    private LoadedVersionPack _versionPack;
     private readonly ILegendStorage _storage;
     private readonly IAntiCheatProbe _antiCheatProbe;
     private readonly ConcurrentDictionary<string, GridAoiManager> _maps = new(StringComparer.OrdinalIgnoreCase);
@@ -503,6 +503,14 @@ public sealed partial class GameWorldModule : IGameModule
             SiegeOwnerGuildName = _siegeOwnerGuildName,
             IsCastleLordGuild = IsCastleLordGuild(entity.GuildId)
         };
+        {
+            var mod = await _storage.Moderation.GetByAccountIdAsync(character.AccountId, ct);
+            if (mod is not null && mod.IsMuteActive())
+            {
+                resp.IsMuted = true;
+                resp.MuteExpiresUnixMs = mod.MuteExpiresUnixMs;
+            }
+        }
         foreach (var other in nearbyPlayers)
             resp.NearbyEntities.Add(other.ToSnapshot());
         foreach (var snap in EnumerateNearbyNonPlayers(map.MapId, x, y))

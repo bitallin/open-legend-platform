@@ -13,15 +13,18 @@ public sealed class LegendServerEngine : IAsyncDisposable
 {
     public IEventBus EventBus { get; }
     public PluginManager PluginManager { get; }
-    public LoadedVersionPack VersionPack { get; }
+    public LoadedVersionPack VersionPack { get; private set; }
     public ILegendStorage Storage { get; }
     public LuaScriptHost ScriptHost { get; }
     public LoginModule LoginModule { get; }
     public GameWorldModule GameWorldModule { get; }
     public TcpGateServer GateServer { get; }
     public TelemetryAuditPlugin BuiltInAuditPlugin { get; }
+    public AdminHttpServer? AdminServer { get; private set; }
 
+    public string ManifestPath { get; }
     public int BoundPort => GateServer.BoundPort;
+    public int AdminBoundPort => AdminServer?.BoundPort ?? 0;
 
     public LegendServerEngine(
         string manifestPath,
@@ -29,11 +32,12 @@ public sealed class LegendServerEngine : IAsyncDisposable
         IPAddress? bindAddress = null,
         ILegendStorage? storage = null)
     {
+        ManifestPath = Path.GetFullPath(manifestPath);
         EventBus = new InMemoryEventBus();
         PluginManager = new PluginManager(EventBus);
 
         var loader = new VersionPackLoader();
-        VersionPack = loader.LoadFromManifest(manifestPath);
+        VersionPack = loader.LoadFromManifest(ManifestPath);
 
         Storage = storage ?? new InMemoryStorage();
         ScriptHost = new LuaScriptHost(EventBus, ScriptPermissionLevel.GrantItem);
@@ -81,8 +85,66 @@ public sealed class LegendServerEngine : IAsyncDisposable
             VersionPack.PackHash), ct);
     }
 
+    /// <summary>Start optional admin HTTP sidecar. No-op when adminPort &lt;= 0.</summary>
+    public async Task StartAdminAsync(int adminPort, string adminToken, string bindIp = "127.0.0.1", CancellationToken ct = default)
+    {
+        if (adminPort < 0)
+            return;
+        if (string.IsNullOrWhiteSpace(adminToken))
+            throw new InvalidOperationException("Admin token required when --admin-port is set (use --admin-token or LEGEND_ADMIN_TOKEN).");
+
+        AdminServer = new AdminHttpServer(this, adminPort, adminToken, bindIp);
+        await AdminServer.StartAsync(ct);
+    }
+
+    public async Task<(bool Ok, string Message, string? OldHash, string? NewHash, string? VersionId)> ReloadVersionPackAsync(
+        string? manifestPath = null,
+        CancellationToken ct = default)
+    {
+        string path = string.IsNullOrWhiteSpace(manifestPath) ? ManifestPath : Path.GetFullPath(manifestPath);
+        var previous = VersionPack;
+        string? oldHash = previous.PackHash;
+        try
+        {
+            var loader = new VersionPackLoader();
+            var next = loader.LoadFromManifest(path);
+
+            // Apply config swap first (safe hot reload of configs / scripts).
+            GameWorldModule.ReplaceVersionPack(next);
+            LoginModule.ReplaceVersionPack(next);
+            try
+            {
+                ScriptHost.LoadScripts(next.LuaScripts);
+            }
+            catch
+            {
+                GameWorldModule.ReplaceVersionPack(previous);
+                LoginModule.ReplaceVersionPack(previous);
+                try { ScriptHost.LoadScripts(previous.LuaScripts); } catch { /* best effort */ }
+                throw;
+            }
+
+            VersionPack = next;
+            await EventBus.PublishAsync(new ZoneLoadedEvent(
+                next.Manifest.VersionId,
+                next.Manifest.RealmId,
+                next.PackHash), ct);
+
+            StructuredLogger.Info("Legend.Host",
+                $"VersionPack hot-reloaded: {previous.Manifest.VersionId}/{oldHash} -> {next.Manifest.VersionId}/{next.PackHash}");
+            return (true, "VersionPack reloaded", oldHash, next.PackHash, next.Manifest.VersionId);
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("Legend.Host", $"VersionPack reload failed, rolled back: {ex.Message}");
+            return (false, $"reload failed (rolled back): {ex.Message}", oldHash, null, previous.Manifest.VersionId);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
+        if (AdminServer is not null)
+            await AdminServer.DisposeAsync();
         await GateServer.DisposeAsync();
         await GameWorldModule.DisposeAiAsync();
         await Storage.DisposeAsync();

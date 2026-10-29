@@ -48,6 +48,11 @@ public sealed class ClientSession : IClientSession
             _writeLock.Release();
         }
     }
+
+    public void RequestClose()
+    {
+        try { _tcpClient.Close(); } catch { /* ignore */ }
+    }
 }
 
 public sealed class TcpGateServer : IAsyncDisposable

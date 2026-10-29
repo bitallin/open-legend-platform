@@ -351,6 +351,22 @@ public sealed partial class GameWorldModule
             return;
         }
 
+        string accountId = session.AccountId ?? string.Empty;
+        if (!string.IsNullOrEmpty(accountId))
+        {
+            var mod = await _storage.Moderation.GetByAccountIdAsync(accountId, ct);
+            if (mod is not null && mod.IsMuteActive())
+            {
+                await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+                {
+                    NoticeType = "chat_denied",
+                    Title = "禁言",
+                    Content = string.IsNullOrWhiteSpace(mod.MuteReason) ? "你已被禁言，无法发言" : $"禁言中：{mod.MuteReason}"
+                }, ct);
+                return;
+            }
+        }
+
         var cfg = GuildCfg;
         string content = (req.Content ?? string.Empty).Trim();
         if (content.Length == 0 || content.Length > cfg.ChatMaxLength)

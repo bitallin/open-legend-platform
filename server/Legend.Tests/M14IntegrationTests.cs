@@ -30,7 +30,7 @@ public class M14IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.18.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.19.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -254,7 +254,7 @@ public class M14IntegrationTests
     {
         var loader = new VersionPackLoader();
         var pack = loader.LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.18.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.19.0", pack.Manifest.ProtocolVersion);
         Assert.NotEmpty(pack.WorldBoss.Bosses);
         Assert.Contains(pack.WorldBoss.Bosses, b => b.BossId == "world_green_dragon");
         Assert.True(pack.Monsters.ContainsKey("world_green_dragon"));
