@@ -13,6 +13,7 @@ public sealed class SqliteStorage : ILegendStorage
     private readonly SqliteSiegeStore _siege;
     private readonly SqliteMailStore _mails;
     private readonly SqliteModerationStore _moderation;
+    private readonly SqlitePaymentStore _payments;
     private readonly InMemorySessionStore _sessions = new();
 
     public SqliteStorage(string databasePath)
@@ -32,6 +33,7 @@ public sealed class SqliteStorage : ILegendStorage
         _siege = new SqliteSiegeStore(_connectionString);
         _mails = new SqliteMailStore(_connectionString);
         _moderation = new SqliteModerationStore(_connectionString);
+        _payments = new SqlitePaymentStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -43,6 +45,7 @@ public sealed class SqliteStorage : ILegendStorage
     public ISiegeStore Siege => _siege;
     public IMailStore Mails => _mails;
     public IModerationStore Moderation => _moderation;
+    public IPaymentStore Payments => _payments;
     public string BackendName => "Sqlite";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -55,6 +58,7 @@ public sealed class SqliteStorage : ILegendStorage
         await _siege.EnsureSchemaAsync(ct);
         await _mails.EnsureSchemaAsync(ct);
         await _moderation.EnsureSchemaAsync(ct);
+        await _payments.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 

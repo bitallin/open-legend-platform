@@ -34,7 +34,7 @@ public sealed class M19IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.19.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.20.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -64,10 +64,10 @@ public sealed class M19IntegrationTests
     [Fact]
     public void Protocol_Version_Is_1_19()
     {
-        Assert.Equal("1.19.0", ProtocolConstants.CurrentVersion);
-        Assert.Equal("1.19.0", ProtocolConstants.MinCompatibleVersion);
+        Assert.Equal("1.20.0", ProtocolConstants.CurrentVersion);
+        Assert.Equal("1.20.0", ProtocolConstants.MinCompatibleVersion);
         var pack = new VersionPackLoader().LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.19.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.20.0", pack.Manifest.ProtocolVersion);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class M19IntegrationTests
 
             var bannedClient = new LegendTcpClient();
             await bannedClient.ConnectAsync("127.0.0.1", engine.BoundPort);
-            Assert.True((await bannedClient.HandshakeAsync("1.19.0", "pc-ban", default)).Accepted);
+            Assert.True((await bannedClient.HandshakeAsync("1.20.0", "pc-ban", default)).Accepted);
             var bannedLogin = await bannedClient.LoginAsync("m19admin", "secret12345", "PC");
             Assert.False(bannedLogin.Success);
             Assert.Equal(ProtocolErrorCode.ErrBanned, bannedLogin.ErrorCode);
@@ -224,7 +224,7 @@ public sealed class M19IntegrationTests
             await using (var c2 = new LegendTcpClient())
             {
                 await c2.ConnectAsync("127.0.0.1", engine2.BoundPort);
-                Assert.True((await c2.HandshakeAsync("1.19.0", "pc-ban2", default)).Accepted);
+                Assert.True((await c2.HandshakeAsync("1.20.0", "pc-ban2", default)).Accepted);
                 var login2 = await c2.LoginAsync("m19admin", "secret12345", "PC");
                 Assert.False(login2.Success);
                 Assert.Equal(ProtocolErrorCode.ErrBanned, login2.ErrorCode);

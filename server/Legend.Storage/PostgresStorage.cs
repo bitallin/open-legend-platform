@@ -14,6 +14,7 @@ public sealed class PostgresStorage : ILegendStorage
     private readonly PostgresSiegeStore _siege;
     private readonly PostgresMailStore _mails;
     private readonly PostgresModerationStore _moderation;
+    private readonly PostgresPaymentStore _payments;
 
     public PostgresStorage(string connectionString, ISessionStore sessions)
     {
@@ -27,6 +28,7 @@ public sealed class PostgresStorage : ILegendStorage
         _siege = new PostgresSiegeStore(_connectionString);
         _mails = new PostgresMailStore(_connectionString);
         _moderation = new PostgresModerationStore(_connectionString);
+        _payments = new PostgresPaymentStore(_connectionString);
     }
 
     public IAccountStore Accounts => _accounts;
@@ -38,6 +40,7 @@ public sealed class PostgresStorage : ILegendStorage
     public ISiegeStore Siege => _siege;
     public IMailStore Mails => _mails;
     public IModerationStore Moderation => _moderation;
+    public IPaymentStore Payments => _payments;
     public string BackendName => "PostgreSQL";
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -50,6 +53,7 @@ public sealed class PostgresStorage : ILegendStorage
         await _siege.EnsureSchemaAsync(ct);
         await _mails.EnsureSchemaAsync(ct);
         await _moderation.EnsureSchemaAsync(ct);
+        await _payments.EnsureSchemaAsync(ct);
         await _sessions.EnsureReadyAsync(ct);
     }
 

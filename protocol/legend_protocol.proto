@@ -86,6 +86,9 @@ enum ProtocolErrorCode {
   ERR_GUILD_INVALID_RANK = 1078;
   ERR_BANNED = 1079;
   ERR_MUTED = 1080;
+  ERR_PAYMENT_DENIED = 1081;
+  ERR_PAYMENT_INVALID = 1082;
+  ERR_PAYMENT_DUPLICATE = 1083;
   ERR_INTERNAL = 1999;
 }
 
@@ -1508,4 +1511,53 @@ message GuildWarehouseListAuditResp {
   string message = 3;
   string guild_id = 4;
   repeated GuildWarehouseAuditEntry entries = 5;
+}
+
+
+// 26. Phase D Payment (MsgId: 3801–3805)
+message PaymentProduct {
+  string product_id = 1;
+  string name = 2;
+  int32 price_cents = 3;
+  int32 reward_gold = 4;
+  string reward_item_id = 5;
+  int32 reward_item_count = 6;
+}
+
+message PaymentCreateOrderReq {
+  string product_id = 1;
+}
+
+message PaymentCreateOrderResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string order_id = 4;
+  string product_id = 5;
+  int32 price_cents = 6;
+  string mock_pay_token = 7;
+  string status = 8;
+}
+
+message PaymentOrderStatusReq {
+  string order_id = 1;
+}
+
+message PaymentOrderStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string order_id = 4;
+  string product_id = 5;
+  string status = 6;
+  string fulfilled_mail_id = 7;
+}
+
+message PaymentFulfilledNotify {
+  string order_id = 1;
+  string product_id = 2;
+  string mail_id = 3;
+  int32 reward_gold = 4;
+  string reward_item_id = 5;
+  int32 reward_item_count = 6;
 }

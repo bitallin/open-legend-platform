@@ -25,6 +25,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Legend.Storage", "Legend.St
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Legend.MapValidate", "..\tools\Legend.MapValidate\Legend.MapValidate.csproj", "{B784E929-D48D-4B26-804B-2B78FC04FE6E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Legend.Merge", "..\tools\Legend.Merge\Legend.Merge.csproj", "{90F1BE92-0704-4FAA-A73A-8AEDD4908633}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "cd-phase-seed", "..\tools\cd-phase-seed\cd-phase-seed.csproj", "{C21026CF-F631-4C38-BD36-CED179039F75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -78,5 +82,13 @@ Global
 		{B784E929-D48D-4B26-804B-2B78FC04FE6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B784E929-D48D-4B26-804B-2B78FC04FE6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B784E929-D48D-4B26-804B-2B78FC04FE6E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90F1BE92-0704-4FAA-A73A-8AEDD4908633}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90F1BE92-0704-4FAA-A73A-8AEDD4908633}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90F1BE92-0704-4FAA-A73A-8AEDD4908633}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90F1BE92-0704-4FAA-A73A-8AEDD4908633}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C21026CF-F631-4C38-BD36-CED179039F75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C21026CF-F631-4C38-BD36-CED179039F75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C21026CF-F631-4C38-BD36-CED179039F75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C21026CF-F631-4C38-BD36-CED179039F75}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

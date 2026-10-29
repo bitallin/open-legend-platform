@@ -30,7 +30,7 @@ public class M13IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.19.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.20.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -285,7 +285,7 @@ public class M13IntegrationTests
     {
         var loader = new VersionPackLoader();
         var pack = loader.LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.19.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.20.0", pack.Manifest.ProtocolVersion);
         var slime = pack.Dungeons.Dungeons.First(d => d.DungeonId == "dungeon_slime_cave");
         Assert.Equal(5, slime.DailyLimit);
         var quota = pack.Dungeons.Dungeons.First(d => d.DungeonId == "dungeon_daily_quota");

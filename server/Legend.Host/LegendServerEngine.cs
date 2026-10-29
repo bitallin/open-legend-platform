@@ -25,12 +25,18 @@ public sealed class LegendServerEngine : IAsyncDisposable
     public string ManifestPath { get; }
     public int BoundPort => GateServer.BoundPort;
     public int AdminBoundPort => AdminServer?.BoundPort ?? 0;
+    public IReadOnlyList<RealmConfig> RealmCatalog { get; private set; } = Array.Empty<RealmConfig>();
+    public RealmConfig? LocalRealm { get; private set; }
+    public string PaymentSecret { get; private set; } = "legend-mock-pay-secret";
 
     public LegendServerEngine(
         string manifestPath,
         int port = 7100,
         IPAddress? bindAddress = null,
-        ILegendStorage? storage = null)
+        ILegendStorage? storage = null,
+        IReadOnlyList<RealmConfig>? realmCatalog = null,
+        RealmConfig? localRealm = null,
+        string? paymentSecret = null)
     {
         ManifestPath = Path.GetFullPath(manifestPath);
         EventBus = new InMemoryEventBus();
@@ -44,13 +50,22 @@ public sealed class LegendServerEngine : IAsyncDisposable
         ScriptHost.LoadScripts(VersionPack.LuaScripts);
 
         GameWorldModule = new GameWorldModule(EventBus, VersionPack, Storage);
+        PaymentSecret = string.IsNullOrWhiteSpace(paymentSecret) ? "legend-mock-pay-secret" : paymentSecret!;
+        GameWorldModule.ConfigurePaymentProvider(new Legend.Contracts.MockPaymentProvider(PaymentSecret));
+
+        LocalRealm = localRealm;
+        RealmCatalog = realmCatalog ?? Array.Empty<RealmConfig>();
 
         LoginModule = new LoginModule(
             EventBus,
             VersionPack,
             Storage,
             () => GameWorldModule.OnlineCount,
-            () => GateServer?.BoundPort ?? port);
+            () => GateServer?.BoundPort ?? port,
+            RealmCatalog,
+            localRealm?.RealmId,
+            localRealm?.RealmName,
+            localRealm?.Host);
 
         GateServer = new TcpGateServer(
             bindAddress ?? IPAddress.Loopback,
@@ -65,12 +80,15 @@ public sealed class LegendServerEngine : IAsyncDisposable
         int port = 7100,
         IPAddress? bindAddress = null,
         StorageOptions? storageOptions = null,
+        IReadOnlyList<RealmConfig>? realmCatalog = null,
+        RealmConfig? localRealm = null,
+        string? paymentSecret = null,
         CancellationToken ct = default)
     {
         var opts = storageOptions ?? StorageFactory.FromEnvironment();
         var storage = await StorageFactory.CreateAsync(opts, ct);
         StructuredLogger.Info("Legend.Host", $"Storage backend: {storage.BackendName}");
-        var engine = new LegendServerEngine(manifestPath, port, bindAddress, storage);
+        var engine = new LegendServerEngine(manifestPath, port, bindAddress, storage, realmCatalog, localRealm, paymentSecret);
         return engine;
     }
 

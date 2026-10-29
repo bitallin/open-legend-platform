@@ -30,6 +30,8 @@
     <ProjectReference Include="..\Legend.Host\Legend.Host.csproj" />
     <ProjectReference Include="..\Legend.CliClient\Legend.CliClient.csproj" />
     <ProjectReference Include="..\Legend.Storage\Legend.Storage.csproj" />
+    <ProjectReference Include="../../tools/Legend.Merge/Legend.Merge.csproj" />
+
   </ItemGroup>
 
 </Project>

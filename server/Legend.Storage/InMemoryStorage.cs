@@ -13,6 +13,7 @@ public sealed class InMemoryStorage : ILegendStorage
     private readonly InMemorySiegeStore _siege = new();
     private readonly InMemoryMailStore _mails = new();
     private readonly InMemoryModerationStore _moderation = new();
+    private readonly InMemoryPaymentStore _payments = new();
 
     public IAccountStore Accounts => _accounts;
     public ICharacterStore Characters => _characters;
@@ -23,6 +24,7 @@ public sealed class InMemoryStorage : ILegendStorage
     public ISiegeStore Siege => _siege;
     public IMailStore Mails => _mails;
     public IModerationStore Moderation => _moderation;
+    public IPaymentStore Payments => _payments;
     public string BackendName => "InMemory";
 
     public Task InitializeAsync(CancellationToken ct = default)

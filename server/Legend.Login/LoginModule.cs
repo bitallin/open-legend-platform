@@ -12,19 +12,39 @@ public sealed class LoginModule : IGameModule
     private readonly ILegendStorage _storage;
     private readonly Func<int> _onlineCountProvider;
     private readonly Func<int> _boundPortProvider;
+    private IReadOnlyList<RealmConfig> _realmCatalog;
+    private string? _localRealmIdOverride;
+    private string? _localRealmNameOverride;
+    private string? _localHostOverride;
 
     public LoginModule(
         IEventBus eventBus,
         LoadedVersionPack versionPack,
         ILegendStorage storage,
         Func<int> onlineCountProvider,
-        Func<int> boundPortProvider)
+        Func<int> boundPortProvider,
+        IReadOnlyList<RealmConfig>? realmCatalog = null,
+        string? localRealmIdOverride = null,
+        string? localRealmNameOverride = null,
+        string? localHostOverride = null)
     {
         _eventBus = eventBus;
         _versionPack = versionPack;
         _storage = storage;
         _onlineCountProvider = onlineCountProvider;
         _boundPortProvider = boundPortProvider;
+        _realmCatalog = realmCatalog ?? Array.Empty<RealmConfig>();
+        _localRealmIdOverride = localRealmIdOverride;
+        _localRealmNameOverride = localRealmNameOverride;
+        _localHostOverride = localHostOverride;
+    }
+
+    public void SetRealmCatalog(IReadOnlyList<RealmConfig> catalog, string? localRealmId = null, string? localRealmName = null, string? localHost = null)
+    {
+        _realmCatalog = catalog ?? Array.Empty<RealmConfig>();
+        if (localRealmId != null) _localRealmIdOverride = localRealmId;
+        if (localRealmName != null) _localRealmNameOverride = localRealmName;
+        if (localHost != null) _localHostOverride = localHost;
     }
 
     public string ModuleName => "LoginModule";
@@ -247,16 +267,64 @@ public sealed class LoginModule : IGameModule
             Success = true,
             ErrorCode = ProtocolErrorCode.ErrNone
         };
-        resp.Realms.Add(new RealmInfo
+
+        string localId = !string.IsNullOrWhiteSpace(_localRealmIdOverride)
+            ? _localRealmIdOverride!
+            : _versionPack.Manifest.RealmId;
+        string localName = !string.IsNullOrWhiteSpace(_localRealmNameOverride)
+            ? _localRealmNameOverride!
+            : _versionPack.Manifest.RealmName;
+        string localHost = !string.IsNullOrWhiteSpace(_localHostOverride)
+            ? _localHostOverride!
+            : "127.0.0.1";
+        int localPort = _boundPortProvider();
+        int localOnline = _onlineCountProvider();
+
+        if (_realmCatalog.Count > 0)
         {
-            RealmId = _versionPack.Manifest.RealmId,
-            RealmName = _versionPack.Manifest.RealmName,
-            VersionPackId = _versionPack.Manifest.VersionId,
-            Status = "OPEN",
-            Host = "127.0.0.1",
-            Port = _boundPortProvider(),
-            OnlineCount = _onlineCountProvider()
-        });
+            bool sawLocal = false;
+            foreach (var r in _realmCatalog)
+            {
+                bool isLocal = string.Equals(r.RealmId, localId, StringComparison.OrdinalIgnoreCase);
+                if (isLocal) sawLocal = true;
+                resp.Realms.Add(new RealmInfo
+                {
+                    RealmId = r.RealmId,
+                    RealmName = r.RealmName,
+                    VersionPackId = string.IsNullOrWhiteSpace(r.VersionPackId) ? _versionPack.Manifest.VersionId : r.VersionPackId,
+                    Status = string.IsNullOrWhiteSpace(r.Status) ? "OPEN" : r.Status,
+                    Host = isLocal ? localHost : (string.IsNullOrWhiteSpace(r.Host) ? "127.0.0.1" : r.Host),
+                    Port = isLocal ? localPort : r.Port,
+                    OnlineCount = isLocal ? localOnline : 0
+                });
+            }
+            if (!sawLocal)
+            {
+                resp.Realms.Insert(0, new RealmInfo
+                {
+                    RealmId = localId,
+                    RealmName = localName,
+                    VersionPackId = _versionPack.Manifest.VersionId,
+                    Status = "OPEN",
+                    Host = localHost,
+                    Port = localPort,
+                    OnlineCount = localOnline
+                });
+            }
+        }
+        else
+        {
+            resp.Realms.Add(new RealmInfo
+            {
+                RealmId = localId,
+                RealmName = localName,
+                VersionPackId = _versionPack.Manifest.VersionId,
+                Status = "OPEN",
+                Host = localHost,
+                Port = localPort,
+                OnlineCount = localOnline
+            });
+        }
         await session.SendAsync(MsgId.RealmListResp, frame.Seq, resp, ct);
     }
 

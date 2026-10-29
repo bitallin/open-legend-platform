@@ -47,6 +47,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<AppearanceSyncNotify> ReceivedAppearanceSyncs { get; } = new();
     public ConcurrentQueue<PetSyncNotify> ReceivedPetSyncs { get; } = new();
     public ConcurrentQueue<LootBroadcastNotify> ReceivedLootBroadcasts { get; } = new();
+    public ConcurrentQueue<PaymentFulfilledNotify> ReceivedPaymentFulfilled { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -253,6 +254,11 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     case MsgId.MailNotify:
                     {
                         ReceivedMailNotifies.Enqueue(MailNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.PaymentFulfilledNotify:
+                    {
+                        ReceivedPaymentFulfilled.Enqueue(PaymentFulfilledNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
                     case MsgId.StallSoldNotify:
@@ -994,6 +1000,36 @@ public sealed class LegendTcpClient : IAsyncDisposable
         throw new TimeoutException("MailNotify not received in time");
     }
 
+
+    public async Task<PaymentCreateOrderResp> PaymentCreateOrderAsync(string productId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PaymentCreateOrderReq, new PaymentCreateOrderReq
+        {
+            ProductId = productId
+        }, ct);
+        return PaymentCreateOrderResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PaymentOrderStatusResp> PaymentOrderStatusAsync(string orderId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PaymentOrderStatusReq, new PaymentOrderStatusReq
+        {
+            OrderId = orderId
+        }, ct);
+        return PaymentOrderStatusResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PaymentFulfilledNotify> WaitPaymentFulfilledAsync(int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (ReceivedPaymentFulfilled.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("PaymentFulfilledNotify not received in time");
+    }
 
     public async Task<DungeonEnterResp> DungeonEnterAsync(string dungeonId, CancellationToken ct = default, bool partyEnter = false)
     {

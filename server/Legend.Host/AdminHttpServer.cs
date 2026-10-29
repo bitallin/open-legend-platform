@@ -82,14 +82,21 @@ public sealed class AdminHttpServer : IAsyncDisposable
     {
         try
         {
+            string path = ctx.Request.Url?.AbsolutePath?.TrimEnd('/') ?? "";
+            string method = ctx.Request.HttpMethod.ToUpperInvariant();
+
+            // Merchant webhook: signature auth (not admin token)
+            if (method == "POST" && path == "/admin/payment/webhook")
+            {
+                await HandlePaymentWebhookAsync(ctx, ct);
+                return;
+            }
+
             if (!IsAuthorized(ctx.Request))
             {
                 await WriteJsonAsync(ctx.Response, 401, new { ok = false, error = "unauthorized" }, ct);
                 return;
             }
-
-            string path = ctx.Request.Url?.AbsolutePath?.TrimEnd('/') ?? "";
-            string method = ctx.Request.HttpMethod.ToUpperInvariant();
 
             if (method == "GET" && path == "/admin/online")
             {
@@ -133,6 +140,12 @@ public sealed class AdminHttpServer : IAsyncDisposable
             if (method == "POST" && path == "/admin/reload-pack")
             {
                 await HandleReloadPackAsync(ctx, ct);
+                return;
+            }
+
+            if (method == "POST" && path == "/admin/recharge")
+            {
+                await HandleRechargeAsync(ctx, ct);
                 return;
             }
 
@@ -312,6 +325,70 @@ public sealed class AdminHttpServer : IAsyncDisposable
         _cts?.Dispose();
     }
 
+
+    private async Task HandlePaymentWebhookAsync(HttpListenerContext ctx, CancellationToken ct)
+    {
+        string raw;
+        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding ?? Encoding.UTF8))
+            raw = await reader.ReadToEndAsync(ct);
+
+        PaymentWebhookBody? body = null;
+        try { body = JsonSerializer.Deserialize<PaymentWebhookBody>(raw, JsonOpts); }
+        catch { /* ignore */ }
+        body ??= new PaymentWebhookBody();
+
+        string orderId = body.OrderId ?? "";
+        string txn = body.ProviderTxnId ?? body.TxnId ?? "";
+        string status = (body.Status ?? "paid").Trim().ToLowerInvariant();
+        string sig = ctx.Request.Headers["X-Payment-Signature"] ?? body.Signature ?? "";
+
+        string canonical = $"{orderId}|{txn}|{status}";
+        var provider = _engine.GameWorldModule.PaymentProvider;
+        if (!provider.VerifyWebhookSignature(canonical, sig))
+        {
+            await WriteJsonAsync(ctx.Response, 401, new { ok = false, error = "bad_signature" }, ct);
+            return;
+        }
+
+        if (status is not ("paid" or "success"))
+        {
+            await WriteJsonAsync(ctx.Response, 400, new { ok = false, error = "unsupported_status", status }, ct);
+            return;
+        }
+
+        var (ok, msg, order) = await _engine.GameWorldModule.FulfillPaymentOrderAsync(orderId, txn, requirePaidTransition: true, ct);
+        await WriteJsonAsync(ctx.Response, ok ? 200 : 400, new
+        {
+            ok,
+            message = msg,
+            orderId = order?.OrderId,
+            status = order?.Status,
+            mailId = order?.FulfilledMailId
+        }, ct);
+    }
+
+    private async Task HandleRechargeAsync(HttpListenerContext ctx, CancellationToken ct)
+    {
+        var body = await ReadBodyAsync<RechargeBody>(ctx.Request, ct) ?? new RechargeBody();
+        if (string.IsNullOrWhiteSpace(body.ProductId))
+        {
+            await WriteJsonAsync(ctx.Response, 400, new { ok = false, error = "product_id_required" }, ct);
+            return;
+        }
+
+        var (ok, msg, order) = await _engine.GameWorldModule.AdminRechargeAsync(
+            body.CharacterId, body.CharacterName, body.ProductId!, ct);
+        await WriteJsonAsync(ctx.Response, ok ? 200 : 400, new
+        {
+            ok,
+            message = msg,
+            orderId = order?.OrderId,
+            status = order?.Status,
+            mailId = order?.FulfilledMailId,
+            characterId = order?.CharacterId
+        }, ct);
+    }
+
     private sealed class BanMuteBody
     {
         public string? AccountId { get; set; }
@@ -332,5 +409,21 @@ public sealed class AdminHttpServer : IAsyncDisposable
     private sealed class ReloadBody
     {
         public string? ManifestPath { get; set; }
+    }
+
+    private sealed class PaymentWebhookBody
+    {
+        public string? OrderId { get; set; }
+        public string? ProviderTxnId { get; set; }
+        public string? TxnId { get; set; }
+        public string? Status { get; set; }
+        public string? Signature { get; set; }
+    }
+
+    private sealed class RechargeBody
+    {
+        public string? CharacterId { get; set; }
+        public string? CharacterName { get; set; }
+        public string? ProductId { get; set; }
     }
 }

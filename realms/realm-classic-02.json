@@ -1,0 +1,11 @@
+{
+  "realmId": "realm-classic-02",
+  "realmName": "自研先锋二区",
+  "host": "127.0.0.1",
+  "port": 7200,
+  "adminPort": 7201,
+  "sqlitePath": "data/realms/realm-classic-02.db",
+  "manifestPath": "version-packs/sample-classic/manifest.json",
+  "status": "OPEN",
+  "versionPackId": "sample-classic-1.20.0"
+}

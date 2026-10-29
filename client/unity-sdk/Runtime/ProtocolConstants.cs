@@ -171,14 +171,19 @@ namespace Legend.Contracts
         GuildSetRankResp = 3702,
         GuildWarehouseListAuditReq = 3703,
         GuildWarehouseListAuditResp = 3704,
+        PaymentCreateOrderReq = 3801,
+        PaymentCreateOrderResp = 3802,
+        PaymentOrderStatusReq = 3803,
+        PaymentOrderStatusResp = 3804,
+        PaymentFulfilledNotify = 3805,
         LootBroadcastNotify = 3307,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.19.0";
-        public const string MinCompatibleVersion = "1.19.0";
+        public const string CurrentVersion = "1.20.0";
+        public const string MinCompatibleVersion = "1.20.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

@@ -119,6 +119,19 @@ public interface ILegendStorage : IAsyncDisposable
     ISiegeStore Siege { get; }
     IMailStore Mails { get; }
     IModerationStore Moderation { get; }
+    IPaymentStore Payments { get; }
     string BackendName { get; }
     Task InitializeAsync(CancellationToken ct = default);
+}
+
+
+public interface IPaymentStore
+{
+    Task EnsureSchemaAsync(CancellationToken ct = default);
+    Task<PaymentOrderRecord> InsertAsync(PaymentOrderRecord order, CancellationToken ct = default);
+    Task<PaymentOrderRecord?> GetByIdAsync(string orderId, CancellationToken ct = default);
+    Task<PaymentOrderRecord?> GetByProviderTxnAsync(string provider, string providerTxnId, CancellationToken ct = default);
+    /// <summary>Atomically transition Pending|Paid -> Paid when matching order; no-op if already Paid/Fulfilled with same txn.</summary>
+    Task<(bool Ok, string? Error, PaymentOrderRecord? Order)> TryMarkPaidAsync(string orderId, string providerTxnId, CancellationToken ct = default);
+    Task<(bool Ok, string? Error, PaymentOrderRecord? Order)> TryMarkFulfilledAsync(string orderId, string mailId, CancellationToken ct = default);
 }

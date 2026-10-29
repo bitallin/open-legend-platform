@@ -472,3 +472,42 @@ public static class DungeonProgressJson
     }
 }
 
+
+public sealed class PaymentOrderRecord
+{
+    public string OrderId { get; set; } = string.Empty;
+    public string AccountId { get; set; } = string.Empty;
+    public string CharacterId { get; set; } = string.Empty;
+    public string ProductId { get; set; } = string.Empty;
+    public int PriceCents { get; set; }
+    public int RewardGold { get; set; }
+    public string RewardItemId { get; set; } = string.Empty;
+    public int RewardItemCount { get; set; }
+    /// <summary>Pending | Paid | Fulfilled | Failed</summary>
+    public string Status { get; set; } = "Pending";
+    public string Provider { get; set; } = "mock";
+    public string ProviderTxnId { get; set; } = string.Empty;
+    public string MockPayToken { get; set; } = string.Empty;
+    public string FulfilledMailId { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public PaymentOrderRecord Clone() => new()
+    {
+        OrderId = OrderId,
+        AccountId = AccountId,
+        CharacterId = CharacterId,
+        ProductId = ProductId,
+        PriceCents = PriceCents,
+        RewardGold = RewardGold,
+        RewardItemId = RewardItemId,
+        RewardItemCount = RewardItemCount,
+        Status = Status,
+        Provider = Provider,
+        ProviderTxnId = ProviderTxnId,
+        MockPayToken = MockPayToken,
+        FulfilledMailId = FulfilledMailId,
+        CreatedAt = CreatedAt,
+        UpdatedAt = UpdatedAt
+    };
+}
