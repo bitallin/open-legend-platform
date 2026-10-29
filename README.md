@@ -2,7 +2,20 @@
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：Phase H（PC 登录器骨架）
+## 当前里程碑：Phase J（Android 导出/打包流水线骨架）
+
+协议仍 **1.21.0**。Unity MVP 增加 Android IL2CPP/ARM64 批处理入口与签名模板；本环境无 Editor，验收靠骨架脚本。
+
+| 项 | 约定 |
+|----|------|
+| Editor | `client/unity-mvp/Assets/Editor/AndroidBuild.cs`（`Legend.Build.Android.BuildApk` / `BuildAab`） |
+| 模板 | `client/unity-mvp/AndroidBuild/`（keystore example、player-settings defaults） |
+| 构建 | `./scripts/build-android.sh`（有 Unity）；无 Unity 时非 0 + 安装指引 |
+| 验收 | `./scripts/verify-phase-j-android.sh`；文档 `docs/ANDROID_BUILD.md` |
+| 产物 | `dist/android/`（真实 APK 需本机 Unity Android Module） |
+
+### 此前：Phase H（PC 登录器骨架）
+
 
 协议仍 **1.21.0**。新增 `launcher/`：选区、TCP 延迟探测、更新检查骨架（`IUpdateChannel`）、启动 Unity/占位客户端。
 

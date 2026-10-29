@@ -1,0 +1,25 @@
+{
+  "phase": "J",
+  "protocol": "1.21.0",
+  "unityEditor": "2022.3 LTS",
+  "applicationIdentifier": "com.legendplatform.mvp",
+  "productName": "LegendUnityMvp",
+  "companyName": "LegendPlatform",
+  "scriptingBackend": "IL2CPP",
+  "targetArchitectures": ["ARM64"],
+  "minSdkVersion": 24,
+  "targetSdkVersion": 34,
+  "orientation": "LandscapeLeft",
+  "internetPermission": true,
+  "outputDir": "dist/android",
+  "executeMethods": {
+    "apk": "Legend.Build.Android.BuildApk",
+    "aab": "Legend.Build.Android.BuildAab",
+    "applySettings": "Legend.Build.Android.ApplyPlayerSettings"
+  },
+  "notes": [
+    "Defaults are applied at build time by Assets/Editor/AndroidBuild.cs",
+    "Override via LEGEND_ANDROID_* environment variables — see docs/ANDROID_BUILD.md",
+    "Do not commit real keystores or keystore.properties"
+  ]
+}

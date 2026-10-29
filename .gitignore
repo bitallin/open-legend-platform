@@ -34,3 +34,13 @@ dist/legend-host-linux-x64/
 
 # launcher download cache
 launcher/cache/
+
+# Android / Unity build artifacts (Phase J)
+dist/android/**
+!dist/android/.gitkeep
+*.apk
+*.aab
+*.keystore
+*.jks
+client/unity-mvp/AndroidBuild/keystore.properties
+client/unity-mvp/AndroidBuild/local.properties

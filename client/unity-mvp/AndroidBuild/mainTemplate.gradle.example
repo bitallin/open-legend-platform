@@ -1,0 +1,20 @@
+// Optional custom Gradle template placeholder for Unity Android (IL2CPP).
+// To use: in Unity Player Settings → Publishing Settings → Custom Main Gradle Template,
+// then copy this file to Assets/Plugins/Android/mainTemplate.gradle and adjust.
+// This example is NOT active by default — Phase J ships it as documentation only.
+
+apply plugin: 'com.android.application'
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+android {
+    // Unity injects compileSdk / ndk / etc. Keep package aligned with
+    // com.legendplatform.mvp unless LEGEND_ANDROID_PACKAGE overrides it.
+    defaultConfig {
+        // applicationId is set by Unity PlayerSettings
+        minSdkVersion 24
+        // targetSdkVersion managed by Unity / LEGEND_ANDROID_TARGET_SDK
+    }
+}

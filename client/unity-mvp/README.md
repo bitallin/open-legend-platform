@@ -11,7 +11,7 @@ Playable client shell talking to local `Legend.Host`, with **runtime-built uGUI*
 5. Click select + Attack / Pickup buttons + damage popups
 6. HUD: HP bar · Lv · Gold · safe-zone badge · bag · chat · death / reconnect toasts
 
-**Not in scope:** art polish, skill tree UI, payment mall, launcher, hot-update CDN.
+**Not in scope:** art polish, skill tree UI, payment mall UI, hot-update CDN. Launcher = Phase H/I; Android pack skeleton = Phase J.
 
 ## Open in Unity
 
@@ -87,6 +87,22 @@ Colors: **self green · other players blue · monsters red · NPC yellow · loot
 # Phase F script still valid for SDK/FSM baseline:
 ./scripts/verify-phase-f-client.sh
 ```
+
+
+## Android export (Phase J)
+
+Pipeline skeleton for APK / AAB (IL2CPP · ARM64 · `com.legendplatform.mvp`).
+
+```bash
+# no Unity required — structure check:
+./scripts/verify-phase-j-android.sh
+
+# machine with Unity Android Module:
+./scripts/build-android.sh          # → dist/android/*.apk
+./scripts/build-android.sh --aab
+```
+
+Details: [`docs/ANDROID_BUILD.md`](../../docs/ANDROID_BUILD.md) · helpers under `AndroidBuild/`.
 
 ## Known limits
 

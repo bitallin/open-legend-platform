@@ -51,3 +51,7 @@ World/LegendEntityView.cs                        # yellow select ring
 - No Unity Editor in this agent environment — Play Mode not executed here.
 - Runtime uGUI uses built-in Arial / white sprites (no art atlas).
 - Still no launcher / hot-update / mall / polished animations.
+
+## Android packing
+
+See Phase J: [`ANDROID_BUILD.md`](ANDROID_BUILD.md) and `./scripts/verify-phase-j-android.sh`.

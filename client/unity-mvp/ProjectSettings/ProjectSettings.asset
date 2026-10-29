@@ -12,6 +12,25 @@ PlayerSettings:
   m_ActiveColorSpace: 0
   androidRenderOutsideSafeArea: 1
   androidEnableBanner: 0
+  androidBlitType: 0
+  androidResizableWindow: 0
+  androidDefaultWindowWidth: 1280
+  androidDefaultWindowHeight: 720
+  androidMinimumWindowWidth: 400
+  androidMinimumWindowHeight: 300
+  androidFullscreenMode: 1
+  # Phase J Android defaults (also applied by Assets/Editor/AndroidBuild.cs)
+  applicationIdentifier:
+    Android: com.legendplatform.mvp
+    Standalone: com.legendplatform.mvp
+  buildNumber:
+    Android: 1
+  AndroidMinSdkVersion: 24
+  AndroidTargetSdkVersion: 34
+  AndroidTargetArchitectures: 2
+  AndroidSplashScreenScale: 0
+  androidPreferredAspectMode: 0
+  androidStartInFullscreen: 1
   m_BuildTargetDefaultTextureCompressionFormat: []
   metroPackageName: LegendUnityMvp
   metroApplicationDescription: Legend Unity Client MVP

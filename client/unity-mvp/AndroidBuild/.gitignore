@@ -1,0 +1,7 @@
+# Never commit signing material
+*.keystore
+*.jks
+keystore.properties
+*.apk
+*.aab
+local.properties
