@@ -1,10 +1,11 @@
 #if UNITY_2019_1_OR_NEWER
 using Legend.UnitySdk;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Legend.Client.Input
 {
-    /// <summary>PC WASD + left-side virtual stick (touch / mouse drag).</summary>
+    /// <summary>PC WASD + left-side virtual stick (touch / mouse / uGUI stick).</summary>
     public sealed class LegendMvpInput
     {
         private readonly KeyboardWasdInput _kb = new KeyboardWasdInput();
@@ -12,6 +13,9 @@ namespace Legend.Client.Input
         private Vector2 _stickCenter;
         private bool _stickActive;
         private int _stickFingerId = -1;
+        private bool _externalStick;
+        private float _extX;
+        private float _extY;
 
         public LegendMvpInput()
         {
@@ -21,8 +25,18 @@ namespace Legend.Client.Input
             _kb.D = () => UnityEngine.Input.GetKey(KeyCode.D) || UnityEngine.Input.GetKey(KeyCode.RightArrow);
         }
 
+        public void SetExternalStick(float axisX, float axisY)
+        {
+            _externalStick = true;
+            _extX = axisX;
+            _extY = axisY;
+        }
+
+        public void ClearExternalStick() => _externalStick = false;
+
         public void Tick()
         {
+            if (_externalStick) return;
             UpdateTouchStick();
             UpdateMouseStickFallback();
         }
@@ -30,6 +44,18 @@ namespace Legend.Client.Input
         public void GetMoveIntent(out int dx, out int dy)
         {
             _kb.GetMoveIntent(out dx, out dy);
+            if (_externalStick)
+            {
+                const float dead = 0.35f;
+                int sx = _extX > dead ? 1 : _extX < -dead ? -1 : 0;
+                int sy = _extY > dead ? 1 : _extY < -dead ? -1 : 0;
+                if (sx != 0 || sy != 0)
+                {
+                    dx = sx;
+                    dy = sy;
+                }
+                return;
+            }
             if (_stickActive)
                 _stick.GetMoveIntent(out dx, out dy);
         }
@@ -39,12 +65,21 @@ namespace Legend.Client.Input
             UnityEngine.Input.GetKeyDown(KeyCode.J) ||
             UnityEngine.Input.GetMouseButtonDown(1);
 
-        public bool WantSelectClick => UnityEngine.Input.GetMouseButtonDown(0);
+        public bool WantSelectClick
+        {
+            get
+            {
+                if (!UnityEngine.Input.GetMouseButtonDown(0)) return false;
+                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                    return false;
+                return true;
+            }
+        }
 
         public Vector2 StickCenterScreen => _stickCenter;
-        public bool StickActive => _stickActive;
-        public float StickAxisX => _stick.AxisX;
-        public float StickAxisY => _stick.AxisY;
+        public bool StickActive => _stickActive || _externalStick;
+        public float StickAxisX => _externalStick ? _extX : _stick.AxisX;
+        public float StickAxisY => _externalStick ? _extY : _stick.AxisY;
 
         private void UpdateTouchStick()
         {
@@ -60,6 +95,8 @@ namespace Legend.Client.Input
                 var t = UnityEngine.Input.GetTouch(i);
                 if (t.phase == TouchPhase.Began && t.position.x < Screen.width * 0.42f && !_stickActive)
                 {
+                    if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(t.fingerId))
+                        continue;
                     _stickActive = true;
                     _stickFingerId = t.fingerId;
                     _stickCenter = t.position;
@@ -81,9 +118,10 @@ namespace Legend.Client.Input
         private void UpdateMouseStickFallback()
         {
             if (UnityEngine.Input.touchCount > 0) return;
-            // Hold left mouse in left half to emulate stick (handy for Game view without touch).
+            // Legacy left-half mouse stick kept as fallback when uGUI stick is idle.
             if (UnityEngine.Input.GetMouseButtonDown(0) && UnityEngine.Input.mousePosition.x < Screen.width * 0.28f
-                && UnityEngine.Input.mousePosition.y < Screen.height * 0.45f)
+                && UnityEngine.Input.mousePosition.y < Screen.height * 0.45f
+                && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
             {
                 _stickActive = true;
                 _stickCenter = UnityEngine.Input.mousePosition;

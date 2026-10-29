@@ -1,6 +1,7 @@
 #if UNITY_2019_1_OR_NEWER
 using Legend.Client.Config;
 using Legend.Client.Session;
+using Legend.Client.UI;
 using Legend.Client.World;
 using Legend.ClientCore;
 using Legend.Contracts.Proto;
@@ -8,12 +9,13 @@ using UnityEngine;
 
 namespace Legend.Client.Combat
 {
-    /// <summary>Click-to-select + attack (Space / RMB / Attack button).</summary>
+    /// <summary>Click-to-select + attack (Space / RMB / Attack button) with damage popups.</summary>
     public sealed class LegendCombatController : MonoBehaviour
     {
         private LegendSessionService _session = null!;
         private LegendWorldPresenter _world = null!;
         private LegendClientConfig _config = null!;
+        private LegendHudController? _hud;
 
         public void Bind(LegendSessionService session, LegendWorldPresenter world, LegendClientConfig config)
         {
@@ -21,6 +23,8 @@ namespace Legend.Client.Combat
             _world = world;
             _config = config;
         }
+
+        public void BindHud(LegendHudController hud) => _hud = hud;
 
         public void WireNetwork()
         {
@@ -51,6 +55,12 @@ namespace Legend.Client.Combat
         public void TryAttackSelectedOrNearest()
         {
             if (_session.Fsm.Phase != SessionPhase.InWorld) return;
+            var self = _session.Client?.SelfEntity;
+            if (self != null && self.InSafeZone)
+            {
+                _hud?.ShowToast("安全区内无法攻击", new Color(0.15f, 0.4f, 0.3f, 0.92f));
+                return;
+            }
             var target = _world.SelectedEntityId;
             if (string.IsNullOrEmpty(target) || _world.Get(target) == null ||
                 _world.Get(target)!.Kind != EntityKind.EntityMonster)
@@ -59,7 +69,11 @@ namespace Legend.Client.Combat
                 if (!string.IsNullOrEmpty(target))
                     _world.Select(target);
             }
-            if (string.IsNullOrEmpty(target)) return;
+            if (string.IsNullOrEmpty(target))
+            {
+                _hud?.ShowToast("附近没有可攻击目标", new Color(0.35f, 0.2f, 0.15f, 0.9f));
+                return;
+            }
             _ = _session.AttackAsync(target, _config.BasicAttackSkillId);
         }
 
@@ -77,7 +91,14 @@ namespace Legend.Client.Combat
                 LegendDamagePopup.Spawn(pos, "-" + cs.Damage, cs.TargetDied ? Color.magenta : Color.yellow);
 
             if (cs.TargetDied && view != null && view.Kind == EntityKind.EntityMonster)
+            {
                 _session.ChatLog.Add($"[combat] Killed {view.DisplayName}");
+                _hud?.ShowToast($"击杀 {view.DisplayName}", new Color(0.45f, 0.15f, 0.15f, 0.9f), 1.6f);
+            }
+
+            var selfId = _session.Client?.SelfEntity?.EntityId;
+            if (!string.IsNullOrEmpty(selfId) && cs.TargetEntityId == selfId && cs.TargetDied)
+                _hud?.ShowToast("你已死亡", new Color(0.45f, 0.08f, 0.08f, 0.95f), 3.5f);
         }
     }
 }

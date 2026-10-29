@@ -25,6 +25,7 @@ namespace Legend.Client.World
         private TextMesh _label = null!;
         private Transform _barBg = null!;
         private Transform _barFg = null!;
+        private GameObject? _selectRing;
 
         public void Initialize(EntitySnapshot snap, float cellSize, bool isSelf, float lerpSeconds)
         {
@@ -67,6 +68,9 @@ namespace Legend.Client.World
         {
             Selected = selected;
             ApplyColor();
+            EnsureSelectRing();
+            if (_selectRing != null)
+                _selectRing.SetActive(selected);
         }
 
         public void LerpToGrid(int x, int y, float cellSize)
@@ -161,6 +165,22 @@ namespace Legend.Client.World
             _barFg = barFgGo.transform;
         }
 
+
+        private void EnsureSelectRing()
+        {
+            if (_selectRing != null) return;
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = "SelectRing";
+            Object.Destroy(ring.GetComponent<Collider>());
+            ring.transform.SetParent(transform, false);
+            ring.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+            ring.transform.localScale = new Vector3(1.35f, 0.04f, 1.35f);
+            var r = ring.GetComponent<Renderer>();
+            r.material.color = new Color(1f, 0.85f, 0.15f, 0.85f);
+            ring.SetActive(false);
+            _selectRing = ring;
+        }
+
         private void ApplyColor()
         {
             if (_renderer == null) return;
@@ -171,7 +191,7 @@ namespace Legend.Client.World
             else if (Kind == EntityKind.EntityLoot) c = new Color(0.9f, 0.7f, 0.2f);
             else if (Kind == EntityKind.EntityPet) c = new Color(0.7f, 0.4f, 0.95f);
             else c = new Color(0.3f, 0.55f, 1f);
-            if (Selected) c = Color.Lerp(c, Color.white, 0.45f);
+            if (Selected) c = Color.Lerp(c, new Color(1f, 0.92f, 0.2f), 0.55f);
             _renderer.material.color = c;
         }
 

@@ -6,13 +6,14 @@ using Legend.Client.Session;
 using Legend.Client.UI;
 using Legend.Client.World;
 using Legend.ClientCore;
+using Legend.Contracts.Proto;
 using UnityEngine;
 
 namespace Legend.Client.Bootstrap
 {
     /// <summary>
     /// Drop on any GameObject in an empty scene (or use Editor menu to create Boot scene).
-    /// Awake builds camera / ground / session / HUD — no prefab dependency.
+    /// Awake builds camera / ground / session / uGUI HUD — no prefab dependency.
     /// </summary>
     public sealed class LegendClientBootstrap : MonoBehaviour
     {
@@ -43,6 +44,7 @@ namespace Legend.Client.Bootstrap
 
             _hud = gameObject.AddComponent<LegendHudController>();
             _hud.Bind(_session, _config, _combat, _world, _input);
+            _combat.BindHud(_hud);
 
             _session.StateChanged += OnSessionStateChanged;
         }
@@ -64,12 +66,15 @@ namespace Legend.Client.Bootstrap
 
             _world.TickCamera();
 
-            // Selection click (ignore left-half stick zone)
-            if (_input.WantSelectClick && UnityEngine.Input.mousePosition.x > Screen.width * 0.28f)
+            // Selection click (skip when pointer is over uGUI)
+            if (_input.WantSelectClick)
                 _combat.TrySelectFromScreen(UnityEngine.Input.mousePosition);
 
             if (_input.AttackPressed || _hud.ConsumeAttackUiPressed())
                 _combat.TryAttackSelectedOrNearest();
+
+            if (_hud.ConsumePickupUiPressed())
+                TryPickupSelectedOrNearest();
 
             if (Time.time < _nextMoveAt) return;
             _input.GetMoveIntent(out int dx, out int dy);
@@ -81,6 +86,28 @@ namespace Legend.Client.Bootstrap
             int dir = dy > 0 ? 0 : dy < 0 ? 4 : dx > 0 ? 2 : 6;
             _nextMoveAt = Time.time + _config.MoveCooldownSeconds;
             _ = MoveAsync(toX, toY, dir);
+        }
+
+        private void TryPickupSelectedOrNearest()
+        {
+            var sel = _world.SelectedEntityId;
+            if (!string.IsNullOrEmpty(sel))
+            {
+                var v = _world.Get(sel);
+                if (v != null && v.Kind == EntityKind.EntityLoot)
+                {
+                    _ = _session.PickupAsync(sel);
+                    return;
+                }
+            }
+            var nearest = _world.FindNearestLoot();
+            if (!string.IsNullOrEmpty(nearest))
+            {
+                _world.Select(nearest);
+                _ = _session.PickupAsync(nearest!);
+                return;
+            }
+            _hud.ShowToast("附近没有可拾取物（点选金色掉落）", new Color(0.35f, 0.3f, 0.1f, 0.9f));
         }
 
         private async System.Threading.Tasks.Task MoveAsync(int x, int y, int dir)
@@ -100,7 +127,6 @@ namespace Legend.Client.Bootstrap
                 _world.WireNetwork();
                 _combat.WireNetwork();
                 _networkWired = true;
-                // Seed self/nearby from EnterWorld (events already queued on client)
             }
             if (_session.Fsm.Phase is SessionPhase.Disconnected or SessionPhase.Login or SessionPhase.Error or SessionPhase.Reconnecting)
             {
@@ -131,7 +157,6 @@ namespace Legend.Client.Bootstrap
             camGo.AddComponent<AudioListener>();
             camGo.transform.position = new Vector3(20f, 14f, 8f);
             camGo.transform.LookAt(new Vector3(20f, 0f, 20f));
-            // Light
             var lightGo = new GameObject("Directional Light");
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional;

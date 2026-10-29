@@ -1,8 +1,10 @@
-# Unity Client MVP (Phase F)
+# Unity Client MVP (Phase F → G)
 
-See [`client/unity-mvp/README.md`](../client/unity-mvp/README.md) for open / play / acceptance steps.
+Phase F delivered the playable Bootstrap + IMGUI HUD.
 
-- Protocol: **1.21.0** (unchanged; client-only deliverable)
+**Phase G** upgrades the HUD to runtime **uGUI** — see [`UNITY_CLIENT_UGUI.md`](UNITY_CLIENT_UGUI.md) and [`client/unity-mvp/README.md`](../client/unity-mvp/README.md).
+
+- Protocol: **1.21.0** (unchanged; client-only)
 - SDK: `client/unity-sdk/`
-- Pure FSM tests: `client/Legend.ClientCore/` + `PhaseFClientCoreTests`
-- Verify: `./scripts/verify-phase-f-client.sh`
+- Pure FSM / UI mode tests: `client/Legend.ClientCore/` + `PhaseFClientCoreTests` / `PhaseGClientUiTests`
+- Verify: `./scripts/verify-phase-g-client.sh`

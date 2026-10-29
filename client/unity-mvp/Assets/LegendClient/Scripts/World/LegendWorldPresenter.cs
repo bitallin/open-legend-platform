@@ -109,6 +109,27 @@ namespace Legend.Client.World
             return best;
         }
 
+
+        public string? FindNearestLoot(float maxCells = 2.5f)
+        {
+            var self = _session.Client?.SelfEntity;
+            if (self == null) return null;
+            string? best = null;
+            float bestDist = maxCells;
+            foreach (var kv in _entities)
+            {
+                var v = kv.Value;
+                if (v.Kind != EntityKind.EntityLoot) continue;
+                float d = Mathf.Abs(v.GridX - self.X) + Mathf.Abs(v.GridY - self.Y);
+                if (d <= bestDist)
+                {
+                    bestDist = d;
+                    best = v.EntityId;
+                }
+            }
+            return best;
+        }
+
         public void TickCamera()
         {
             var self = _session.Client?.SelfEntity;
