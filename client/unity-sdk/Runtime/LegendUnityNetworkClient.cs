@@ -66,6 +66,14 @@ namespace Legend.UnitySdk
         public string GuildId { get; private set; } = string.Empty;
         public string GuildName { get; private set; } = string.Empty;
         public string GuildRank { get; private set; } = string.Empty;
+        public int EffectiveAtk { get; private set; }
+        public int EffectiveDef { get; private set; }
+        public int EffectiveMaxHp { get; private set; }
+        public IReadOnlyList<InventoryItem> Inventory => _inventory;
+        private readonly List<InventoryItem> _inventory = new();
+
+        /// <summary>Fired on main thread when the TCP read loop ends (disconnect / dispose).</summary>
+        public event Action? OnDisconnected;
 
         public void PumpMainThreadEvents()
         {
@@ -194,6 +202,10 @@ namespace Legend.UnitySdk
             GuildId = enter.GuildId ?? string.Empty;
             GuildName = enter.GuildName ?? string.Empty;
             GuildRank = enter.GuildRank ?? string.Empty;
+            EffectiveAtk = enter.EffectiveAtk;
+            EffectiveDef = enter.EffectiveDef;
+            EffectiveMaxHp = enter.EffectiveMaxHp;
+            ReplaceInventory(enter.Inventory);
             _mainThreadActions.Enqueue(() =>
             {
                 OnSelfEnteredWorld?.Invoke(enter.SelfEntity);
@@ -682,6 +694,7 @@ namespace Legend.UnitySdk
                         case MsgId.InventoryNotify:
                             var inv = InventoryNotify.Parser.ParseFrom(frame.Payload);
                             Gold = inv.Gold;
+                            ReplaceInventory(inv.Items);
                             _mainThreadActions.Enqueue(() => OnInventoryNotify?.Invoke(inv));
                             break;
                         case MsgId.QuestProgressNotify:
@@ -781,6 +794,20 @@ namespace Legend.UnitySdk
             {
                 foreach (var kv in _pending)
                     kv.Value.TrySetException(ex);
+            }
+            finally
+            {
+                _mainThreadActions.Enqueue(() => OnDisconnected?.Invoke());
+            }
+        }
+
+        private void ReplaceInventory(IEnumerable<InventoryItem> items)
+        {
+            _inventory.Clear();
+            if (items == null) return;
+            foreach (var it in items)
+            {
+                _inventory.Add(new InventoryItem { ItemId = it.ItemId, Count = it.Count });
             }
         }
 

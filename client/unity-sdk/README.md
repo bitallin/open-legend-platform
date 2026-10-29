@@ -2,7 +2,7 @@
 
 100% original Legend protocol client for **Unity 2022 LTS** (PC + Android). No 996 / third-party engine protocol.
 
-Protocol version: **1.20.0**
+Protocol version: **1.21.0**
 
 ## Import
 
@@ -29,7 +29,7 @@ Protocol version: **1.20.0**
 ## API flow
 
 ```
-Connect → Handshake(1.9.0) → Register → Login
+Connect → Handshake(1.21.0) → Register → Login
   → CharList / CreateChar / DeleteChar / SelectChar
   → EnterWorld  // Gold + Inventory + Quests + Equipment + guildId/Name/Rank + nearby NPCs/monsters
   → MoveReq / Attack / Pickup
@@ -51,19 +51,25 @@ dotnet build server/Legend.Contracts/Legend.Contracts.csproj -c Release
 cp server/Legend.Contracts/obj/Release/net8.0/LegendProtocol.cs client/unity-sdk/Runtime/LegendProtocol.cs
 ```
 
-Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId …2601–2609 stall, 2701–2716 party/friend, version 1.9.0).
+Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId …2601–2609 stall, 2701–2716 party/friend, version 1.21.0).
 
 ## Notes
 
 - Network callbacks via `PumpMainThreadEvents()` in `Update()`.
 - Safe zone: all attacks banned; stall listing requires safe zone when `requireSafeZone: true`.
 
-M12: `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`, events `OnDungeonProgress` / `OnDungeonComplete` (protocol 1.20.0).
+M12: `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`, events `OnDungeonProgress` / `OnDungeonComplete` (protocol 1.21.0).
 
-M14: `RequestWorldBossStatusAsync` / `RequestWorldBossControlAsync`, events `OnWorldBossSpawn` / `OnWorldBossHp` / `OnLootBroadcast` (protocol 1.20.0).
+M14: `RequestWorldBossStatusAsync` / `RequestWorldBossControlAsync`, events `OnWorldBossSpawn` / `OnWorldBossHp` / `OnLootBroadcast` (protocol 1.21.0).
 
-M13: `RequestDungeonEnterAsync(dungeonId, partyEnter: true)` / `RequestDungeonStatusAsync`, event `OnDungeonPartyEnter` (protocol 1.20.0). Day boundary Asia/Shanghai + resetHourLocal.
+M13: `RequestDungeonEnterAsync(dungeonId, partyEnter: true)` / `RequestDungeonStatusAsync`, event `OnDungeonPartyEnter` (protocol 1.21.0). Day boundary Asia/Shanghai + resetHourLocal.
 
-M15: MountStatus/Summon/Dismiss (3401–3406), FashionStatus/Equip (3407–3410), AppearanceSyncNotify (3413); EntitySnapshot MountId/FashionId/MoveIntervalMs (protocol 1.20.0).
+M15: MountStatus/Summon/Dismiss (3401–3406), FashionStatus/Equip (3407–3410), AppearanceSyncNotify (3413); EntitySnapshot MountId/FashionId/MoveIntervalMs (protocol 1.21.0).
 
-M16: `RequestPetStatusAsync` / `RequestPetSummonAsync` / `RequestPetDismissAsync`, event `OnPetSync`; EntityKind `ENTITY_PET`, EntitySnapshot `PetId` (protocol 1.20.0).
+M16: `RequestPetStatusAsync` / `RequestPetSummonAsync` / `RequestPetDismissAsync`, event `OnPetSync`; EntityKind `ENTITY_PET`, EntitySnapshot `PetId` (protocol 1.21.0).
+
+
+## Full MVP client
+
+See `client/unity-mvp/` (Phase F) for login / world / combat / HUD bootstrap on Unity 2022.3 LTS.
+Run `client/unity-mvp/sync-sdk.sh` after changing this SDK.

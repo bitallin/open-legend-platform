@@ -20,3 +20,13 @@ certs/payment/**
 !certs/payment/*.example.pem
 *.pem
 !certs/payment/*.example.pem
+
+# Unity MVP local editor noise
+client/unity-mvp/Library/
+client/unity-mvp/Temp/
+client/unity-mvp/Logs/
+client/unity-mvp/Obj/
+client/unity-mvp/UserSettings/
+client/unity-mvp/*.csproj
+client/unity-mvp/*.sln
+client/unity-mvp/Assembly-CSharp*.csproj

@@ -1,4 +1,5 @@
 using Legend.CliClient;
+using Legend.Contracts;
 using Legend.Contracts.Proto;
 
 string host = "127.0.0.1";
@@ -241,8 +242,8 @@ static async Task RunDungeonAcceptanceAsync(string host, int port, CancellationT
     await using var other = new LegendTcpClient();
     await hero.ConnectAsync(host, port, ct);
     await other.ConnectAsync(host, port, ct);
-    if (!(await hero.HandshakeAsync("1.20.0", "pc-m12-h", ct)).Accepted) throw new Exception("hero handshake failed");
-    if (!(await other.HandshakeAsync("1.20.0", "pc-m12-o", ct)).Accepted) throw new Exception("other handshake failed");
+    if (!(await hero.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m12-h", ct)).Accepted) throw new Exception("hero handshake failed");
+    if (!(await other.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m12-o", ct)).Accepted) throw new Exception("other handshake failed");
 
     string userH = restartPass ? File.ReadAllLines(marker)[0] : $"m12_h_{suffix}";
     string userO = restartPass ? File.ReadAllLines(marker)[1] : $"m12_o_{suffix}";
@@ -404,9 +405,9 @@ static async Task RunDungeonPartyAcceptanceAsync(string host, int port, Cancella
     await leader.ConnectAsync(host, port, ct);
     await mate.ConnectAsync(host, port, ct);
     await weak.ConnectAsync(host, port, ct);
-    if (!(await leader.HandshakeAsync("1.20.0", "pc-m13-l", ct)).Accepted) throw new Exception("leader handshake failed");
-    if (!(await mate.HandshakeAsync("1.20.0", "pc-m13-m", ct)).Accepted) throw new Exception("mate handshake failed");
-    if (!(await weak.HandshakeAsync("1.20.0", "pc-m13-w", ct)).Accepted) throw new Exception("weak handshake failed");
+    if (!(await leader.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m13-l", ct)).Accepted) throw new Exception("leader handshake failed");
+    if (!(await mate.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m13-m", ct)).Accepted) throw new Exception("mate handshake failed");
+    if (!(await weak.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m13-w", ct)).Accepted) throw new Exception("weak handshake failed");
 
     string userL, userM, userW, nameL, nameM, nameW;
     if (restartPass)
@@ -622,8 +623,8 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
     await using var bob = new LegendTcpClient();
     await alice.ConnectAsync(host, port, ct);
     await bob.ConnectAsync(host, port, ct);
-    if (!(await alice.HandshakeAsync("1.20.0", "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
-    if (!(await bob.HandshakeAsync("1.20.0", "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
+    if (!(await alice.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
+    if (!(await bob.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
 
     string userA = $"m11_a_{suffix}";
     string userB = $"m11_b_{suffix}";
@@ -772,7 +773,7 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
 
     await using var bob2 = new LegendTcpClient();
     await bob2.ConnectAsync(host, port, ct);
-    if (!(await bob2.HandshakeAsync("1.20.0", "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
+    if (!(await bob2.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
     await EnsureAccount(bob2, userB);
     await bob2.SelectCharAsync(idB, ct);
     var enterB2 = await bob2.EnterWorldAsync(realm, idB, ct);
@@ -805,7 +806,7 @@ static async Task RunSiegeAcceptanceAsync(string host, int port, CancellationTok
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.20.0", "pc-m10", ct)).Accepted)
+        if (!(await c.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m10", ct)).Accepted)
             throw new Exception("Handshake failed");
         await c.RegisterAsync(user, "pass12345", "PC", ct);
         var login = await c.LoginAsync(user, "pass12345", "PC", ct);
@@ -931,7 +932,7 @@ static async Task RunSkillAcceptanceAsync(string host, int port, CancellationTok
 {
     await using var client = new LegendTcpClient();
     await client.ConnectAsync(host, port, ct);
-    if (!(await client.HandshakeAsync("1.20.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
+    if (!(await client.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
 
     string user = "m9_skill_" + Guid.NewGuid().ToString("N")[..6];
     await client.RegisterAsync(user, "pass12345", "PC", ct);
@@ -1097,8 +1098,8 @@ static async Task RunPartyAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.20.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.20.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
@@ -1258,8 +1259,8 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.20.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.20.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -1405,8 +1406,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.20.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.20.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -1535,7 +1536,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.20.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -1582,7 +1583,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.20.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync(ProtocolConstants.CurrentVersion, "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)
@@ -2087,9 +2088,9 @@ static async Task RunWorldBossAcceptanceAsync(string host, int port, Cancellatio
     await b.ConnectAsync(host, port, ct);
     await spectator.ConnectAsync(host, port, ct);
 
-    if (!(await a.HandshakeAsync("1.20.0", "pc-m14-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.20.0", "pc-m14-b", ct)).Accepted) throw new Exception("B handshake failed");
-    if (!(await spectator.HandshakeAsync("1.20.0", "pc-m14-s", ct)).Accepted) throw new Exception("S handshake failed");
+    if (!(await a.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m14-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m14-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await spectator.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m14-s", ct)).Accepted) throw new Exception("S handshake failed");
 
     await a.RegisterAsync("m14_a", "secret12345", "PC", ct);
     await b.RegisterAsync("m14_b", "secret12345", "PC", ct);
@@ -2287,8 +2288,8 @@ static async Task RunMountFashionAcceptanceAsync(string host, int port, Cancella
     await rider.ConnectAsync(host, port, ct);
     await watcher.ConnectAsync(host, port, ct);
 
-    if (!(await rider.HandshakeAsync("1.20.0", "pc-m15-r", ct)).Accepted) throw new Exception("rider handshake failed");
-    if (!(await watcher.HandshakeAsync("1.20.0", "pc-m15-w", ct)).Accepted) throw new Exception("watcher handshake failed");
+    if (!(await rider.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m15-r", ct)).Accepted) throw new Exception("rider handshake failed");
+    if (!(await watcher.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m15-w", ct)).Accepted) throw new Exception("watcher handshake failed");
 
     await rider.RegisterAsync("m15_rider", "secret12345", "PC", ct);
     await watcher.RegisterAsync("m15_watch", "secret12345", "PC", ct);
@@ -2372,7 +2373,7 @@ static async Task RunMountFashionAcceptanceAsync(string host, int port, Cancella
 
     await using var rider2 = new LegendTcpClient();
     await rider2.ConnectAsync(host, port, ct);
-    AssertOk((await rider2.HandshakeAsync("1.20.0", "pc-m15-r2", ct)).Accepted, "r2 hs");
+    AssertOk((await rider2.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m15-r2", ct)).Accepted, "r2 hs");
     AssertOk((await rider2.LoginAsync("m15_rider", "secret12345", "PC", ct)).Success, "r2 login");
     await rider2.SelectCharAsync(idR, ct);
     var enter2 = await rider2.EnterWorldAsync(realmId, idR, ct);
@@ -2392,8 +2393,8 @@ static async Task RunPetAcceptanceAsync(string host, int port, CancellationToken
     await owner.ConnectAsync(host, port, ct);
     await watcher.ConnectAsync(host, port, ct);
 
-    if (!(await owner.HandshakeAsync("1.20.0", "pc-m16-o", ct)).Accepted) throw new Exception("owner handshake failed");
-    if (!(await watcher.HandshakeAsync("1.20.0", "pc-m16-w", ct)).Accepted) throw new Exception("watcher handshake failed");
+    if (!(await owner.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m16-o", ct)).Accepted) throw new Exception("owner handshake failed");
+    if (!(await watcher.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m16-w", ct)).Accepted) throw new Exception("watcher handshake failed");
 
     await owner.RegisterAsync("m16_owner", "secret12345", "PC", ct);
     await watcher.RegisterAsync("m16_watch", "secret12345", "PC", ct);
@@ -2530,7 +2531,7 @@ static async Task RunPetAcceptanceAsync(string host, int port, CancellationToken
 
     await using var owner2 = new LegendTcpClient();
     await owner2.ConnectAsync(host, port, ct);
-    AssertOk((await owner2.HandshakeAsync("1.20.0", "pc-m16-o2", ct)).Accepted, "o2 hs");
+    AssertOk((await owner2.HandshakeAsync(ProtocolConstants.CurrentVersion, "pc-m16-o2", ct)).Accepted, "o2 hs");
     AssertOk((await owner2.LoginAsync("m16_owner", "secret12345", "PC", ct)).Success, "o2 login");
     await owner2.SelectCharAsync(idO, ct);
     var enter2 = await owner2.EnterWorldAsync(realmId, idO, ct);
@@ -2555,7 +2556,7 @@ static async Task RunGuildWarehouseAcceptanceAsync(string host, int port, Cancel
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.20.0", device, ct)).Accepted)
+        if (!(await c.HandshakeAsync(ProtocolConstants.CurrentVersion, device, ct)).Accepted)
             throw new Exception($"handshake failed for {user}");
         await c.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await c.LoginAsync(user, "secret12345", "PC", ct);
@@ -2656,7 +2657,7 @@ static async Task RunGuildAuditAcceptanceAsync(string host, int port, Cancellati
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.20.0", device, ct)).Accepted)
+        if (!(await c.HandshakeAsync(ProtocolConstants.CurrentVersion, device, ct)).Accepted)
             throw new Exception($"handshake failed for {user}");
         await c.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await c.LoginAsync(user, "secret12345", "PC", ct);
