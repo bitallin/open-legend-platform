@@ -393,6 +393,16 @@ public sealed class GuildConfig
     public int ChatCooldownMs { get; set; } = 50;
     /// <summary>Chebyshev distance for Nearby chat (same map).</summary>
     public int NearbyChebyshev { get; set; } = 14;
+    /// <summary>Max distinct item stacks in the shared guild warehouse.</summary>
+    public int WarehouseCapacitySlots { get; set; } = 40;
+    /// <summary>Max stack size per item id in the guild warehouse.</summary>
+    public int WarehouseMaxStackPerItem { get; set; } = 999;
+    /// <summary>Any member (including leader) may deposit when true.</summary>
+    public bool MemberCanDeposit { get; set; } = true;
+    /// <summary>Any member (including leader) may withdraw when true.</summary>
+    public bool MemberCanWithdraw { get; set; } = true;
+    /// <summary>Only the guild leader may clear (empty) the warehouse when true.</summary>
+    public bool LeaderCanClear { get; set; } = true;
 }
 
 public sealed class TradeConfig
@@ -704,3 +714,6 @@ public sealed record FashionChangedEvent(string CharacterId, string PlayerName, 
 public sealed record RareLootBroadcastEvent(string BossId, string KillerCharacterId, string KillerName, string ItemId, int ItemCount, int Gold, string Content);
 
 public sealed record PetChangedEvent(string CharacterId, string PlayerName, string PetId, string PetEntityId, string Action, string Reason);
+public sealed record GuildWarehouseDepositEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, string ItemId, int Count, int UsedSlots);
+public sealed record GuildWarehouseWithdrawEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, string ItemId, int Count, int UsedSlots);
+public sealed record GuildWarehouseClearEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, int ClearedSlots);

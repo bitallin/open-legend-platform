@@ -80,6 +80,8 @@ enum ProtocolErrorCode {
   ERR_FASHION_DENIED = 1072;
   ERR_MOVE_TOO_FAST = 1073;
   ERR_PET_DENIED = 1074;
+  ERR_GUILD_WAREHOUSE_DENIED = 1075;
+  ERR_GUILD_WAREHOUSE_FULL = 1076;
   ERR_INTERNAL = 1999;
 }
 
@@ -1401,4 +1403,60 @@ message PetSyncNotify {
   int32 x = 5;
   int32 y = 6;
   string reason = 7; // summon | dismiss | owner_death | follow
+}
+
+// 25. Guild Warehouse Shared Storage (MsgId: 3601–3608) — M17
+// Permissions (guild.json): memberCanDeposit / memberCanWithdraw for any member;
+// leaderCanClear allows guild leader to empty the warehouse. Not-in-guild → ERR_NOT_IN_GUILD.
+message GuildWarehouseListReq {}
+
+message GuildWarehouseListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string guild_id = 4;
+  int32 capacity_slots = 5;
+  int32 used_slots = 6;
+  int32 max_stack_per_item = 7;
+  bool can_deposit = 8;
+  bool can_withdraw = 9;
+  bool can_clear = 10;
+  repeated InventoryItem items = 11;
+}
+
+message GuildWarehouseDepositReq {
+  string item_id = 1;
+  int32 count = 2;
+}
+
+message GuildWarehouseDepositResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 used_slots = 4;
+  repeated InventoryItem warehouse_items = 5;
+  repeated InventoryItem inventory = 6;
+}
+
+message GuildWarehouseWithdrawReq {
+  string item_id = 1;
+  int32 count = 2;
+}
+
+message GuildWarehouseWithdrawResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 used_slots = 4;
+  repeated InventoryItem warehouse_items = 5;
+  repeated InventoryItem inventory = 6;
+}
+
+message GuildWarehouseClearReq {}
+
+message GuildWarehouseClearResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 cleared_slots = 4;
 }

@@ -37,6 +37,7 @@ public interface IGuildStore
     Task<(bool Ok, string? Error, GuildRecord? Guild)> AddMemberAsync(string guildId, string characterId, CancellationToken ct = default);
     Task<(bool Ok, string? Error)> RemoveMemberAsync(string guildId, string characterId, CancellationToken ct = default);
     Task DeleteAsync(string guildId, CancellationToken ct = default);
+    Task SaveWarehouseAsync(string guildId, string warehouseJson, CancellationToken ct = default);
 }
 
 public interface IFriendStore

@@ -159,14 +159,22 @@ namespace Legend.Contracts
         PetDismissReq = 3505,
         PetDismissResp = 3506,
         PetSyncNotify = 3511,
+        GuildWarehouseListReq = 3601,
+        GuildWarehouseListResp = 3602,
+        GuildWarehouseDepositReq = 3603,
+        GuildWarehouseDepositResp = 3604,
+        GuildWarehouseWithdrawReq = 3605,
+        GuildWarehouseWithdrawResp = 3606,
+        GuildWarehouseClearReq = 3607,
+        GuildWarehouseClearResp = 3608,
         LootBroadcastNotify = 3307,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.16.0";
-        public const string MinCompatibleVersion = "1.16.0";
+        public const string CurrentVersion = "1.17.0";
+        public const string MinCompatibleVersion = "1.17.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

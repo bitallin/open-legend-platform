@@ -1191,6 +1191,39 @@ public sealed class LegendTcpClient : IAsyncDisposable
         throw new TimeoutException("CombatSync not received");
     }
 
+
+    public async Task<GuildWarehouseListResp> GuildWarehouseListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseListReq, new GuildWarehouseListReq(), ct);
+        return GuildWarehouseListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<GuildWarehouseDepositResp> GuildWarehouseDepositAsync(string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseDepositReq, new GuildWarehouseDepositReq
+        {
+            ItemId = itemId ?? "",
+            Count = count
+        }, ct);
+        return GuildWarehouseDepositResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<GuildWarehouseWithdrawResp> GuildWarehouseWithdrawAsync(string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseWithdrawReq, new GuildWarehouseWithdrawReq
+        {
+            ItemId = itemId ?? "",
+            Count = count
+        }, ct);
+        return GuildWarehouseWithdrawResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<GuildWarehouseClearResp> GuildWarehouseClearAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseClearReq, new GuildWarehouseClearReq(), ct);
+        return GuildWarehouseClearResp.Parser.ParseFrom(frame.Payload);
+    }
+
     public async Task<EntitySpawn> WaitEntitySpawnAsync(Func<EntitySpawn, bool>? pred = null, int timeoutMs = 3000, CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();

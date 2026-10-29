@@ -799,6 +799,39 @@ namespace Legend.UnitySdk
 
 
 
+
+        public async Task<GuildWarehouseListResp> RequestGuildWarehouseListAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildWarehouseListReq, new GuildWarehouseListReq(), ct).ConfigureAwait(false);
+            return GuildWarehouseListResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<GuildWarehouseDepositResp> RequestGuildWarehouseDepositAsync(string itemId, int count, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildWarehouseDepositReq, new GuildWarehouseDepositReq
+            {
+                ItemId = itemId ?? "",
+                Count = count
+            }, ct).ConfigureAwait(false);
+            return GuildWarehouseDepositResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<GuildWarehouseWithdrawResp> RequestGuildWarehouseWithdrawAsync(string itemId, int count, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildWarehouseWithdrawReq, new GuildWarehouseWithdrawReq
+            {
+                ItemId = itemId ?? "",
+                Count = count
+            }, ct).ConfigureAwait(false);
+            return GuildWarehouseWithdrawResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<GuildWarehouseClearResp> RequestGuildWarehouseClearAsync(CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildWarehouseClearReq, new GuildWarehouseClearReq(), ct).ConfigureAwait(false);
+            return GuildWarehouseClearResp.Parser.ParseFrom(frame.Payload);
+        }
+
         public async Task<PetStatusResp> RequestPetStatusAsync(CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.PetStatusReq, new PetStatusReq(), ct);

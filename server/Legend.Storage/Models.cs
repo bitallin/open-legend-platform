@@ -173,6 +173,8 @@ public sealed class GuildRecord
     public string Name { get; set; } = string.Empty;
     public string LeaderCharacterId { get; set; } = string.Empty;
     public List<string> MemberCharacterIds { get; set; } = new();
+    /// <summary>JSON array of {itemId,count} shared warehouse stacks.</summary>
+    public string WarehouseJson { get; set; } = "[]";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public GuildRecord Clone() => new()
@@ -181,6 +183,7 @@ public sealed class GuildRecord
         Name = Name,
         LeaderCharacterId = LeaderCharacterId,
         MemberCharacterIds = new List<string>(MemberCharacterIds),
+        WarehouseJson = WarehouseJson,
         CreatedAt = CreatedAt
     };
 }

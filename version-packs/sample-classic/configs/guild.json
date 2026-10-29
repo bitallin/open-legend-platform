@@ -5,5 +5,10 @@
   "maxMembers": 20,
   "chatMaxLength": 80,
   "chatCooldownMs": 0,
-  "nearbyChebyshev": 14
+  "nearbyChebyshev": 14,
+  "warehouseCapacitySlots": 40,
+  "warehouseMaxStackPerItem": 999,
+  "memberCanDeposit": true,
+  "memberCanWithdraw": true,
+  "leaderCanClear": true
 }

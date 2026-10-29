@@ -57,6 +57,7 @@ internal sealed class InMemoryGuildStore : IGuildStore
                 Name = name,
                 LeaderCharacterId = leaderCharacterId,
                 MemberCharacterIds = new List<string> { leaderCharacterId },
+                WarehouseJson = "[]",
                 CreatedAt = DateTimeOffset.UtcNow
             };
             if (!_nameToId.TryAdd(name, g.GuildId))
@@ -64,6 +65,16 @@ internal sealed class InMemoryGuildStore : IGuildStore
             _byId[g.GuildId] = g;
             return Task.FromResult<(bool, string?, GuildRecord?)>((true, null, g.Clone()));
         }
+    }
+
+    public Task SaveWarehouseAsync(string guildId, string warehouseJson, CancellationToken ct = default)
+    {
+        lock (_gate)
+        {
+            if (_byId.TryGetValue(guildId, out var g))
+                g.WarehouseJson = string.IsNullOrWhiteSpace(warehouseJson) ? "[]" : warehouseJson;
+        }
+        return Task.CompletedTask;
     }
 
     public Task<(bool Ok, string? Error, GuildRecord? Guild)> AddMemberAsync(string guildId, string characterId, CancellationToken ct = default)
@@ -126,10 +137,24 @@ internal sealed class SqliteGuildStore : IGuildStore
               name TEXT NOT NULL COLLATE NOCASE UNIQUE,
               leader_character_id TEXT NOT NULL,
               members_json TEXT NOT NULL,
+              warehouse_json TEXT NOT NULL DEFAULT '[]',
               created_at TEXT NOT NULL
             );
             """;
         await cmd.ExecuteNonQueryAsync(ct);
+        // Migrate older DBs that lack warehouse_json
+        cmd.CommandText = "PRAGMA table_info(guilds)";
+        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var reader = await cmd.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+                cols.Add(reader.GetString(1));
+        }
+        if (!cols.Contains("warehouse_json"))
+        {
+            cmd.CommandText = "ALTER TABLE guilds ADD COLUMN warehouse_json TEXT NOT NULL DEFAULT '[]'";
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
     }
 
     public async Task<GuildRecord?> GetByIdAsync(string guildId, CancellationToken ct = default)
@@ -137,7 +162,7 @@ internal sealed class SqliteGuildStore : IGuildStore
         await using var conn = new SqliteConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT guild_id, name, leader_character_id, members_json, created_at FROM guilds WHERE guild_id = $id";
+        cmd.CommandText = "SELECT guild_id, name, leader_character_id, members_json, warehouse_json, created_at FROM guilds WHERE guild_id = $id";
         cmd.Parameters.AddWithValue("$id", guildId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
@@ -149,7 +174,7 @@ internal sealed class SqliteGuildStore : IGuildStore
         await using var conn = new SqliteConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT guild_id, name, leader_character_id, members_json, created_at FROM guilds WHERE name = $n COLLATE NOCASE";
+        cmd.CommandText = "SELECT guild_id, name, leader_character_id, members_json, warehouse_json, created_at FROM guilds WHERE name = $n COLLATE NOCASE";
         cmd.Parameters.AddWithValue("$n", name.Trim());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
@@ -172,14 +197,16 @@ internal sealed class SqliteGuildStore : IGuildStore
             await using var conn = new SqliteConnection(_cs);
             await conn.OpenAsync(ct);
             await using var cmd = conn.CreateCommand();
+            g.WarehouseJson = "[]";
             cmd.CommandText = """
-                INSERT INTO guilds(guild_id, name, leader_character_id, members_json, created_at)
-                VALUES($id, $n, $l, $m, $c)
+                INSERT INTO guilds(guild_id, name, leader_character_id, members_json, warehouse_json, created_at)
+                VALUES($id, $n, $l, $m, $w, $c)
                 """;
             cmd.Parameters.AddWithValue("$id", g.GuildId);
             cmd.Parameters.AddWithValue("$n", g.Name);
             cmd.Parameters.AddWithValue("$l", g.LeaderCharacterId);
             cmd.Parameters.AddWithValue("$m", GuildMembersJson.Serialize(g.MemberCharacterIds));
+            cmd.Parameters.AddWithValue("$w", g.WarehouseJson);
             cmd.Parameters.AddWithValue("$c", g.CreatedAt.ToString("O"));
             await cmd.ExecuteNonQueryAsync(ct);
             return (true, null, g);
@@ -226,6 +253,17 @@ internal sealed class SqliteGuildStore : IGuildStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveWarehouseAsync(string guildId, string warehouseJson, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE guilds SET warehouse_json = $w WHERE guild_id = $id";
+        cmd.Parameters.AddWithValue("$w", string.IsNullOrWhiteSpace(warehouseJson) ? "[]" : warehouseJson);
+        cmd.Parameters.AddWithValue("$id", guildId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private async Task PersistMembersAsync(GuildRecord g, CancellationToken ct)
     {
         await using var conn = new SqliteConnection(_cs);
@@ -244,7 +282,8 @@ internal sealed class SqliteGuildStore : IGuildStore
         Name = reader.GetString(1),
         LeaderCharacterId = reader.GetString(2),
         MemberCharacterIds = GuildMembersJson.Parse(reader.GetString(3)),
-        CreatedAt = DateTimeOffset.Parse(reader.GetString(4))
+        WarehouseJson = reader.IsDBNull(4) || string.IsNullOrWhiteSpace(reader.GetString(4)) ? "[]" : reader.GetString(4),
+        CreatedAt = DateTimeOffset.Parse(reader.GetString(5))
     };
 }
 
@@ -263,9 +302,11 @@ internal sealed class PostgresGuildStore : IGuildStore
               name TEXT NOT NULL,
               leader_character_id TEXT NOT NULL,
               members_json TEXT NOT NULL,
+              warehouse_json TEXT NOT NULL DEFAULT '[]',
               created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
             CREATE UNIQUE INDEX IF NOT EXISTS idx_guilds_name_lower ON guilds (LOWER(name));
+            ALTER TABLE guilds ADD COLUMN IF NOT EXISTS warehouse_json TEXT NOT NULL DEFAULT '[]';
             """, conn);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -275,7 +316,7 @@ internal sealed class PostgresGuildStore : IGuildStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT guild_id, name, leader_character_id, members_json, created_at FROM guilds WHERE guild_id = @id", conn);
+            "SELECT guild_id, name, leader_character_id, members_json, warehouse_json, created_at FROM guilds WHERE guild_id = @id", conn);
         cmd.Parameters.AddWithValue("id", guildId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
@@ -287,7 +328,7 @@ internal sealed class PostgresGuildStore : IGuildStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT guild_id, name, leader_character_id, members_json, created_at FROM guilds WHERE LOWER(name) = LOWER(@n)", conn);
+            "SELECT guild_id, name, leader_character_id, members_json, warehouse_json, created_at FROM guilds WHERE LOWER(name) = LOWER(@n)", conn);
         cmd.Parameters.AddWithValue("n", name.Trim());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
@@ -309,14 +350,16 @@ internal sealed class PostgresGuildStore : IGuildStore
         {
             await using var conn = new NpgsqlConnection(_cs);
             await conn.OpenAsync(ct);
+            g.WarehouseJson = "[]";
             await using var cmd = new NpgsqlCommand("""
-                INSERT INTO guilds(guild_id, name, leader_character_id, members_json, created_at)
-                VALUES(@id, @n, @l, @m, @c)
+                INSERT INTO guilds(guild_id, name, leader_character_id, members_json, warehouse_json, created_at)
+                VALUES(@id, @n, @l, @m, @w, @c)
                 """, conn);
             cmd.Parameters.AddWithValue("id", g.GuildId);
             cmd.Parameters.AddWithValue("n", g.Name);
             cmd.Parameters.AddWithValue("l", g.LeaderCharacterId);
             cmd.Parameters.AddWithValue("m", GuildMembersJson.Serialize(g.MemberCharacterIds));
+            cmd.Parameters.AddWithValue("w", g.WarehouseJson);
             cmd.Parameters.AddWithValue("c", g.CreatedAt);
             await cmd.ExecuteNonQueryAsync(ct);
             return (true, null, g);
@@ -362,6 +405,17 @@ internal sealed class PostgresGuildStore : IGuildStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveWarehouseAsync(string guildId, string warehouseJson, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "UPDATE guilds SET warehouse_json = @w WHERE guild_id = @id", conn);
+        cmd.Parameters.AddWithValue("w", string.IsNullOrWhiteSpace(warehouseJson) ? "[]" : warehouseJson);
+        cmd.Parameters.AddWithValue("id", guildId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private async Task PersistMembersAsync(GuildRecord g, CancellationToken ct)
     {
         await using var conn = new NpgsqlConnection(_cs);
@@ -380,6 +434,7 @@ internal sealed class PostgresGuildStore : IGuildStore
         Name = reader.GetString(1),
         LeaderCharacterId = reader.GetString(2),
         MemberCharacterIds = GuildMembersJson.Parse(reader.GetString(3)),
-        CreatedAt = reader.GetFieldValue<DateTimeOffset>(4)
+        WarehouseJson = reader.IsDBNull(4) || string.IsNullOrWhiteSpace(reader.GetString(4)) ? "[]" : reader.GetString(4),
+        CreatedAt = reader.GetFieldValue<DateTimeOffset>(5)
     };
 }

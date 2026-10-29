@@ -92,7 +92,7 @@ public class M4IntegrationTests
 
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        Assert.True((await client.HandshakeAsync("1.16.0")).Accepted);
+        Assert.True((await client.HandshakeAsync("1.17.0")).Accepted);
         await client.RegisterAndLoginAsync("m4_hero", "secret123");
         var create = await client.CreateCharAsync("铁匠武者", "warrior");
         Assert.True(create.Success, create.Message);
@@ -184,7 +184,7 @@ public class M4IntegrationTests
 
         var client2 = new LegendTcpClient();
         await client2.ConnectAsync("127.0.0.1", engine2.BoundPort);
-        await client2.HandshakeAsync("1.16.0");
+        await client2.HandshakeAsync("1.17.0");
         var login2 = await client2.LoginAsync("m4_hero", "secret123");
         Assert.True(login2.Success);
         await client2.SelectCharAsync(charId);
@@ -220,7 +220,7 @@ public class M4IntegrationTests
 
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-        await client.HandshakeAsync("1.16.0");
+        await client.HandshakeAsync("1.17.0");
         await client.RegisterAndLoginAsync("m4_guard", "secret123");
         var create = await client.CreateCharAsync("校验测试", "warrior");
         await client.SelectCharAsync(create.Character.CharacterId);
@@ -266,7 +266,7 @@ public class M4IntegrationTests
     {
         var loader = new VersionPackLoader();
         var pack = loader.LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.16.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.17.0", pack.Manifest.ProtocolVersion);
         Assert.True(pack.Items.ContainsKey("item_wooden_sword"));
         Assert.True(pack.Items.ContainsKey("item_cloth_armor"));
         Assert.True(pack.Items.ContainsKey("item_bronze_ring"));

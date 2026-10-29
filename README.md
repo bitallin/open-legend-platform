@@ -1,58 +1,55 @@
-# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M16)
+# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M17)
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：M16（宠物召唤跟随与轻量战斗协助）
+## 当前里程碑：M17（行会仓库共享存取与权限校验）
 
-协议版本 **1.16.0**。在 M15 坐骑/时装之上新增宠物召唤跟随与轻量战斗协助：`PetSummon`/`Dismiss`、AOI `ENTITY_PET`、主人攻击后宠物对同目标 `pet_assist` 权威伤害；**主人死亡自动收回**（清除 `ActivePetId`，复活后需手动重召）；**断线保留** `ActivePetId`，重进自动再召唤实体。三后端 `appearance_json` 持久化 `ownedPets`/`activePetId`。
-
-| 项 | 约定 |
-|----|------|
-| 宠物配置 | `configs/pets.json`；示例 `pet_wolf_pup`（跟随距离 2、协助伤害 25%、冷却 1200ms、范围 3） |
-| 获得途径 | 商店购买 `item_pet_wolf_pup`（30 金）→ `UseItem` 解锁（`kind=pet_unlock`） |
-| 协议 | `PetStatus/Summon/Dismiss`（3501–3506）、`PetSyncNotify`（3511）；`EntityKind.ENTITY_PET=4`；`EntitySnapshot.pet_id` |
-| 跟随 | 主人移动后宠物 Chebyshev 靠近；跨图时瞬移到主人旁 |
-| 协助 | 主人命中怪物后宠物对同一目标 `skillId=pet_assist`，伤害 `floor(owner.Atk * percent/100)` 再走防御公式 |
-| 死亡规则 | 主人死亡：despawn + 清除 `ActivePetId`（须复活后重召）。断线：仅 despawn 实体，保留 `ActivePetId` |
-| 持久化 | `appearance_json` 扩展 `{ownedPets,activePetId}`（与坐骑/时装同字段存储） |
-| 错误码 | `ERR_PET_DENIED=1074` |
-| VersionPack / Lua | `pets.lua`：`on_pet_summon` / `on_pet_dismiss` |
-| 验收 | CLI `--pet`；`M16IntegrationTests`；`scripts/verify-m16.sh` |
-
-### M15（坐骑与时装外观同步）
+协议版本 **1.17.0**。在 M16 宠物之上新增行会共享仓库：会员可存取个人背包↔行会仓（原子），会长可清空；未入会拒绝。三后端 `guilds.warehouse_json` 持久化，重启保留。
 
 | 项 | 约定 |
 |----|------|
-| 协议 | Mount/Fashion/AppearanceSync（3401–3413）；`ERR_MOUNT/FASHION/MOVE_TOO_FAST` |
-| 验收 | CLI `--mount`；`verify-m15.sh` |
+| 配置 | `configs/guild.json`：`warehouseCapacitySlots=40`、`warehouseMaxStackPerItem=999`、`memberCanDeposit/Withdraw=true`、`leaderCanClear=true` |
+| 权限 | 会员存/取（可配置）；仅会长清空；未入会 → `ERR_NOT_IN_GUILD` |
+| 协议 | `GuildWarehouseList/Deposit/Withdraw/Clear`（3601–3608）；`ERR_GUILD_WAREHOUSE_DENIED=1075`、`ERR_GUILD_WAREHOUSE_FULL=1076` |
+| 原子性 | 存：扣背包→写入会仓→双写持久化；取：扣仓→加背包 |
+| 持久化 | `guilds.warehouse_json`（InMemory / Sqlite / Postgres，含迁移） |
+| Lua | `on_guild_warehouse_deposit` / `on_guild_warehouse_withdraw` / `on_guild_warehouse_clear` |
+| 验收 | CLI `--guild-wh`；`M17IntegrationTests`；`scripts/verify-m17.sh` |
 
-### M14 / M13 / …
+### M16（宠物召唤跟随与轻量战斗协助）
 
-世界 Boss、组队副本、邮件、攻城等仍生效。
+| 项 | 约定 |
+|----|------|
+| 协议 | PetStatus/Summon/Dismiss/Sync（3501–3511）；`ERR_PET_DENIED` |
+| 验收 | CLI `--pet`；`verify-m16.sh` |
+
+### M15 / M14 / …
+
+坐骑时装、世界 Boss、组队副本、邮件、攻城等仍生效。
 
 ## 1. 目录结构
 ```text
 legend-platform/
-├── protocol/                    # Protobuf 契约 (VERSION=1.16.0)
+├── protocol/                    # Protobuf 契约 (VERSION=1.17.0)
 ├── server/
-│   ├── Legend.Contracts/        # MsgId 3501–3511 宠物；3401–3413 坐骑/时装
-│   ├── Legend.Core/             # VersionPackLoader(+pets/mounts/fashions.json)
-│   ├── Legend.Game/             # GameWorldModule.Pets 召唤/跟随/协助/死亡收回
-│   ├── Legend.Storage/          # appearance_json 三后端
-│   ├── Legend.Script/           # on_pet_summon / on_pet_dismiss
-│   ├── Legend.CliClient/        # --pet / --mount 验收
-│   └── Legend.Tests/            # M0–M16
-├── client/unity-sdk/            # Pet/Mount/Fashion MsgId (1.16.0)
-├── version-packs/sample-classic/# pets.json + pets.lua + mounts/fashions
-└── scripts/verify-m16.sh
+│   ├── Legend.Contracts/        # MsgId 3601–3608 行会仓；3501–3511 宠物
+│   ├── Legend.Core/             # VersionPackLoader(+guild warehouse 字段)
+│   ├── Legend.Game/             # GameWorldModule.GuildWarehouse 存取/清空
+│   ├── Legend.Storage/          # guilds.warehouse_json 三后端
+│   ├── Legend.Script/           # on_guild_warehouse_*
+│   ├── Legend.CliClient/        # --guild-wh / --pet 验收
+│   └── Legend.Tests/            # M0–M17
+├── client/unity-sdk/            # GuildWarehouse + Pet MsgId (1.17.0)
+├── version-packs/sample-classic/# guild.json 仓权限 + guild.lua
+└── scripts/verify-m17.sh
 ```
 
 ## 2. 快速验证
 ```bash
-./scripts/verify-m16.sh
+./scripts/verify-m17.sh
 # 回归：
+./scripts/verify-m16.sh
 ./scripts/verify-m15.sh
-./scripts/verify-m14.sh
 ```
 
 ### 启动（Sqlite）
@@ -61,20 +58,19 @@ dotnet run --project server/Legend.Host -- --port 7100 \
   --manifest version-packs/sample-classic/manifest.json --storage Sqlite --sqlite data/legend.db
 ```
 
-### 手动验收（宠物）
-1. Handshake `1.16.0` → Register/Login → CreateChar → EnterWorld（两名客户端同图）
-2. 商店购买 `item_pet_wolf_pup` → `UseItem` 解锁 → `PetStatus` 见 owned
-3. `PetSummon pet_wolf_pup` → 本端与旁观者收到 `EntitySpawn(ENTITY_PET)` / `PetSyncNotify`
-4. 主人移动数格 → 宠物跟随靠近（`MoveSync` reason=`PetFollow`）
-5. 主人 `Attack` 附近怪物 → 收到宠物 `CombatSync(skillId=pet_assist)` 轻量伤害
-6. `PetDismiss` 收回；再次召唤后下线再进：`PetStatus.activePetId` 仍在且实体自动再召唤
-7. （规则）主人死亡会清除 active 并 despawn；复活后需手动 `PetSummon`
+### 手动验收（行会仓库）
+1. Handshake `1.17.0` → Register/Login → CreateChar → EnterWorld（会长 + 会员 + 局外人）
+2. 局外人 `GuildWarehouseList` → `ERR_NOT_IN_GUILD`
+3. 会长创建行会，会员加入；商店购买 `item_hp_potion`
+4. 会长 `GuildWarehouseDeposit` → 背包减少、仓 UsedSlots+1；会员 List 可见
+5. 会员 `GuildWarehouseWithdraw` → 仓减少、会员背包增加
+6. 会员 `GuildWarehouseClear` → `ERR_GUILD_WAREHOUSE_DENIED`；会长 Clear 成功
+7. 重启 Host 后 List 仍见重启前未清空的仓物品
 
-CLI：`dotnet run --project server/Legend.CliClient -- --host 127.0.0.1 --port 7100 --pet`
+CLI：`dotnet run --project server/Legend.CliClient -- --host 127.0.0.1 --port 7100 --guild-wh`
 
 ## 3. Unity 接入
-见 `client/unity-sdk/README.md`。协议 `1.16.0`；`RequestPetStatus/Summon/Dismiss`、`OnPetSync`；`EntitySnapshot.PetId`；Mount/Fashion 同前。
-
+见 `client/unity-sdk/README.md`。协议 `1.17.0`；`RequestGuildWarehouseList/Deposit/Withdraw/Clear`；Pet/Mount/Fashion 同前。
 
 ## 4. 环境变量
 | 变量 | 含义 |
