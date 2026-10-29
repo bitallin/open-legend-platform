@@ -31,3 +31,6 @@ client/unity-mvp/*.csproj
 client/unity-mvp/*.sln
 client/unity-mvp/Assembly-CSharp*.csproj
 dist/legend-host-linux-x64/
+
+# launcher download cache
+launcher/cache/

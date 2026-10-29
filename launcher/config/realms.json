@@ -1,0 +1,28 @@
+{
+  "realms": [
+    {
+      "realmId": "realm-classic-01",
+      "realmName": "自研先锋一区",
+      "host": "127.0.0.1",
+      "port": 7100,
+      "status": "OPEN",
+      "versionPackId": "sample-classic-1.21.0"
+    },
+    {
+      "realmId": "realm-classic-02",
+      "realmName": "自研先锋二区",
+      "host": "127.0.0.1",
+      "port": 7200,
+      "status": "OPEN",
+      "versionPackId": "sample-classic-1.21.0"
+    },
+    {
+      "realmId": "realm-maintenance",
+      "realmName": "维护公告区",
+      "host": "127.0.0.1",
+      "port": 7300,
+      "status": "MAINTENANCE",
+      "versionPackId": "sample-classic-1.21.0"
+    }
+  ]
+}

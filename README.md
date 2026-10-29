@@ -2,7 +2,19 @@
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：Phase E（微信 / 支付宝商户沙箱适配）
+## 当前里程碑：Phase H（PC 登录器骨架）
+
+协议仍 **1.21.0**。新增 `launcher/`：选区、TCP 延迟探测、更新检查骨架（`IUpdateChannel`）、启动 Unity/占位客户端。
+
+| 项 | 约定 |
+|----|------|
+| 工程 | `launcher/Legend.Launcher.sln`（Core / Console / ClientStub / Tests） |
+| 配置 | `launcher/config/{launcher,realms,version,update-manifest.sample}.json` |
+| 验收 | `./scripts/verify-phase-h-launcher.sh`；文档 `docs/LAUNCHER.md` |
+| 占位客户端 | `Legend.ClientStub` / `scripts/fake-client.sh` |
+
+### 此前：Phase E（微信 / 支付宝商户沙箱适配）
+
 
 协议版本 **1.21.0**。在 Phase C/D 多区 · 合区 · mock 支付之上增加真实商户沙箱对接层（无密钥时走本地 `sandbox_sim`，插密钥即可用）：
 
@@ -61,8 +73,10 @@ legend-platform/
 ├── tools/Legend.Merge/         # 合区工具 + MERGE_RULES.md
 ├── tools/payment-sandbox-sim/ # 微信/支付宝 notify 样例生成
 ├── certs/payment/              # *.example.pem 占位（勿放真实密钥）
+├── launcher/                   # Phase H 登录器骨架
 ├── docs/PAYMENT_SANDBOX.md     # 商户沙箱接入说明
-└── scripts/verify-phase-e-payment.sh / verify-phase-cd.sh / verify-m19.sh
+├── docs/LAUNCHER.md
+└── scripts/verify-phase-h-launcher.sh / verify-phase-e-payment.sh / …
 ```
 
 ## 2. 快速验证

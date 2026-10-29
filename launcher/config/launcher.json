@@ -1,0 +1,11 @@
+{
+  "realmsPath": "config/realms.json",
+  "realmListUrl": null,
+  "versionPath": "config/version.json",
+  "updateManifestPath": "config/update-manifest.sample.json",
+  "updateManifestUrl": null,
+  "clientExecutable": "",
+  "clientArgsTemplate": "--host {host} --port {port} --realm-id {realmId}",
+  "downloadCacheDir": "cache/updates",
+  "probeTimeoutMs": 2000
+}

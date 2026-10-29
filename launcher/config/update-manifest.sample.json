@@ -1,0 +1,10 @@
+{
+  "latestVersion": "0.2.0",
+  "channel": "stable",
+  "minSupportedVersion": "0.1.0",
+  "packageUrl": "",
+  "packageSizeBytes": 1048576,
+  "sha256": "deadbeefcafebabe000000000000000000000000000000000000000000000000",
+  "releaseNotes": "登录器骨架示例更新（假包）",
+  "mandatory": false
+}
