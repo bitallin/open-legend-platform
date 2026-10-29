@@ -1,0 +1,11 @@
+{
+  "defaultMoveIntervalMs": 300,
+  "mounts": [
+    {
+      "mountId": "mount_white_horse",
+      "displayName": "白马",
+      "itemId": "item_mount_white_horse",
+      "moveSpeedBonusPercent": 50
+    }
+  ]
+}

@@ -119,6 +119,24 @@
       "slot": "",
       "healHp": 0,
       "healMp": 0
+    },
+    {
+      "itemId": "item_mount_white_horse",
+      "displayName": "白马缰绳",
+      "kind": "mount_unlock",
+      "slot": "",
+      "unlockMountId": "mount_white_horse",
+      "healHp": 0,
+      "healMp": 0
+    },
+    {
+      "itemId": "item_fashion_crimson_robe",
+      "displayName": "绯红法袍礼盒",
+      "kind": "fashion_unlock",
+      "slot": "",
+      "unlockFashionId": "fashion_crimson_robe",
+      "healHp": 0,
+      "healMp": 0
     }
   ],
   "enhanceRules": [

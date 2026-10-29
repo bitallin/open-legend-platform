@@ -75,6 +75,8 @@ public sealed class VersionPackManifest
     public string MailConfigFile { get; set; } = "";
     public string DungeonsConfigFile { get; set; } = "";
     public string WorldBossConfigFile { get; set; } = "";
+    public string MountsConfigFile { get; set; } = "";
+    public string FashionsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -358,6 +360,10 @@ public sealed class ItemTemplate
     public string TeachesSkillId { get; set; } = string.Empty;
     /// <summary>Consumable/scroll: buff id applied on use.</summary>
     public string AppliesBuffId { get; set; } = string.Empty;
+    /// <summary>M15: mount unlock item → mountId.</summary>
+    public string UnlockMountId { get; set; } = string.Empty;
+    /// <summary>M15: fashion unlock item → fashionId.</summary>
+    public string UnlockFashionId { get; set; } = string.Empty;
 }
 
 public sealed class LevelEntryConfig
@@ -491,6 +497,35 @@ public sealed class WorldBossDefinition
     public List<WorldBossRareDropConfig> RareDrops { get; set; } = new();
 }
 
+
+public sealed class MountDefinition
+{
+    public string MountId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string ItemId { get; set; } = "";
+    public int MoveSpeedBonusPercent { get; set; } = 50;
+}
+
+public sealed class MountsConfigFile
+{
+    public int DefaultMoveIntervalMs { get; set; } = 300;
+    public List<MountDefinition> Mounts { get; set; } = new();
+}
+
+public sealed class FashionDefinition
+{
+    public string FashionId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string ItemId { get; set; } = "";
+    /// <summary>Small combat bonus while equipped (M15: ATK only).</summary>
+    public int AtkBonus { get; set; }
+}
+
+public sealed class FashionsConfigFile
+{
+    public List<FashionDefinition> Fashions { get; set; } = new();
+}
+
 public sealed class WorldBossConfigFile
 {
     public List<WorldBossDefinition> Bosses { get; set; } = new();
@@ -583,6 +618,8 @@ public sealed class LoadedVersionPack
     public MailConfig Mail { get; init; } = new();
     public DungeonsConfigFile Dungeons { get; init; } = new();
     public WorldBossConfigFile WorldBoss { get; init; } = new();
+    public MountsConfigFile Mounts { get; init; } = new();
+    public FashionsConfigFile Fashions { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -639,4 +676,6 @@ public sealed record DungeonLeftEvent(IClientSession Session, string PlayerName,
 public sealed record DungeonPartyEnteredEvent(IClientSession Session, string LeaderName, string LeaderCharacterId, string DungeonId, string InstanceId, int EnteredCount, int DeniedCount);
 public sealed record WorldBossSpawnedEvent(string BossId, string DisplayName, string MapId, int X, int Y, string EntityId, string Reason);
 public sealed record WorldBossKilledEvent(string BossId, string DisplayName, string KillerCharacterId, string KillerName, long TopHateDamage, string MapId, int X, int Y);
+public sealed record MountChangedEvent(string CharacterId, string PlayerName, string MountId, string Action, int MoveIntervalMs);
+public sealed record FashionChangedEvent(string CharacterId, string PlayerName, string FashionId, bool Equipped, int EffectiveAtk);
 public sealed record RareLootBroadcastEvent(string BossId, string KillerCharacterId, string KillerName, string ItemId, int ItemCount, int Gold, string Content);

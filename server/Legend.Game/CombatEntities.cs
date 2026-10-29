@@ -278,7 +278,7 @@ public static class EquipmentHelper
         IReadOnlyDictionary<string, ItemTemplate> items,
         IReadOnlyDictionary<string, BuffConfigItem>? buffs = null)
     {
-        int totalAtk = player.BaseAtk;
+        int totalAtk = player.BaseAtk + Math.Max(0, player.FashionAtkBonus);
         int totalDef = player.BaseDef;
         int totalMaxHp = player.BaseMaxHp;
 

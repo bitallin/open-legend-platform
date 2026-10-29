@@ -19,8 +19,8 @@ cleanup() {
 trap cleanup EXIT
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION)"
-if [[ "$PROTO_VER" != "1.14.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.14.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.15.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.15.0, got '$PROTO_VER'"
   exit 1
 fi
 

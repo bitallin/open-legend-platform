@@ -117,6 +117,8 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
             character.SkillsJson = "[]";
         if (string.IsNullOrEmpty(character.DungeonProgressJson))
             character.DungeonProgressJson = "{}";
+        if (string.IsNullOrEmpty(character.AppearanceJson))
+            character.AppearanceJson = AppearanceJson.Empty;
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
 
@@ -247,6 +249,16 @@ internal sealed class InMemoryCharacterStore : ICharacterStore
         if (_byId.TryGetValue(characterId, out var c))
         {
             c.DungeonProgressJson = string.IsNullOrWhiteSpace(dungeonProgressJson) ? "{}" : dungeonProgressJson;
+            c.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task SaveAppearanceAsync(string characterId, string appearanceJson, CancellationToken ct = default)
+    {
+        if (_byId.TryGetValue(characterId, out var c))
+        {
+            c.AppearanceJson = string.IsNullOrWhiteSpace(appearanceJson) ? AppearanceJson.Empty : appearanceJson;
             c.UpdatedAt = DateTimeOffset.UtcNow;
         }
         return Task.CompletedTask;

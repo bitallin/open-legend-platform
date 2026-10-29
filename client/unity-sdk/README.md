@@ -2,7 +2,7 @@
 
 100% original Legend protocol client for **Unity 2022 LTS** (PC + Android). No 996 / third-party engine protocol.
 
-Protocol version: **1.14.0**
+Protocol version: **1.15.0**
 
 ## Import
 
@@ -58,8 +58,10 @@ Keep `Runtime/ProtocolConstants.cs` in sync with server (MsgId …2601–2609 st
 - Network callbacks via `PumpMainThreadEvents()` in `Update()`.
 - Safe zone: all attacks banned; stall listing requires safe zone when `requireSafeZone: true`.
 
-M12: `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`, events `OnDungeonProgress` / `OnDungeonComplete` (protocol 1.14.0).
+M12: `RequestDungeonEnterAsync` / `RequestDungeonLeaveAsync`, events `OnDungeonProgress` / `OnDungeonComplete` (protocol 1.15.0).
 
-M14: `RequestWorldBossStatusAsync` / `RequestWorldBossControlAsync`, events `OnWorldBossSpawn` / `OnWorldBossHp` / `OnLootBroadcast` (protocol 1.14.0).
+M14: `RequestWorldBossStatusAsync` / `RequestWorldBossControlAsync`, events `OnWorldBossSpawn` / `OnWorldBossHp` / `OnLootBroadcast` (protocol 1.15.0).
 
-M13: `RequestDungeonEnterAsync(dungeonId, partyEnter: true)` / `RequestDungeonStatusAsync`, event `OnDungeonPartyEnter` (protocol 1.14.0). Day boundary Asia/Shanghai + resetHourLocal.
+M13: `RequestDungeonEnterAsync(dungeonId, partyEnter: true)` / `RequestDungeonStatusAsync`, event `OnDungeonPartyEnter` (protocol 1.15.0). Day boundary Asia/Shanghai + resetHourLocal.
+
+M15: MountStatus/Summon/Dismiss (3401–3406), FashionStatus/Equip (3407–3410), AppearanceSyncNotify (3413); EntitySnapshot MountId/FashionId/MoveIntervalMs (protocol 1.15.0).

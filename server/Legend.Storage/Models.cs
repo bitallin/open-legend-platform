@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 
 namespace Legend.Storage;
@@ -32,6 +33,7 @@ public sealed class CharacterRecord
     public string GuildId { get; set; } = string.Empty;
     public string SkillsJson { get; set; } = "[]";
     public string DungeonProgressJson { get; set; } = "{}";
+    public string AppearanceJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -57,6 +59,7 @@ public sealed class CharacterRecord
         GuildId = GuildId,
         SkillsJson = SkillsJson,
         DungeonProgressJson = DungeonProgressJson,
+        AppearanceJson = AppearanceJson,
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt
     };
@@ -91,6 +94,66 @@ public static class QuestJson
 public static class EquipmentJson
 {
     public const string Empty = "[]";
+}
+
+public static class AppearanceJson
+{
+    public const string Empty = "{}";
+
+    private static readonly JsonSerializerOptions Opts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    public sealed class State
+    {
+        public List<string> OwnedMounts { get; set; } = new();
+        public string ActiveMountId { get; set; } = "";
+        public List<string> OwnedFashions { get; set; } = new();
+        public string EquippedFashionId { get; set; } = "";
+    }
+
+    public static State Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}")
+            return new State();
+        try
+        {
+            var s = JsonSerializer.Deserialize<State>(json, Opts) ?? new State();
+            s.OwnedMounts ??= new();
+            s.OwnedFashions ??= new();
+            s.ActiveMountId ??= "";
+            s.EquippedFashionId ??= "";
+            return s;
+        }
+        catch
+        {
+            return new State();
+        }
+    }
+
+    public static string Serialize(State state)
+    {
+        state ??= new State();
+        // Deduplicate owned lists (case-insensitive)
+        var mounts = state.OwnedMounts
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var fashions = state.OwnedFashions
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var payload = new State
+        {
+            OwnedMounts = mounts,
+            ActiveMountId = state.ActiveMountId ?? "",
+            OwnedFashions = fashions,
+            EquippedFashionId = state.EquippedFashionId ?? ""
+        };
+        return JsonSerializer.Serialize(payload, Opts);
+    }
 }
 
 

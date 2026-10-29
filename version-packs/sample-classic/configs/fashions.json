@@ -1,0 +1,10 @@
+{
+  "fashions": [
+    {
+      "fashionId": "fashion_crimson_robe",
+      "displayName": "绯红法袍",
+      "itemId": "item_fashion_crimson_robe",
+      "atkBonus": 2
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
-  "versionId": "sample-classic-1.14.0",
+  "versionId": "sample-classic-1.15.0",
   "displayName": "自研经典复古规则包 (Sample Classic)",
-  "protocolVersion": "1.14.0",
+  "protocolVersion": "1.15.0",
   "realmId": "realm-classic-01",
   "realmName": "自研先锋一区",
   "defaultMapFile": "maps/novice_plain.json",
@@ -33,7 +33,8 @@
     "scripts/siege.lua",
     "scripts/mail.lua",
     "scripts/dungeon.lua",
-    "scripts/world_boss.lua"
+    "scripts/world_boss.lua",
+    "scripts/appearance.lua"
   ],
   "maxCharactersPerAccount": 3,
   "levelsConfigFile": "configs/levels.json",
@@ -44,5 +45,7 @@
   "siegeConfigFile": "configs/siege.json",
   "mailConfigFile": "configs/mail.json",
   "dungeonsConfigFile": "configs/dungeons.json",
-  "worldBossConfigFile": "configs/world_boss.json"
+  "worldBossConfigFile": "configs/world_boss.json",
+  "mountsConfigFile": "configs/mounts.json",
+  "fashionsConfigFile": "configs/fashions.json"
 }

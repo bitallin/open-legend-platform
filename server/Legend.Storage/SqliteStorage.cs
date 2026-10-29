@@ -188,6 +188,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
               guild_id TEXT NOT NULL DEFAULT '',
               skills_json TEXT NOT NULL DEFAULT '[]',
               dungeon_progress_json TEXT NOT NULL DEFAULT '{}',
+              appearance_json TEXT NOT NULL DEFAULT '{}',
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
@@ -204,7 +205,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
                      "ALTER TABLE characters ADD COLUMN exp INTEGER NOT NULL DEFAULT 0",
                      "ALTER TABLE characters ADD COLUMN guild_id TEXT NOT NULL DEFAULT ''",
                      "ALTER TABLE characters ADD COLUMN skills_json TEXT NOT NULL DEFAULT '[]'",
-                     "ALTER TABLE characters ADD COLUMN dungeon_progress_json TEXT NOT NULL DEFAULT '{}'"
+                     "ALTER TABLE characters ADD COLUMN dungeon_progress_json TEXT NOT NULL DEFAULT '{}'",
+                     "ALTER TABLE characters ADD COLUMN appearance_json TEXT NOT NULL DEFAULT '{}'"
                  })
         {
             try
@@ -251,6 +253,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             character.SkillsJson = "[]";
         if (string.IsNullOrEmpty(character.DungeonProgressJson))
             character.DungeonProgressJson = "{}";
+        if (string.IsNullOrEmpty(character.AppearanceJson))
+            character.AppearanceJson = AppearanceJson.Empty;
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
         character.CreatedAt = DateTimeOffset.UtcNow;
@@ -272,8 +276,8 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, skills_json, dungeon_progress_json, created_at, updated_at)
-                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$gid,$sj,$dp,$c,$u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, skills_json, dungeon_progress_json, appearance_json, created_at, updated_at)
+                VALUES($cid,$aid,$n,$cl,$lv,$exp,$m,$x,$y,$hp,$mp,$mhp,$mmp,$inv,$gold,$qj,$eqj,$gid,$sj,$dp,$ap,$c,$u)
                 """;
             BindCharacter(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -427,6 +431,18 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveAppearanceAsync(string characterId, string appearanceJson, CancellationToken ct = default)
+    {
+        await using var conn = new SqliteConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE characters SET appearance_json=$ap, updated_at=$u WHERE character_id=$id";
+        cmd.Parameters.AddWithValue("$ap", string.IsNullOrWhiteSpace(appearanceJson) ? AppearanceJson.Empty : appearanceJson);
+        cmd.Parameters.AddWithValue("$u", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     private static CharacterRecord ReadCharacter(SqliteDataReader reader)
         => new()
         {
@@ -450,6 +466,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
             GuildId = SafeGetString(reader, "guild_id"),
             SkillsJson = string.IsNullOrEmpty(SafeGetString(reader, "skills_json")) ? "[]" : SafeGetString(reader, "skills_json"),
             DungeonProgressJson = string.IsNullOrEmpty(SafeGetString(reader, "dungeon_progress_json")) ? "{}" : SafeGetString(reader, "dungeon_progress_json"),
+            AppearanceJson = string.IsNullOrEmpty(SafeGetString(reader, "appearance_json")) ? AppearanceJson.Empty : SafeGetString(reader, "appearance_json"),
             CreatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("created_at"))),
             UpdatedAt = DateTimeOffset.Parse(reader.GetString(reader.GetOrdinal("updated_at")))
         };
@@ -476,6 +493,7 @@ internal sealed class SqliteCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("$gid", c.GuildId ?? "");
         cmd.Parameters.AddWithValue("$sj", string.IsNullOrWhiteSpace(c.SkillsJson) ? "[]" : c.SkillsJson);
         cmd.Parameters.AddWithValue("$dp", string.IsNullOrWhiteSpace(c.DungeonProgressJson) ? "{}" : c.DungeonProgressJson);
+        cmd.Parameters.AddWithValue("$ap", string.IsNullOrWhiteSpace(c.AppearanceJson) ? AppearanceJson.Empty : c.AppearanceJson);
         cmd.Parameters.AddWithValue("$c", c.CreatedAt.ToString("O"));
         cmd.Parameters.AddWithValue("$u", c.UpdatedAt.ToString("O"));
     }

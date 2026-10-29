@@ -76,6 +76,9 @@ enum ProtocolErrorCode {
   ERR_DUNGEON_COOLDOWN = 1068;
   ERR_WORLD_BOSS_DENIED = 1069;
   ERR_WORLD_BOSS_NOT_ACTIVE = 1070;
+  ERR_MOUNT_DENIED = 1071;
+  ERR_FASHION_DENIED = 1072;
+  ERR_MOVE_TOO_FAST = 1073;
   ERR_INTERNAL = 1999;
 }
 
@@ -264,6 +267,10 @@ message EntitySnapshot {
   string template_id = 12;
   int32 quantity = 13;
   string owner_character_id = 14;
+  // M15 appearance
+  string mount_id = 15;
+  string fashion_id = 16;
+  int32 move_interval_ms = 17;
 }
 
 message EnterWorldReq {
@@ -1251,4 +1258,88 @@ message LootBroadcastNotify {
   int32 item_count = 6;
   int32 gold = 7;
   string content = 8;
+}
+
+// 23. Mount & Fashion Appearance (MsgId: 3401–3413) — M15
+message MountInfo {
+  string mount_id = 1;
+  string display_name = 2;
+  int32 move_speed_bonus_percent = 3;
+  bool owned = 4;
+  bool active = 5;
+}
+
+message MountStatusReq {}
+
+message MountStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string active_mount_id = 4;
+  int32 move_interval_ms = 5;
+  int32 base_move_interval_ms = 6;
+  repeated MountInfo mounts = 7;
+}
+
+message MountSummonReq {
+  string mount_id = 1;
+}
+
+message MountSummonResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string active_mount_id = 4;
+  int32 move_interval_ms = 5;
+}
+
+message MountDismissReq {}
+
+message MountDismissResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 move_interval_ms = 4;
+}
+
+message FashionInfo {
+  string fashion_id = 1;
+  string display_name = 2;
+  int32 atk_bonus = 3;
+  bool owned = 4;
+  bool equipped = 5;
+}
+
+message FashionStatusReq {}
+
+message FashionStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string equipped_fashion_id = 4;
+  int32 effective_atk = 5;
+  repeated FashionInfo fashions = 6;
+}
+
+message FashionEquipReq {
+  // empty fashion_id = unequip
+  string fashion_id = 1;
+}
+
+message FashionEquipResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string equipped_fashion_id = 4;
+  int32 effective_atk = 5;
+}
+
+message AppearanceSyncNotify {
+  string entity_id = 1;
+  string character_id = 2;
+  string name = 3;
+  string mount_id = 4;
+  string fashion_id = 5;
+  int32 move_interval_ms = 6;
+  string reason = 7;
 }

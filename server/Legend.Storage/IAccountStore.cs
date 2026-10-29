@@ -24,6 +24,7 @@ public interface ICharacterStore
     Task SaveGuildIdAsync(string characterId, string? guildId, CancellationToken ct = default);
     Task SaveSkillsAsync(string characterId, string skillsJson, CancellationToken ct = default);
     Task SaveDungeonProgressAsync(string characterId, string dungeonProgressJson, CancellationToken ct = default);
+    Task SaveAppearanceAsync(string characterId, string appearanceJson, CancellationToken ct = default);
     Task<CharacterRecord?> GetByNameAsync(string name, CancellationToken ct = default);
 }
 

@@ -78,7 +78,9 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq or
         MsgId.MailListReq or MsgId.MailReadReq or MsgId.MailClaimAttachmentReq or MsgId.MailDeleteReq or MsgId.MailSendReq or
         MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq or MsgId.DungeonStatusReq or
-        MsgId.WorldBossStatusReq or MsgId.WorldBossControlReq;
+        MsgId.WorldBossStatusReq or MsgId.WorldBossControlReq or
+        MsgId.MountStatusReq or MsgId.MountSummonReq or MsgId.MountDismissReq or
+        MsgId.FashionStatusReq or MsgId.FashionEquipReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -288,6 +290,21 @@ public sealed partial class GameWorldModule : IGameModule
             case MsgId.WorldBossControlReq:
                 await HandleWorldBossControlAsync(session, frame, ct);
                 break;
+            case MsgId.MountStatusReq:
+                await HandleMountStatusAsync(session, frame, ct);
+                break;
+            case MsgId.MountSummonReq:
+                await HandleMountSummonAsync(session, frame, ct);
+                break;
+            case MsgId.MountDismissReq:
+                await HandleMountDismissAsync(session, frame, ct);
+                break;
+            case MsgId.FashionStatusReq:
+                await HandleFashionStatusAsync(session, frame, ct);
+                break;
+            case MsgId.FashionEquipReq:
+                await HandleFashionEquipAsync(session, frame, ct);
+                break;
         }
     }
 
@@ -408,6 +425,7 @@ public sealed partial class GameWorldModule : IGameModule
             LearnedSkills = SkillHelper.Parse(character.SkillsJson),
             DungeonProgress = DungeonProgressJson.Parse(character.DungeonProgressJson)
         };
+        LoadAppearanceOntoPlayer(entity, character.AppearanceJson);
         EnsureStarterSkills(entity);
         await PersistSkillsAsync(entity, ct);
         if (!string.IsNullOrEmpty(entity.GuildId))
@@ -566,6 +584,21 @@ public sealed partial class GameWorldModule : IGameModule
                 Accepted = false,
                 ErrorCode = ProtocolErrorCode.ErrMoveBlocked,
                 Reason = acReason,
+                InSafeZone = entity.InSafeZone
+            }, ct);
+            return;
+        }
+
+        if (!TryValidateMoveInterval(entity, out string speedReason))
+        {
+            await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
+            {
+                EntityId = entity.EntityId,
+                FromX = fromX, FromY = fromY, ToX = fromX, ToY = fromY,
+                Direction = entity.Direction,
+                Accepted = false,
+                ErrorCode = ProtocolErrorCode.ErrMoveTooFast,
+                Reason = speedReason,
                 InSafeZone = entity.InSafeZone
             }, ct);
             return;
@@ -2280,6 +2313,42 @@ public sealed partial class GameWorldModule : IGameModule
             && !string.IsNullOrEmpty(tmpl.AppliesBuffId);
         bool isHeal = string.Equals(tmpl.Kind, "consumable", StringComparison.OrdinalIgnoreCase)
             && (tmpl.HealHp > 0 || tmpl.HealMp > 0);
+        bool isAppearanceUnlock =
+            (string.Equals(tmpl.Kind, "mount_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockMountId))
+            || (string.Equals(tmpl.Kind, "fashion_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockFashionId));
+
+        if (isAppearanceUnlock)
+        {
+            var (okUnlock, msgUnlock) = await TryUnlockAppearanceItemAsync(player, tmpl, itemId, ct);
+            if (!okUnlock)
+            {
+                await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                    Message = msgUnlock
+                }, ct);
+                return;
+            }
+            int remUnlock = player.Inventory.Where(s =>
+                string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);
+            var unlockResp = new UseItemResp
+            {
+                Success = true,
+                ErrorCode = ProtocolErrorCode.ErrNone,
+                Message = msgUnlock,
+                ItemId = itemId,
+                RemainingCount = remUnlock,
+                Hp = player.Hp,
+                MaxHp = player.MaxHp,
+                Mp = player.Mp,
+                MaxMp = player.MaxMp
+            };
+            foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+                unlockResp.Inventory.Add(slot);
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, unlockResp, ct);
+            return;
+        }
 
         if (!isSkillbook && !isBuffScroll && !isHeal)
         {

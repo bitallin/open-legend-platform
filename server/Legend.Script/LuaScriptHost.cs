@@ -133,6 +133,8 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<WorldBossSpawnedEvent>(OnWorldBossSpawnedAsync);
         _eventBus.Subscribe<WorldBossKilledEvent>(OnWorldBossKilledAsync);
         _eventBus.Subscribe<RareLootBroadcastEvent>(OnRareLootBroadcastAsync);
+        _eventBus.Subscribe<MountChangedEvent>(OnMountChangedAsync);
+        _eventBus.Subscribe<FashionChangedEvent>(OnFashionChangedAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -1024,6 +1026,48 @@ public sealed class LuaScriptHost
         catch (Exception ex)
         {
             StructuredLogger.Error("LuaSandbox", $"on_rare_loot_broadcast failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnMountChangedAsync(MountChangedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_mount");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.CharacterId, evt.MountId, evt.Action, evt.MoveIntervalMs);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_mount failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnFashionChangedAsync(FashionChangedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_fashion_equip");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.CharacterId, evt.FashionId, evt.Equipped, evt.EffectiveAtk);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_fashion_equip failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }

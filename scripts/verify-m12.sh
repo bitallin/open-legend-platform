@@ -21,8 +21,8 @@ cleanup() {
 trap cleanup EXIT
 
 PROTO_VER="$(tr -d '[:space:]' < protocol/VERSION)"
-if [[ "$PROTO_VER" != "1.14.0" ]]; then
-  echo "ERROR: protocol/VERSION expected 1.14.0, got '$PROTO_VER'"
+if [[ "$PROTO_VER" != "1.15.0" ]]; then
+  echo "ERROR: protocol/VERSION expected 1.15.0, got '$PROTO_VER'"
   exit 1
 fi
 
@@ -80,4 +80,4 @@ dotnet run --project server/Legend.CliClient/Legend.CliClient.csproj -c Release 
   --host 127.0.0.1 --port "$PORT" --dungeon
 
 echo "=== M12 VERIFICATION PASSED ==="
-echo "Protocol: 1.14.0 | Storage: Sqlite at $DB_FILE"
+echo "Protocol: 1.15.0 | Storage: Sqlite at $DB_FILE"

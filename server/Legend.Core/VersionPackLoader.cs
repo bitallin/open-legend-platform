@@ -426,6 +426,41 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        var mountsConfig = new MountsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.MountsConfigFile))
+        {
+            string mountsPath = Path.Combine(baseDir, manifest.MountsConfigFile);
+            if (!File.Exists(mountsPath))
+                throw new FileNotFoundException($"Mounts config not found: {mountsPath}");
+            string mountsJson = File.ReadAllText(mountsPath);
+            mountsConfig = JsonSerializer.Deserialize<MountsConfigFile>(mountsJson, JsonOptions)
+                ?? new MountsConfigFile();
+            hashInput.Append(mountsJson);
+            foreach (var mnt in mountsConfig.Mounts)
+            {
+                if (string.IsNullOrWhiteSpace(mnt.MountId))
+                    throw new InvalidDataException("Mount missing mountId");
+            }
+        }
+
+        var fashionsConfig = new FashionsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.FashionsConfigFile))
+        {
+            string fashionPath = Path.Combine(baseDir, manifest.FashionsConfigFile);
+            if (!File.Exists(fashionPath))
+                throw new FileNotFoundException($"Fashions config not found: {fashionPath}");
+            string fashionJson = File.ReadAllText(fashionPath);
+            fashionsConfig = JsonSerializer.Deserialize<FashionsConfigFile>(fashionJson, JsonOptions)
+                ?? new FashionsConfigFile();
+            hashInput.Append(fashionJson);
+            foreach (var f in fashionsConfig.Fashions)
+            {
+                if (string.IsNullOrWhiteSpace(f.FashionId))
+                    throw new InvalidDataException("Fashion missing fashionId");
+            }
+        }
+
         return new LoadedVersionPack
         {
             Manifest = manifest,
@@ -451,6 +486,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Mail = mailConfig,
             Dungeons = dungeonsConfig,
             WorldBoss = worldBossConfig,
+            Mounts = mountsConfig,
+            Fashions = fashionsConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

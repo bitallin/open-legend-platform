@@ -47,6 +47,16 @@
         "itemId": "item_war_cry_scroll",
         "priceGold": 25,
         "stock": -1
+      },
+      {
+        "itemId": "item_mount_white_horse",
+        "priceGold": 40,
+        "stock": -1
+      },
+      {
+        "itemId": "item_fashion_crimson_robe",
+        "priceGold": 35,
+        "stock": -1
       }
     ]
   }

@@ -46,6 +46,18 @@ public sealed class WorldPlayerEntity
     public bool DungeonCompleted { get; set; }
     public Dictionary<string, DungeonProgressEntry> DungeonProgress { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Owned mount ids (persisted via appearance_json).</summary>
+    public HashSet<string> OwnedMounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Currently summoned mount id (empty = on foot). Persisted optionally.</summary>
+    public string ActiveMountId { get; set; } = string.Empty;
+    public HashSet<string> OwnedFashions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public string EquippedFashionId { get; set; } = string.Empty;
+    /// <summary>ATK from equipped fashion; folded into RecalculateStats.</summary>
+    public int FashionAtkBonus { get; set; }
+    /// <summary>Authoritative min ms between accepted moves (lower = faster).</summary>
+    public int MoveIntervalMs { get; set; } = 300;
+    public long LastMoveUnixMs { get; set; }
+
     public EntitySnapshot ToSnapshot() => new()
     {
         EntityId = EntityId,
@@ -59,7 +71,10 @@ public sealed class WorldPlayerEntity
         MaxHp = MaxHp,
         InSafeZone = InSafeZone,
         Kind = EntityKind.EntityPlayer,
-        TemplateId = ClassId
+        TemplateId = ClassId,
+        MountId = ActiveMountId ?? string.Empty,
+        FashionId = EquippedFashionId ?? string.Empty,
+        MoveIntervalMs = MoveIntervalMs
     };
 }
 

@@ -182,6 +182,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
               guild_id TEXT NOT NULL DEFAULT '',
               skills_json JSONB NOT NULL DEFAULT '[]'::jsonb,
               dungeon_progress_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+              appearance_json JSONB NOT NULL DEFAULT '{}'::jsonb,
               created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
               updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
@@ -194,6 +195,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS guild_id TEXT NOT NULL DEFAULT '';
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS skills_json JSONB NOT NULL DEFAULT '[]'::jsonb;
             ALTER TABLE characters ADD COLUMN IF NOT EXISTS dungeon_progress_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+            ALTER TABLE characters ADD COLUMN IF NOT EXISTS appearance_json JSONB NOT NULL DEFAULT '{}'::jsonb;
             """, conn);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -203,7 +205,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), COALESCE(skills_json::text,'[]'), COALESCE(dungeon_progress_json::text,'{}'), created_at, updated_at FROM characters WHERE account_id=@a ORDER BY created_at", conn);
+            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), COALESCE(skills_json::text,'[]'), COALESCE(dungeon_progress_json::text,'{}'), COALESCE(appearance_json::text,'{}'), created_at, updated_at FROM characters WHERE account_id=@a ORDER BY created_at", conn);
         cmd.Parameters.AddWithValue("a", accountId);
         var list = new List<CharacterRecord>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -229,6 +231,8 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             character.SkillsJson = "[]";
         if (string.IsNullOrEmpty(character.DungeonProgressJson))
             character.DungeonProgressJson = "{}";
+        if (string.IsNullOrEmpty(character.AppearanceJson))
+            character.AppearanceJson = AppearanceJson.Empty;
         if (character.Gold < 0)
             character.Gold = QuestJson.StartingGold;
         character.CreatedAt = DateTimeOffset.UtcNow;
@@ -248,8 +252,8 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         try
         {
             await using var cmd = new NpgsqlCommand("""
-                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, skills_json, dungeon_progress_json, created_at, updated_at)
-                VALUES(@cid,@aid,@n,@cl,@lv,@exp,@m,@x,@y,@hp,@mp,@mhp,@mmp,@inv::jsonb,@gold,@qj::jsonb,@eqj::jsonb,@gid,@sj::jsonb,@dp::jsonb,@c,@u)
+                INSERT INTO characters(character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json, gold, quest_json, equipment_json, guild_id, skills_json, dungeon_progress_json, appearance_json, created_at, updated_at)
+                VALUES(@cid,@aid,@n,@cl,@lv,@exp,@m,@x,@y,@hp,@mp,@mhp,@mmp,@inv::jsonb,@gold,@qj::jsonb,@eqj::jsonb,@gid,@sj::jsonb,@dp::jsonb,@ap::jsonb,@c,@u)
                 """, conn);
             Bind(cmd, character);
             await cmd.ExecuteNonQueryAsync(ct);
@@ -277,7 +281,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), COALESCE(skills_json::text,'[]'), COALESCE(dungeon_progress_json::text,'{}'), created_at, updated_at FROM characters WHERE character_id=@id", conn);
+            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), COALESCE(skills_json::text,'[]'), COALESCE(dungeon_progress_json::text,'{}'), COALESCE(appearance_json::text,'{}'), created_at, updated_at FROM characters WHERE character_id=@id", conn);
         cmd.Parameters.AddWithValue("id", characterId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -291,7 +295,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await using var conn = new NpgsqlConnection(_cs);
         await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(
-            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), COALESCE(skills_json::text,'[]'), COALESCE(dungeon_progress_json::text,'{}'), created_at, updated_at FROM characters WHERE LOWER(name)=LOWER(@n) LIMIT 1", conn);
+            "SELECT character_id, account_id, name, class_id, level, exp, map_id, x, y, hp, mp, max_hp, max_mp, inventory_json::text, gold, quest_json::text, equipment_json::text, COALESCE(guild_id,''), COALESCE(skills_json::text,'[]'), COALESCE(dungeon_progress_json::text,'{}'), COALESCE(appearance_json::text,'{}'), created_at, updated_at FROM characters WHERE LOWER(name)=LOWER(@n) LIMIT 1", conn);
         cmd.Parameters.AddWithValue("n", name.Trim());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -391,6 +395,17 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveAppearanceAsync(string characterId, string appearanceJson, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs);
+        await conn.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(
+            "UPDATE characters SET appearance_json=@ap::jsonb, updated_at=NOW() WHERE character_id=@id", conn);
+        cmd.Parameters.AddWithValue("ap", string.IsNullOrWhiteSpace(appearanceJson) ? AppearanceJson.Empty : appearanceJson);
+        cmd.Parameters.AddWithValue("id", characterId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     public async Task SaveLevelExpAsync(string characterId, int level, int exp, int maxHp, int maxMp, CancellationToken ct = default)
     {
         await using var conn = new NpgsqlConnection(_cs);
@@ -428,8 +443,9 @@ internal sealed class PostgresCharacterStore : ICharacterStore
             GuildId = reader.IsDBNull(17) ? "" : reader.GetString(17),
             SkillsJson = reader.IsDBNull(18) || string.IsNullOrEmpty(reader.GetString(18)) ? "[]" : reader.GetString(18),
             DungeonProgressJson = reader.IsDBNull(19) || string.IsNullOrEmpty(reader.GetString(19)) ? "{}" : reader.GetString(19),
-            CreatedAt = reader.GetFieldValue<DateTimeOffset>(20),
-            UpdatedAt = reader.GetFieldValue<DateTimeOffset>(21)
+            AppearanceJson = reader.IsDBNull(20) || string.IsNullOrEmpty(reader.GetString(20)) ? AppearanceJson.Empty : reader.GetString(20),
+            CreatedAt = reader.GetFieldValue<DateTimeOffset>(21),
+            UpdatedAt = reader.GetFieldValue<DateTimeOffset>(22)
         };
 
     private static void Bind(NpgsqlCommand cmd, CharacterRecord c)
@@ -454,6 +470,7 @@ internal sealed class PostgresCharacterStore : ICharacterStore
         cmd.Parameters.AddWithValue("gid", c.GuildId ?? "");
         cmd.Parameters.AddWithValue("sj", string.IsNullOrWhiteSpace(c.SkillsJson) ? "[]" : c.SkillsJson);
         cmd.Parameters.AddWithValue("dp", string.IsNullOrWhiteSpace(c.DungeonProgressJson) ? "{}" : c.DungeonProgressJson);
+        cmd.Parameters.AddWithValue("ap", string.IsNullOrWhiteSpace(c.AppearanceJson) ? AppearanceJson.Empty : c.AppearanceJson);
         cmd.Parameters.AddWithValue("c", c.CreatedAt);
         cmd.Parameters.AddWithValue("u", c.UpdatedAt);
     }

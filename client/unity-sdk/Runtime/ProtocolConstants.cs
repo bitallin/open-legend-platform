@@ -140,14 +140,26 @@ namespace Legend.Contracts
         WorldBossHpNotify = 3304,
         WorldBossControlReq = 3305,
         WorldBossControlResp = 3306,
+
+        MountStatusReq = 3401,
+        MountStatusResp = 3402,
+        MountSummonReq = 3403,
+        MountSummonResp = 3404,
+        MountDismissReq = 3405,
+        MountDismissResp = 3406,
+        FashionStatusReq = 3407,
+        FashionStatusResp = 3408,
+        FashionEquipReq = 3409,
+        FashionEquipResp = 3410,
+        AppearanceSyncNotify = 3413,
         LootBroadcastNotify = 3307,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.14.0";
-        public const string MinCompatibleVersion = "1.14.0";
+        public const string CurrentVersion = "1.15.0";
+        public const string MinCompatibleVersion = "1.15.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

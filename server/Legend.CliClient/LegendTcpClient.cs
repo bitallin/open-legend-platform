@@ -44,6 +44,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<DungeonPartyEnterNotify> ReceivedDungeonPartyEnters { get; } = new();
     public ConcurrentQueue<WorldBossSpawnNotify> ReceivedWorldBossSpawns { get; } = new();
     public ConcurrentQueue<WorldBossHpNotify> ReceivedWorldBossHp { get; } = new();
+    public ConcurrentQueue<AppearanceSyncNotify> ReceivedAppearanceSyncs { get; } = new();
     public ConcurrentQueue<LootBroadcastNotify> ReceivedLootBroadcasts { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
@@ -280,6 +281,11 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     case MsgId.WorldBossHpNotify:
                     {
                         ReceivedWorldBossHp.Enqueue(WorldBossHpNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.AppearanceSyncNotify:
+                    {
+                        ReceivedAppearanceSyncs.Enqueue(AppearanceSyncNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
                     case MsgId.LootBroadcastNotify:
@@ -1074,6 +1080,53 @@ public sealed class LegendTcpClient : IAsyncDisposable
         throw new TimeoutException("LootBroadcastNotify not received");
     }
 
+
+
+    public async Task<MountStatusResp> MountStatusAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MountStatusReq, new MountStatusReq(), ct);
+        return MountStatusResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MountSummonResp> MountSummonAsync(string mountId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MountSummonReq, new MountSummonReq { MountId = mountId ?? "" }, ct);
+        return MountSummonResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MountDismissResp> MountDismissAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MountDismissReq, new MountDismissReq(), ct);
+        return MountDismissResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<FashionStatusResp> FashionStatusAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.FashionStatusReq, new FashionStatusReq(), ct);
+        return FashionStatusResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<FashionEquipResp> FashionEquipAsync(string fashionId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.FashionEquipReq, new FashionEquipReq { FashionId = fashionId ?? "" }, ct);
+        return FashionEquipResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<AppearanceSyncNotify> WaitAppearanceSyncAsync(Func<AppearanceSyncNotify, bool>? pred = null, int timeoutMs = 3000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ReceivedAppearanceSyncs.TryDequeue(out var n))
+            {
+                if (pred is null || pred(n))
+                    return n;
+            }
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("AppearanceSyncNotify not received");
+    }
 
     public async ValueTask DisposeAsync()
     {
