@@ -74,6 +74,8 @@ enum ProtocolErrorCode {
   ERR_DUNGEON_FULL = 1066;
   ERR_DUNGEON_DAILY_LIMIT = 1067;
   ERR_DUNGEON_COOLDOWN = 1068;
+  ERR_WORLD_BOSS_DENIED = 1069;
+  ERR_WORLD_BOSS_NOT_ACTIVE = 1070;
   ERR_INTERNAL = 1999;
 }
 
@@ -1170,4 +1172,83 @@ message DungeonStatusResp {
   bool can_enter = 10;
   int32 min_level = 11;
   int32 entry_cost_gold = 12;
+}
+
+// 22. World Boss (MsgId: 3301–3307) — M14
+message WorldBossHateEntry {
+  string character_id = 1;
+  string name = 2;
+  int64 damage = 3;
+  int32 rank = 4;
+}
+
+message WorldBossInfo {
+  string boss_id = 1;
+  string display_name = 2;
+  string map_id = 3;
+  int32 x = 4;
+  int32 y = 5;
+  bool alive = 6;
+  string entity_id = 7;
+  int32 hp = 8;
+  int32 max_hp = 9;
+  int64 next_spawn_unix = 10; // unix seconds; 0 if alive or unknown
+  int32 participate_radius = 11;
+  int32 respawn_seconds = 12;
+  repeated WorldBossHateEntry hate_top = 13;
+}
+
+message WorldBossStatusReq {
+  string boss_id = 1; // empty = all bosses
+}
+
+message WorldBossStatusResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated WorldBossInfo bosses = 4;
+}
+
+message WorldBossSpawnNotify {
+  string boss_id = 1;
+  string display_name = 2;
+  string map_id = 3;
+  int32 x = 4;
+  int32 y = 5;
+  string entity_id = 6;
+  int32 max_hp = 7;
+  string reason = 8; // spawn | force_spawn | respawn
+}
+
+message WorldBossHpNotify {
+  string boss_id = 1;
+  string entity_id = 2;
+  int32 hp = 3;
+  int32 max_hp = 4;
+  string attacker_name = 5;
+  int32 damage = 6;
+  repeated WorldBossHateEntry hate_top = 7;
+}
+
+message WorldBossControlReq {
+  string boss_id = 1;
+  string action = 2; // force_spawn | despawn
+}
+
+message WorldBossControlResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  WorldBossInfo boss = 4;
+}
+
+message LootBroadcastNotify {
+  string notice_type = 1; // rare_loot
+  string boss_id = 2;
+  string killer_character_id = 3;
+  string killer_name = 4;
+  string item_id = 5;
+  int32 item_count = 6;
+  int32 gold = 7;
+  string content = 8;
 }

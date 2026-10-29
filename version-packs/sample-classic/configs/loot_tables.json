@@ -2,15 +2,46 @@
   {
     "lootTableId": "slime_basic",
     "entries": [
-      { "itemId": "item_slime_gel", "countMin": 1, "countMax": 2, "chance": 1.0 },
-      { "itemId": "item_copper_coin", "countMin": 1, "countMax": 3, "chance": 0.85 }
+      {
+        "itemId": "item_slime_gel",
+        "countMin": 1,
+        "countMax": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "item_copper_coin",
+        "countMin": 1,
+        "countMax": 3,
+        "chance": 0.85
+      }
     ]
   },
   {
     "lootTableId": "boar_basic",
     "entries": [
-      { "itemId": "item_boar_hide", "countMin": 1, "countMax": 1, "chance": 1.0 },
-      { "itemId": "item_copper_coin", "countMin": 3, "countMax": 8, "chance": 1.0 }
+      {
+        "itemId": "item_boar_hide",
+        "countMin": 1,
+        "countMax": 1,
+        "chance": 1.0
+      },
+      {
+        "itemId": "item_copper_coin",
+        "countMin": 3,
+        "countMax": 8,
+        "chance": 1.0
+      }
+    ]
+  },
+  {
+    "lootTableId": "world_dragon_basic",
+    "entries": [
+      {
+        "itemId": "item_copper_coin",
+        "countMin": 5,
+        "countMax": 10,
+        "chance": 1.0
+      }
     ]
   }
 ]

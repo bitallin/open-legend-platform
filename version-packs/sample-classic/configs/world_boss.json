@@ -1,0 +1,32 @@
+{
+  "bosses": [
+    {
+      "bossId": "world_green_dragon",
+      "displayName": "远古绿龙",
+      "monsterId": "world_green_dragon",
+      "mapId": "novice_plain",
+      "x": 25,
+      "y": 12,
+      "participateRadius": 40,
+      "respawnSeconds": 90,
+      "spawnOnStart": true,
+      "hateTopN": 5,
+      "killCreditRule": "top_hate",
+      "rewardGold": 100,
+      "rareDrops": [
+        {
+          "itemId": "item_dragon_scale",
+          "count": 1,
+          "chance": 1.0,
+          "broadcast": true
+        },
+        {
+          "itemId": "item_copper_coin",
+          "count": 50,
+          "chance": 1.0,
+          "broadcast": false
+        }
+      ]
+    }
+  ]
+}

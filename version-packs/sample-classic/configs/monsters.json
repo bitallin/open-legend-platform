@@ -41,6 +41,20 @@
       "respawnMs": 0,
       "ai": "chase",
       "expReward": 15
+    },
+    {
+      "monsterId": "world_green_dragon",
+      "displayName": "远古绿龙",
+      "maxHp": 100,
+      "atk": 8,
+      "def": 0,
+      "aggroRange": 10,
+      "attackRange": 2,
+      "attackCooldownMs": 1800,
+      "lootTableId": "world_dragon_basic",
+      "respawnMs": 0,
+      "ai": "chase",
+      "expReward": 120
     }
   ],
   "spawns": [

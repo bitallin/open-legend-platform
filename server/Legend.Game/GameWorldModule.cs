@@ -59,6 +59,8 @@ public sealed partial class GameWorldModule : IGameModule
         SpawnInitialMonsters();
         SpawnNpcs();
         await LoadSiegeStateAsync(ct);
+        InitWorldBossRuntimes();
+        await BootstrapWorldBossesAsync(ct);
         _aiCts = new CancellationTokenSource();
         _aiTask = Task.Run(() => AiLoopAsync(_aiCts.Token), _aiCts.Token);
     }
@@ -75,7 +77,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.LearnSkillReq or MsgId.SkillListReq or
         MsgId.SiegeDeclareReq or MsgId.SiegeStatusReq or MsgId.SiegeControlReq or MsgId.SiegeCaptureReq or
         MsgId.MailListReq or MsgId.MailReadReq or MsgId.MailClaimAttachmentReq or MsgId.MailDeleteReq or MsgId.MailSendReq or
-        MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq or MsgId.DungeonStatusReq;
+        MsgId.DungeonEnterReq or MsgId.DungeonLeaveReq or MsgId.DungeonStatusReq or
+        MsgId.WorldBossStatusReq or MsgId.WorldBossControlReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -278,6 +281,12 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.DungeonStatusReq:
                 await HandleDungeonStatusAsync(session, frame, ct);
+                break;
+            case MsgId.WorldBossStatusReq:
+                await HandleWorldBossStatusAsync(session, frame, ct);
+                break;
+            case MsgId.WorldBossControlReq:
+                await HandleWorldBossControlAsync(session, frame, ct);
                 break;
         }
     }
@@ -797,9 +806,16 @@ public sealed partial class GameWorldModule : IGameModule
             await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.EntityDespawn,
                 new EntityDespawn { EntityId = monster.EntityId, Reason = "Killed", MapId = monster.MapId }, ct);
 
-            await DropLootAsync(monster, attacker, ct);
-
-            await GrantExpFromKillAsync(attacker, monster, ct);
+            bool isWorldBoss = !string.IsNullOrEmpty(monster.WorldBossId);
+            if (isWorldBoss)
+            {
+                await OnWorldBossDamagedAsync(attacker, monster, damage, killed: true, ct);
+            }
+            else
+            {
+                await DropLootAsync(monster, attacker, ct);
+                await GrantExpFromKillAsync(attacker, monster, ct);
+            }
 
             await _eventBus.PublishAsync(new MonsterKilledEvent(
                 session, attacker.EntityId, attacker.Name, attacker.CharacterId,
@@ -809,6 +825,10 @@ public sealed partial class GameWorldModule : IGameModule
             if (monster.NoRespawn || !string.IsNullOrEmpty(monster.InstanceId))
                 monster.RespawnAtUnixMs = 0;
             await OnDungeonMonsterKilledAsync(attacker, monster, ct);
+        }
+        else if (!string.IsNullOrEmpty(monster.WorldBossId))
+        {
+            await OnWorldBossDamagedAsync(attacker, monster, damage, killed: false, ct);
         }
     }
 
@@ -1021,6 +1041,7 @@ public sealed partial class GameWorldModule : IGameModule
             {
                 await Task.Delay(400, ct);
                 await TickMonstersAsync(ct);
+                await TickWorldBossesAsync(ct);
                 await TickLootExpiryAsync(ct);
                 await TickPlayerBuffsAsync(ct);
             }

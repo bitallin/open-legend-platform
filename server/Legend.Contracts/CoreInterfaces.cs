@@ -74,6 +74,7 @@ public sealed class VersionPackManifest
     public string SiegeConfigFile { get; set; } = "";
     public string MailConfigFile { get; set; } = "";
     public string DungeonsConfigFile { get; set; } = "";
+    public string WorldBossConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -464,6 +465,37 @@ public sealed class DungeonsConfigFile
     public List<DungeonDefinition> Dungeons { get; set; } = new();
 }
 
+public sealed class WorldBossRareDropConfig
+{
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; } = 1;
+    public double Chance { get; set; } = 1.0;
+    public bool Broadcast { get; set; } = true;
+}
+
+public sealed class WorldBossDefinition
+{
+    public string BossId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string MonsterId { get; set; } = string.Empty;
+    public string MapId { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int ParticipateRadius { get; set; } = 30;
+    public int RespawnSeconds { get; set; } = 120;
+    public bool SpawnOnStart { get; set; } = true;
+    public int HateTopN { get; set; } = 5;
+    /// <summary>top_hate: highest cumulative damage wins; ties → most recent hit among tied.</summary>
+    public string KillCreditRule { get; set; } = "top_hate";
+    public int RewardGold { get; set; }
+    public List<WorldBossRareDropConfig> RareDrops { get; set; } = new();
+}
+
+public sealed class WorldBossConfigFile
+{
+    public List<WorldBossDefinition> Bosses { get; set; } = new();
+}
+
 public sealed class MailConfig
 {
     public int MaxMailsPerCharacter { get; set; } = 50;
@@ -550,6 +582,7 @@ public sealed class LoadedVersionPack
     public SiegeConfig Siege { get; init; } = new();
     public MailConfig Mail { get; init; } = new();
     public DungeonsConfigFile Dungeons { get; init; } = new();
+    public WorldBossConfigFile WorldBoss { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 
@@ -604,3 +637,6 @@ public sealed record DungeonEnteredEvent(IClientSession Session, string PlayerNa
 public sealed record DungeonCompletedEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId, int RewardGold);
 public sealed record DungeonLeftEvent(IClientSession Session, string PlayerName, string CharacterId, string DungeonId, string InstanceId, bool Completed);
 public sealed record DungeonPartyEnteredEvent(IClientSession Session, string LeaderName, string LeaderCharacterId, string DungeonId, string InstanceId, int EnteredCount, int DeniedCount);
+public sealed record WorldBossSpawnedEvent(string BossId, string DisplayName, string MapId, int X, int Y, string EntityId, string Reason);
+public sealed record WorldBossKilledEvent(string BossId, string DisplayName, string KillerCharacterId, string KillerName, long TopHateDamage, string MapId, int X, int Y);
+public sealed record RareLootBroadcastEvent(string BossId, string KillerCharacterId, string KillerName, string ItemId, int ItemCount, int Gold, string Content);

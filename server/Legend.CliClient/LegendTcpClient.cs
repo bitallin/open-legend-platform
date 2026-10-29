@@ -42,6 +42,9 @@ public sealed class LegendTcpClient : IAsyncDisposable
     public ConcurrentQueue<DungeonProgressNotify> ReceivedDungeonProgress { get; } = new();
     public ConcurrentQueue<DungeonCompleteNotify> ReceivedDungeonCompletes { get; } = new();
     public ConcurrentQueue<DungeonPartyEnterNotify> ReceivedDungeonPartyEnters { get; } = new();
+    public ConcurrentQueue<WorldBossSpawnNotify> ReceivedWorldBossSpawns { get; } = new();
+    public ConcurrentQueue<WorldBossHpNotify> ReceivedWorldBossHp { get; } = new();
+    public ConcurrentQueue<LootBroadcastNotify> ReceivedLootBroadcasts { get; } = new();
 
     public event Action<MoveSync>? OnMoveSync;
     public event Action<EntityEnterAoi>? OnEntityEnterAoi;
@@ -267,6 +270,21 @@ public sealed class LegendTcpClient : IAsyncDisposable
                     {
                         var dpe = DungeonPartyEnterNotify.Parser.ParseFrom(frame.Payload);
                         ReceivedDungeonPartyEnters.Enqueue(dpe);
+                        break;
+                    }
+                    case MsgId.WorldBossSpawnNotify:
+                    {
+                        ReceivedWorldBossSpawns.Enqueue(WorldBossSpawnNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.WorldBossHpNotify:
+                    {
+                        ReceivedWorldBossHp.Enqueue(WorldBossHpNotify.Parser.ParseFrom(frame.Payload));
+                        break;
+                    }
+                    case MsgId.LootBroadcastNotify:
+                    {
+                        ReceivedLootBroadcasts.Enqueue(LootBroadcastNotify.Parser.ParseFrom(frame.Payload));
                         break;
                     }
                     case MsgId.DungeonCompleteNotify:
@@ -1016,6 +1034,46 @@ public sealed class LegendTcpClient : IAsyncDisposable
         }
         throw new TimeoutException("DungeonCompleteNotify not received");
     }
+
+
+    public async Task<WorldBossStatusResp> WorldBossStatusAsync(string bossId = "", CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.WorldBossStatusReq, new WorldBossStatusReq { BossId = bossId ?? "" }, ct);
+        return WorldBossStatusResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<WorldBossControlResp> WorldBossControlAsync(string bossId, string action, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.WorldBossControlReq, new WorldBossControlReq { BossId = bossId ?? "", Action = action ?? "" }, ct);
+        return WorldBossControlResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<WorldBossSpawnNotify> WaitWorldBossSpawnAsync(int timeoutMs = 5000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ReceivedWorldBossSpawns.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("WorldBossSpawnNotify not received");
+    }
+
+    public async Task<LootBroadcastNotify> WaitLootBroadcastAsync(int timeoutMs = 8000, CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ReceivedLootBroadcasts.TryDequeue(out var n))
+                return n;
+            await Task.Delay(20, ct);
+        }
+        throw new TimeoutException("LootBroadcastNotify not received");
+    }
+
 
     public async ValueTask DisposeAsync()
     {

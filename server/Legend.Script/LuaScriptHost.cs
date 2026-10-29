@@ -130,6 +130,9 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<DungeonCompletedEvent>(OnDungeonCompletedAsync);
         _eventBus.Subscribe<DungeonLeftEvent>(OnDungeonLeftAsync);
         _eventBus.Subscribe<DungeonPartyEnteredEvent>(OnDungeonPartyEnteredAsync);
+        _eventBus.Subscribe<WorldBossSpawnedEvent>(OnWorldBossSpawnedAsync);
+        _eventBus.Subscribe<WorldBossKilledEvent>(OnWorldBossKilledAsync);
+        _eventBus.Subscribe<RareLootBroadcastEvent>(OnRareLootBroadcastAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -962,5 +965,68 @@ public sealed class LuaScriptHost
         }
         return Task.CompletedTask;
     }
+    private Task OnWorldBossSpawnedAsync(WorldBossSpawnedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_world_boss_spawn");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.BossId, evt.DisplayName, evt.MapId, evt.X, evt.Y);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_world_boss_spawn failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnWorldBossKilledAsync(WorldBossKilledEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_world_boss_kill");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.KillerName, evt.BossId, evt.TopHateDamage);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_world_boss_kill failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnRareLootBroadcastAsync(RareLootBroadcastEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_rare_loot_broadcast");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.KillerName, evt.BossId, evt.ItemId, evt.ItemCount);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_rare_loot_broadcast failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
 }
+
 

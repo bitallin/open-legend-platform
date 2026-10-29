@@ -134,13 +134,20 @@ namespace Legend.Contracts
         DungeonStatusReq = 3207,
         DungeonStatusResp = 3208,
         DungeonPartyEnterNotify = 3209,
+        WorldBossStatusReq = 3301,
+        WorldBossStatusResp = 3302,
+        WorldBossSpawnNotify = 3303,
+        WorldBossHpNotify = 3304,
+        WorldBossControlReq = 3305,
+        WorldBossControlResp = 3306,
+        LootBroadcastNotify = 3307,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.13.0";
-        public const string MinCompatibleVersion = "1.13.0";
+        public const string CurrentVersion = "1.14.0";
+        public const string MinCompatibleVersion = "1.14.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

@@ -23,6 +23,8 @@ public sealed class MonsterEntity
     public long RespawnAtUnixMs { get; set; }
     public string? InstanceId { get; set; }
     public bool NoRespawn { get; set; }
+    /// <summary>When set, this monster is a managed world boss instance.</summary>
+    public string? WorldBossId { get; set; }
 
     public EntitySnapshot ToSnapshot() => new()
     {

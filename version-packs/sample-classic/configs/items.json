@@ -111,6 +111,14 @@
       "healHp": 0,
       "healMp": 0,
       "appliesBuffId": "buff_war_cry"
+    },
+    {
+      "itemId": "item_dragon_scale",
+      "displayName": "龙鳞碎片",
+      "kind": "material",
+      "slot": "",
+      "healHp": 0,
+      "healMp": 0
     }
   ],
   "enhanceRules": [

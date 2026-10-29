@@ -405,6 +405,27 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        var worldBossConfig = new WorldBossConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.WorldBossConfigFile))
+        {
+            string wbPath = Path.Combine(baseDir, manifest.WorldBossConfigFile);
+            if (!File.Exists(wbPath))
+                throw new FileNotFoundException($"World boss config not found: {wbPath}");
+            string wbJson = File.ReadAllText(wbPath);
+            worldBossConfig = JsonSerializer.Deserialize<WorldBossConfigFile>(wbJson, JsonOptions)
+                ?? new WorldBossConfigFile();
+            foreach (var b in worldBossConfig.Bosses)
+            {
+                if (string.IsNullOrWhiteSpace(b.BossId))
+                    throw new InvalidDataException("World boss missing bossId");
+                if (!maps.ContainsKey(b.MapId))
+                    throw new InvalidDataException($"World boss '{b.BossId}' mapId '{b.MapId}' not in version pack.");
+                if (!monsterDict.ContainsKey(b.MonsterId))
+                    throw new InvalidDataException($"World boss '{b.BossId}' monsterId '{b.MonsterId}' not in monsters.json.");
+            }
+        }
+
         return new LoadedVersionPack
         {
             Manifest = manifest,
@@ -429,6 +450,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Siege = siegeConfig,
             Mail = mailConfig,
             Dungeons = dungeonsConfig,
+            WorldBoss = worldBossConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

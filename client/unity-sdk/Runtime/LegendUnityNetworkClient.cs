@@ -55,6 +55,9 @@ namespace Legend.UnitySdk
         public event Action<DungeonProgressNotify>? OnDungeonProgress;
         public event Action<DungeonCompleteNotify>? OnDungeonComplete;
         public event Action<DungeonPartyEnterNotify>? OnDungeonPartyEnter;
+        public event Action<WorldBossSpawnNotify>? OnWorldBossSpawn;
+        public event Action<WorldBossHpNotify>? OnWorldBossHp;
+        public event Action<LootBroadcastNotify>? OnLootBroadcast;
         public int Gold { get; private set; }
         public int Level { get; private set; } = 1;
         public int Exp { get; private set; }
@@ -736,6 +739,18 @@ namespace Legend.UnitySdk
                             var dpe = DungeonPartyEnterNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnDungeonPartyEnter?.Invoke(dpe));
                             break;
+                        case MsgId.WorldBossSpawnNotify:
+                            var wbs = WorldBossSpawnNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnWorldBossSpawn?.Invoke(wbs));
+                            break;
+                        case MsgId.WorldBossHpNotify:
+                            var wbh = WorldBossHpNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnWorldBossHp?.Invoke(wbh));
+                            break;
+                        case MsgId.LootBroadcastNotify:
+                            var lbn = LootBroadcastNotify.Parser.ParseFrom(frame.Payload);
+                            _mainThreadActions.Enqueue(() => OnLootBroadcast?.Invoke(lbn));
+                            break;
                         case MsgId.ChatNotify:
                             var chat = ChatNotify.Parser.ParseFrom(frame.Payload);
                             _mainThreadActions.Enqueue(() => OnChatNotify?.Invoke(chat));
@@ -762,6 +777,19 @@ namespace Legend.UnitySdk
                 await PacketCodec.WriteFrameAsync(_stream, msgId, seq, message, ct).ConfigureAwait(false);
                 return await tcs.Task.ConfigureAwait(false);
             }
+        }
+
+
+        public async Task<WorldBossStatusResp> RequestWorldBossStatusAsync(string bossId = "", CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.WorldBossStatusReq, new WorldBossStatusReq { BossId = bossId ?? "" }, ct);
+            return WorldBossStatusResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<WorldBossControlResp> RequestWorldBossControlAsync(string bossId, string action, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.WorldBossControlReq, new WorldBossControlReq { BossId = bossId ?? "", Action = action ?? "" }, ct);
+            return WorldBossControlResp.Parser.ParseFrom(frame.Payload);
         }
 
         public void Dispose()

@@ -30,7 +30,7 @@ public class M9IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.13.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.14.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -196,7 +196,7 @@ public class M9IntegrationTests
             {
                 var client = new LegendTcpClient();
                 await client.ConnectAsync("127.0.0.1", engine.BoundPort);
-                Assert.True((await client.HandshakeAsync("1.13.0", "pc-m9-re")).Accepted);
+                Assert.True((await client.HandshakeAsync("1.14.0", "pc-m9-re")).Accepted);
                 var login = await client.LoginAsync(user, "secret12345", "PC");
                 Assert.True(login.Success, login.Message);
                 await client.SelectCharAsync(charId);
@@ -223,7 +223,7 @@ public class M9IntegrationTests
     public void VersionPack_Loads_Skills_Buffs_And_Skillbook()
     {
         var pack = new VersionPackLoader().LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.13.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.14.0", pack.Manifest.ProtocolVersion);
         Assert.True(pack.Skills.ContainsKey("fatal_strike"));
         Assert.True(pack.Skills["fatal_strike"].RequiresLearn);
         Assert.True(pack.Buffs.ContainsKey("buff_war_cry"));
