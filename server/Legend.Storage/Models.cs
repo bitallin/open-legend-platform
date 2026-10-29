@@ -175,6 +175,8 @@ public sealed class GuildRecord
     public List<string> MemberCharacterIds { get; set; } = new();
     /// <summary>JSON array of {itemId,count} shared warehouse stacks.</summary>
     public string WarehouseJson { get; set; } = "[]";
+    /// <summary>JSON object map characterId -> rank (vice_leader|warehouse_admin). Leader is always LeaderCharacterId; absent = member.</summary>
+    public string RanksJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public GuildRecord Clone() => new()
@@ -184,6 +186,31 @@ public sealed class GuildRecord
         LeaderCharacterId = LeaderCharacterId,
         MemberCharacterIds = new List<string>(MemberCharacterIds),
         WarehouseJson = WarehouseJson,
+        RanksJson = RanksJson,
+        CreatedAt = CreatedAt
+    };
+}
+
+public sealed class GuildWarehouseAuditRecord
+{
+    public string AuditId { get; set; } = string.Empty;
+    public string GuildId { get; set; } = string.Empty;
+    public string ActorCharacterId { get; set; } = string.Empty;
+    public string ActorName { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty; // deposit | withdraw | clear
+    public string ItemId { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public GuildWarehouseAuditRecord Clone() => new()
+    {
+        AuditId = AuditId,
+        GuildId = GuildId,
+        ActorCharacterId = ActorCharacterId,
+        ActorName = ActorName,
+        Action = Action,
+        ItemId = ItemId,
+        Count = Count,
         CreatedAt = CreatedAt
     };
 }

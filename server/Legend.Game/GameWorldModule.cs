@@ -82,7 +82,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.MountStatusReq or MsgId.MountSummonReq or MsgId.MountDismissReq or
         MsgId.FashionStatusReq or MsgId.FashionEquipReq or
         MsgId.PetStatusReq or MsgId.PetSummonReq or MsgId.PetDismissReq or
-        MsgId.GuildWarehouseListReq or MsgId.GuildWarehouseDepositReq or MsgId.GuildWarehouseWithdrawReq or MsgId.GuildWarehouseClearReq;
+        MsgId.GuildWarehouseListReq or MsgId.GuildWarehouseDepositReq or MsgId.GuildWarehouseWithdrawReq or MsgId.GuildWarehouseClearReq or
+        MsgId.GuildSetRankReq or MsgId.GuildWarehouseListAuditReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -327,6 +328,12 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.GuildWarehouseClearReq:
                 await HandleGuildWarehouseClearAsync(session, frame, ct);
+                break;
+            case MsgId.GuildSetRankReq:
+                await HandleGuildSetRankAsync(session, frame, ct);
+                break;
+            case MsgId.GuildWarehouseListAuditReq:
+                await HandleGuildWarehouseListAuditAsync(session, frame, ct);
                 break;
         }
     }

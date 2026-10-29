@@ -24,7 +24,7 @@ public sealed partial class GameWorldModule
         => cfg.MemberCanWithdraw || IsGuildLeader(player, guild);
 
     private bool CanClear(WorldPlayerEntity player, GuildRecord guild, GuildConfig cfg)
-        => cfg.LeaderCanClear && IsGuildLeader(player, guild);
+        => CanClearByRank(player, guild, cfg);
 
     private async Task HandleGuildWarehouseListAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
@@ -264,6 +264,7 @@ public sealed partial class GameWorldModule
 
         await _eventBus.PublishAsync(new GuildWarehouseDepositEvent(
             session, player.Name, player.CharacterId, player.GuildId, guildName, itemId, count, usedSlots), ct);
+        await AppendWarehouseAuditAndPublishAsync(session, player, player.GuildId, guildName, "deposit", itemId, count, ct);
     }
 
     private async Task HandleGuildWarehouseWithdrawAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
@@ -409,6 +410,7 @@ public sealed partial class GameWorldModule
 
         await _eventBus.PublishAsync(new GuildWarehouseWithdrawEvent(
             session, player.Name, player.CharacterId, player.GuildId, guildName, itemId, count, usedSlots), ct);
+        await AppendWarehouseAuditAndPublishAsync(session, player, player.GuildId, guildName, "withdraw", itemId, count, ct);
     }
 
     private async Task HandleGuildWarehouseClearAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
@@ -461,7 +463,7 @@ public sealed partial class GameWorldModule
                 {
                     Success = false,
                     ErrorCode = ProtocolErrorCode.ErrGuildWarehouseDenied,
-                    Message = "仅会长可清空行会仓库"
+                    Message = "无权清空行会仓库（需会长/副会长/仓管）"
                 }, ct);
                 return;
             }
@@ -486,5 +488,6 @@ public sealed partial class GameWorldModule
 
         await _eventBus.PublishAsync(new GuildWarehouseClearEvent(
             session, player.Name, player.CharacterId, player.GuildId, guildName, cleared), ct);
+        await AppendWarehouseAuditAndPublishAsync(session, player, player.GuildId, guildName, "clear", "", cleared, ct);
     }
 }

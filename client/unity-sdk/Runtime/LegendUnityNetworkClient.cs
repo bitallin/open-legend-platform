@@ -832,6 +832,25 @@ namespace Legend.UnitySdk
             return GuildWarehouseClearResp.Parser.ParseFrom(frame.Payload);
         }
 
+        public async Task<GuildSetRankResp> RequestGuildSetRankAsync(string targetCharacterId, string rank, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildSetRankReq, new GuildSetRankReq
+            {
+                TargetCharacterId = targetCharacterId ?? string.Empty,
+                Rank = rank ?? string.Empty
+            }, ct).ConfigureAwait(false);
+            return GuildSetRankResp.Parser.ParseFrom(frame.Payload);
+        }
+
+        public async Task<GuildWarehouseListAuditResp> RequestGuildWarehouseListAuditAsync(int limit = 0, CancellationToken ct = default)
+        {
+            var frame = await SendRequestAsync(MsgId.GuildWarehouseListAuditReq, new GuildWarehouseListAuditReq
+            {
+                Limit = limit
+            }, ct).ConfigureAwait(false);
+            return GuildWarehouseListAuditResp.Parser.ParseFrom(frame.Payload);
+        }
+
         public async Task<PetStatusResp> RequestPetStatusAsync(CancellationToken ct = default)
         {
             var frame = await SendRequestAsync(MsgId.PetStatusReq, new PetStatusReq(), ct);

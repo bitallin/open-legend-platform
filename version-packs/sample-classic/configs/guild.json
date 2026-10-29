@@ -10,5 +10,12 @@
   "warehouseMaxStackPerItem": 999,
   "memberCanDeposit": true,
   "memberCanWithdraw": true,
-  "leaderCanClear": true
+  "leaderCanClear": true,
+  "viceLeaderCanClear": true,
+  "warehouseAdminCanClear": true,
+  "memberCanClear": false,
+  "leaderCanSetRank": true,
+  "maxViceLeaders": 2,
+  "maxWarehouseAdmins": 3,
+  "auditLogLimit": 100
 }

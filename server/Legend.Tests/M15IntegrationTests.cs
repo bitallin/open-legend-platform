@@ -30,7 +30,7 @@ public class M15IntegrationTests
     {
         var client = new LegendTcpClient();
         await client.ConnectAsync("127.0.0.1", engine.BoundPort, ct);
-        Assert.True((await client.HandshakeAsync("1.17.0", $"pc-{user}", ct)).Accepted);
+        Assert.True((await client.HandshakeAsync("1.18.0", $"pc-{user}", ct)).Accepted);
         await client.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await client.LoginAsync(user, "secret12345", "PC", ct);
         Assert.True(login.Success, login.Message);
@@ -55,7 +55,7 @@ public class M15IntegrationTests
     {
         var loader = new VersionPackLoader();
         var pack = loader.LoadFromManifest(GetManifestPath());
-        Assert.Equal("1.17.0", pack.Manifest.ProtocolVersion);
+        Assert.Equal("1.18.0", pack.Manifest.ProtocolVersion);
         Assert.NotEmpty(pack.Mounts.Mounts);
         Assert.Contains(pack.Mounts.Mounts, m => m.MountId == "mount_white_horse");
         Assert.True(pack.Mounts.DefaultMoveIntervalMs >= 100);
@@ -205,7 +205,7 @@ public class M15IntegrationTests
 
             var client2 = new LegendTcpClient();
             await client2.ConnectAsync("127.0.0.1", engine.BoundPort);
-            Assert.True((await client2.HandshakeAsync("1.17.0", $"pc-{user}-2")).Accepted);
+            Assert.True((await client2.HandshakeAsync("1.18.0", $"pc-{user}-2")).Accepted);
             Assert.True((await client2.LoginAsync(user, "secret12345", "PC")).Success);
             await client2.SelectCharAsync(charId);
             var realms = await client2.GetRealmListAsync();

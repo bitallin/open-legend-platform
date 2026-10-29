@@ -82,6 +82,8 @@ enum ProtocolErrorCode {
   ERR_PET_DENIED = 1074;
   ERR_GUILD_WAREHOUSE_DENIED = 1075;
   ERR_GUILD_WAREHOUSE_FULL = 1076;
+  ERR_GUILD_RANK_DENIED = 1077;
+  ERR_GUILD_INVALID_RANK = 1078;
   ERR_INTERNAL = 1999;
 }
 
@@ -1459,4 +1461,45 @@ message GuildWarehouseClearResp {
   ProtocolErrorCode error_code = 2;
   string message = 3;
   int32 cleared_slots = 4;
+}
+
+// 26. Guild Ranks & Warehouse Audit (MsgId: 3701–3704) — M18
+// Ranks: leader | vice_leader | warehouse_admin | member
+// Leader appoints/dismisses vice_leader and warehouse_admin (and demotes to member).
+// Clear permission: leader / vice_leader / warehouse_admin per guild.json; member uses memberCanClear.
+message GuildSetRankReq {
+  string target_character_id = 1;
+  string rank = 2; // vice_leader | warehouse_admin | member
+}
+
+message GuildSetRankResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string target_character_id = 4;
+  string target_name = 5;
+  string old_rank = 6;
+  string new_rank = 7;
+}
+
+message GuildWarehouseAuditEntry {
+  string audit_id = 1;
+  string actor_character_id = 2;
+  string actor_name = 3;
+  string action = 4; // deposit | withdraw | clear
+  string item_id = 5;
+  int32 count = 6;
+  int64 created_unix_ms = 7;
+}
+
+message GuildWarehouseListAuditReq {
+  int32 limit = 1; // 0 = use config auditLogLimit
+}
+
+message GuildWarehouseListAuditResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string guild_id = 4;
+  repeated GuildWarehouseAuditEntry entries = 5;
 }

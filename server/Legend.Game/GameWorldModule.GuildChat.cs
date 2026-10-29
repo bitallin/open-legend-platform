@@ -337,7 +337,7 @@ public sealed partial class GameWorldModule
             {
                 CharacterId = mid,
                 Name = ch?.Name ?? mid,
-                Rank = string.Equals(mid, guild.LeaderCharacterId, StringComparison.Ordinal) ? "leader" : "member"
+                Rank = ResolveGuildRank(guild, mid)
             });
         }
         await session.SendAsync(MsgId.GuildInfoResp, frame.Seq, resp, ct);

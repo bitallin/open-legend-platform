@@ -1224,6 +1224,25 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return GuildWarehouseClearResp.Parser.ParseFrom(frame.Payload);
     }
 
+    public async Task<GuildSetRankResp> GuildSetRankAsync(string targetCharacterId, string rank, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildSetRankReq, new GuildSetRankReq
+        {
+            TargetCharacterId = targetCharacterId ?? "",
+            Rank = rank ?? ""
+        }, ct);
+        return GuildSetRankResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<GuildWarehouseListAuditResp> GuildWarehouseListAuditAsync(int limit = 0, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseListAuditReq, new GuildWarehouseListAuditReq
+        {
+            Limit = limit
+        }, ct);
+        return GuildWarehouseListAuditResp.Parser.ParseFrom(frame.Payload);
+    }
+
     public async Task<EntitySpawn> WaitEntitySpawnAsync(Func<EntitySpawn, bool>? pred = null, int timeoutMs = 3000, CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();

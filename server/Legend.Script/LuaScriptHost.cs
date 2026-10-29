@@ -139,6 +139,8 @@ public sealed class LuaScriptHost
         _eventBus.Subscribe<GuildWarehouseDepositEvent>(OnGuildWarehouseDepositAsync);
         _eventBus.Subscribe<GuildWarehouseWithdrawEvent>(OnGuildWarehouseWithdrawAsync);
         _eventBus.Subscribe<GuildWarehouseClearEvent>(OnGuildWarehouseClearAsync);
+        _eventBus.Subscribe<GuildRankChangedEvent>(OnGuildRankChangedAsync);
+        _eventBus.Subscribe<GuildWarehouseAuditEvent>(OnGuildWarehouseAuditAsync);
     }
 
     private static MoonSharp.Interpreter.Script CreateHardSandboxVm(LegendLuaBridge bridge)
@@ -1161,6 +1163,48 @@ public sealed class LuaScriptHost
         catch (Exception ex)
         {
             StructuredLogger.Error("LuaSandbox", $"on_guild_warehouse_clear failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGuildRankChangedAsync(GuildRankChangedEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_guild_rank_change");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.ActorName, evt.GuildName, evt.TargetName, evt.OldRank, evt.NewRank);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_guild_rank_change failed: {ex.Message}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGuildWarehouseAuditAsync(GuildWarehouseAuditEvent evt, CancellationToken ct)
+    {
+        try
+        {
+            lock (_luaLock)
+            {
+                DynValue fn = _luaVm.Globals.Get("on_warehouse_audit");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                _luaVm.Call(fn, evt.PlayerName, evt.GuildName, evt.Action, evt.ItemId, evt.Count, evt.AuditId);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_warehouse_audit failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }

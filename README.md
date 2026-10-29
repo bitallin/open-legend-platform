@@ -1,20 +1,21 @@
-# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M17)
+# Legend Platform — 原创传奇类三端多版本运营平台 (Phase A / M18)
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
-## 当前里程碑：M17（行会仓库共享存取与权限校验）
+## 当前里程碑：M18（行会仓库审计流水与副会长/仓管职级权限）
 
-协议版本 **1.17.0**。在 M16 宠物之上新增行会共享仓库：会员可存取个人背包↔行会仓（原子），会长可清空；未入会拒绝。三后端 `guilds.warehouse_json` 持久化，重启保留。
+协议版本 **1.18.0**。在 M17 共享仓库之上新增职级（Leader / ViceLeader / WarehouseAdmin / Member）与仓库审计流水：会长任命/撤职；仓管可 Clear；Deposit/Withdraw/Clear 记流水并可 ListAudit。三后端 `ranks_json` + `guild_warehouse_audit` 持久化。
 
 | 项 | 约定 |
 |----|------|
-| 配置 | `configs/guild.json`：`warehouseCapacitySlots=40`、`warehouseMaxStackPerItem=999`、`memberCanDeposit/Withdraw=true`、`leaderCanClear=true` |
-| 权限 | 会员存/取（可配置）；仅会长清空；未入会 → `ERR_NOT_IN_GUILD` |
-| 协议 | `GuildWarehouseList/Deposit/Withdraw/Clear`（3601–3608）；`ERR_GUILD_WAREHOUSE_DENIED=1075`、`ERR_GUILD_WAREHOUSE_FULL=1076` |
-| 原子性 | 存：扣背包→写入会仓→双写持久化；取：扣仓→加背包 |
-| 持久化 | `guilds.warehouse_json`（InMemory / Sqlite / Postgres，含迁移） |
-| Lua | `on_guild_warehouse_deposit` / `on_guild_warehouse_withdraw` / `on_guild_warehouse_clear` |
-| 验收 | CLI `--guild-wh`；`M17IntegrationTests`；`scripts/verify-m17.sh` |
+| 职级 | `leader` / `vice_leader` / `warehouse_admin` / `member`；会长 `GuildSetRank` 任命/撤职 |
+| 配置 | `guild.json`：`viceLeaderCanClear`/`warehouseAdminCanClear`/`memberCanClear`、`maxViceLeaders`、`maxWarehouseAdmins`、`auditLogLimit` |
+| Clear | 会长/副会长/仓管按配置可 Clear；普通会员默认否（存取仍按 M17） |
+| 协议 | `GuildSetRank`（3701–3702）、`GuildWarehouseListAudit`（3703–3704）；`ERR_GUILD_RANK_DENIED=1077`、`ERR_GUILD_INVALID_RANK=1078` |
+| 审计 | Deposit/Withdraw/Clear → `guild_warehouse_audit`（操作者/物品/数量/时间）；ListAudit |
+| 持久化 | `guilds.ranks_json` + `guild_warehouse_audit`（InMemory / Sqlite / Postgres） |
+| Lua | `on_guild_rank_change` / `on_warehouse_audit`（仓库钩子保留） |
+| 验收 | CLI `--guild-audit`；`M18IntegrationTests`；`scripts/verify-m18.sh` |
 
 ### M16（宠物召唤跟随与轻量战斗协助）
 
@@ -30,7 +31,7 @@
 ## 1. 目录结构
 ```text
 legend-platform/
-├── protocol/                    # Protobuf 契约 (VERSION=1.17.0)
+├── protocol/                    # Protobuf 契约 (VERSION=1.18.0)
 ├── server/
 │   ├── Legend.Contracts/        # MsgId 3601–3608 行会仓；3501–3511 宠物
 │   ├── Legend.Core/             # VersionPackLoader(+guild warehouse 字段)
@@ -38,8 +39,8 @@ legend-platform/
 │   ├── Legend.Storage/          # guilds.warehouse_json 三后端
 │   ├── Legend.Script/           # on_guild_warehouse_*
 │   ├── Legend.CliClient/        # --guild-wh / --pet 验收
-│   └── Legend.Tests/            # M0–M17
-├── client/unity-sdk/            # GuildWarehouse + Pet MsgId (1.17.0)
+│   └── Legend.Tests/            # M0–M18
+├── client/unity-sdk/            # GuildRanks/Audit + Warehouse MsgId (1.18.0)
 ├── version-packs/sample-classic/# guild.json 仓权限 + guild.lua
 └── scripts/verify-m17.sh
 ```
@@ -58,19 +59,17 @@ dotnet run --project server/Legend.Host -- --port 7100 \
   --manifest version-packs/sample-classic/manifest.json --storage Sqlite --sqlite data/legend.db
 ```
 
-### 手动验收（行会仓库）
-1. Handshake `1.17.0` → Register/Login → CreateChar → EnterWorld（会长 + 会员 + 局外人）
-2. 局外人 `GuildWarehouseList` → `ERR_NOT_IN_GUILD`
-3. 会长创建行会，会员加入；商店购买 `item_hp_potion`
-4. 会长 `GuildWarehouseDeposit` → 背包减少、仓 UsedSlots+1；会员 List 可见
-5. 会员 `GuildWarehouseWithdraw` → 仓减少、会员背包增加
-6. 会员 `GuildWarehouseClear` → `ERR_GUILD_WAREHOUSE_DENIED`；会长 Clear 成功
-7. 重启 Host 后 List 仍见重启前未清空的仓物品
+### 手动验收（行会职级与仓库审计）
+1. Handshake `1.18.0` → Register/Login → CreateChar → EnterWorld（会长 + 会员 + 仓管）
+2. 会长创建行会，会员与仓管加入；会员尝试 `GuildSetRank` → `ERR_GUILD_RANK_DENIED`
+3. 会长任命仓管为 `warehouse_admin`、另一人为 `vice_leader`；`GuildInfo` 职级正确
+4. 存取若干次后，会长 `GuildWarehouseListAudit` 可见 deposit/withdraw 流水
+5. 普通会员 Clear 拒绝；仓管 Clear 成功并出现 clear 流水
+6. 重启 Host，审计与职级仍在
 
-CLI：`dotnet run --project server/Legend.CliClient -- --host 127.0.0.1 --port 7100 --guild-wh`
 
 ## 3. Unity 接入
-见 `client/unity-sdk/README.md`。协议 `1.17.0`；`RequestGuildWarehouseList/Deposit/Withdraw/Clear`；Pet/Mount/Fashion 同前。
+见 `client/unity-sdk/README.md`。协议 `1.18.0`；`RequestGuildSetRank` / `RequestGuildWarehouseListAudit`；Warehouse/Pet/Mount 同前。
 
 ## 4. 环境变量
 | 变量 | 含义 |

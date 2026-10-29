@@ -167,14 +167,18 @@ namespace Legend.Contracts
         GuildWarehouseWithdrawResp = 3606,
         GuildWarehouseClearReq = 3607,
         GuildWarehouseClearResp = 3608,
+        GuildSetRankReq = 3701,
+        GuildSetRankResp = 3702,
+        GuildWarehouseListAuditReq = 3703,
+        GuildWarehouseListAuditResp = 3704,
         LootBroadcastNotify = 3307,
         ServerNotice = 3001
     }
 
     public static class ProtocolConstants
     {
-        public const string CurrentVersion = "1.17.0";
-        public const string MinCompatibleVersion = "1.17.0";
+        public const string CurrentVersion = "1.18.0";
+        public const string MinCompatibleVersion = "1.18.0";
         public const int HeaderSize = 10;
         public const int MaxPayloadSize = 1024 * 1024;
 

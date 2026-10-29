@@ -18,6 +18,7 @@ bool bossTest = false;
 bool mountTest = false;
 bool petTest = false;
 bool guildWhTest = false;
+bool guildAuditTest = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -115,6 +116,10 @@ for (int i = 0; i < args.Length; i++)
     {
         guildWhTest = true;
     }
+    else if (args[i] == "--guild-audit")
+    {
+        guildAuditTest = true;
+    }
     else if (args[i] == "--dungeon")
     {
         dungeonTest = true;
@@ -130,8 +135,8 @@ for (int i = 0; i < args.Length; i++)
     }
 }
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(guildWhTest ? 180 : petTest ? 180 : mountTest ? 180 : bossTest ? 300 : dungeonPartyTest ? 300 : dungeonTest ? 240 : mailTest ? 180 : siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
-Console.WriteLine($"[CliClient] {(guildWhTest ? "M17 guild warehouse" : petTest ? "M16 pet summon/assist" : mountTest ? "M15 mount/fashion" : bossTest ? "M14 world boss" : dungeonPartyTest ? "M13 dungeon party/daily" : dungeonTest ? "M12 dungeon instance" : mailTest ? "M11 mail/offline payout" : siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(guildAuditTest ? 180 : guildWhTest ? 180 : petTest ? 180 : mountTest ? 180 : bossTest ? 300 : dungeonPartyTest ? 300 : dungeonTest ? 240 : mailTest ? 180 : siegeTest ? 180 : skillTest ? 180 : partyTest ? 180 : (guildTest || tradeTest) ? 120 : levelTest ? 150 : 60));
+Console.WriteLine($"[CliClient] {(guildAuditTest ? "M18 guild ranks/audit" : guildWhTest ? "M17 guild warehouse" : petTest ? "M16 pet summon/assist" : mountTest ? "M15 mount/fashion" : bossTest ? "M14 world boss" : dungeonPartyTest ? "M13 dungeon party/daily" : dungeonTest ? "M12 dungeon instance" : mailTest ? "M11 mail/offline payout" : siegeTest ? "M10 siege/sabuk" : skillTest ? "M9 skill/buff" : partyTest ? "M8 party/friend/whisper" : tradeTest ? "M7 stall/trade" : guildTest ? "M6 guild/chat" : levelTest ? "M5 level/potion" : equipTest ? "M4 equip" : "full-chain")} against {host}:{port}...");
 
 if (guildTest)
 {
@@ -172,6 +177,13 @@ if (mountTest)
 {
     await RunMountFashionAcceptanceAsync(host, port, cts.Token);
     Console.WriteLine("[SUCCESS] All M15 mount/fashion verification steps passed!");
+    return;
+}
+
+if (guildAuditTest)
+{
+    await RunGuildAuditAcceptanceAsync(host, port, cts.Token);
+    Console.WriteLine("[SUCCESS] All M18 guild ranks/audit verification steps passed!");
     return;
 }
 
@@ -229,8 +241,8 @@ static async Task RunDungeonAcceptanceAsync(string host, int port, CancellationT
     await using var other = new LegendTcpClient();
     await hero.ConnectAsync(host, port, ct);
     await other.ConnectAsync(host, port, ct);
-    if (!(await hero.HandshakeAsync("1.17.0", "pc-m12-h", ct)).Accepted) throw new Exception("hero handshake failed");
-    if (!(await other.HandshakeAsync("1.17.0", "pc-m12-o", ct)).Accepted) throw new Exception("other handshake failed");
+    if (!(await hero.HandshakeAsync("1.18.0", "pc-m12-h", ct)).Accepted) throw new Exception("hero handshake failed");
+    if (!(await other.HandshakeAsync("1.18.0", "pc-m12-o", ct)).Accepted) throw new Exception("other handshake failed");
 
     string userH = restartPass ? File.ReadAllLines(marker)[0] : $"m12_h_{suffix}";
     string userO = restartPass ? File.ReadAllLines(marker)[1] : $"m12_o_{suffix}";
@@ -392,9 +404,9 @@ static async Task RunDungeonPartyAcceptanceAsync(string host, int port, Cancella
     await leader.ConnectAsync(host, port, ct);
     await mate.ConnectAsync(host, port, ct);
     await weak.ConnectAsync(host, port, ct);
-    if (!(await leader.HandshakeAsync("1.17.0", "pc-m13-l", ct)).Accepted) throw new Exception("leader handshake failed");
-    if (!(await mate.HandshakeAsync("1.17.0", "pc-m13-m", ct)).Accepted) throw new Exception("mate handshake failed");
-    if (!(await weak.HandshakeAsync("1.17.0", "pc-m13-w", ct)).Accepted) throw new Exception("weak handshake failed");
+    if (!(await leader.HandshakeAsync("1.18.0", "pc-m13-l", ct)).Accepted) throw new Exception("leader handshake failed");
+    if (!(await mate.HandshakeAsync("1.18.0", "pc-m13-m", ct)).Accepted) throw new Exception("mate handshake failed");
+    if (!(await weak.HandshakeAsync("1.18.0", "pc-m13-w", ct)).Accepted) throw new Exception("weak handshake failed");
 
     string userL, userM, userW, nameL, nameM, nameW;
     if (restartPass)
@@ -610,8 +622,8 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
     await using var bob = new LegendTcpClient();
     await alice.ConnectAsync(host, port, ct);
     await bob.ConnectAsync(host, port, ct);
-    if (!(await alice.HandshakeAsync("1.17.0", "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
-    if (!(await bob.HandshakeAsync("1.17.0", "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
+    if (!(await alice.HandshakeAsync("1.18.0", "pc-m11-a", ct)).Accepted) throw new Exception("alice handshake failed");
+    if (!(await bob.HandshakeAsync("1.18.0", "pc-m11-b", ct)).Accepted) throw new Exception("bob handshake failed");
 
     string userA = $"m11_a_{suffix}";
     string userB = $"m11_b_{suffix}";
@@ -760,7 +772,7 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
 
     await using var bob2 = new LegendTcpClient();
     await bob2.ConnectAsync(host, port, ct);
-    if (!(await bob2.HandshakeAsync("1.17.0", "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
+    if (!(await bob2.HandshakeAsync("1.18.0", "pc-m11-b2", ct)).Accepted) throw new Exception("bob2 handshake");
     await EnsureAccount(bob2, userB);
     await bob2.SelectCharAsync(idB, ct);
     var enterB2 = await bob2.EnterWorldAsync(realm, idB, ct);
@@ -793,7 +805,7 @@ static async Task RunSiegeAcceptanceAsync(string host, int port, CancellationTok
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.17.0", "pc-m10", ct)).Accepted)
+        if (!(await c.HandshakeAsync("1.18.0", "pc-m10", ct)).Accepted)
             throw new Exception("Handshake failed");
         await c.RegisterAsync(user, "pass12345", "PC", ct);
         var login = await c.LoginAsync(user, "pass12345", "PC", ct);
@@ -919,7 +931,7 @@ static async Task RunSkillAcceptanceAsync(string host, int port, CancellationTok
 {
     await using var client = new LegendTcpClient();
     await client.ConnectAsync(host, port, ct);
-    if (!(await client.HandshakeAsync("1.17.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
+    if (!(await client.HandshakeAsync("1.18.0", "pc-m9", ct)).Accepted) throw new Exception("handshake failed");
 
     string user = "m9_skill_" + Guid.NewGuid().ToString("N")[..6];
     await client.RegisterAsync(user, "pass12345", "PC", ct);
@@ -1085,8 +1097,8 @@ static async Task RunPartyAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.17.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.17.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.18.0", "pc-m8-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.18.0", "pc-m8-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m8_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m8_leader", "pass12345", "PC", ct);
@@ -1246,8 +1258,8 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
     await using var buyer = new LegendTcpClient();
     await seller.ConnectAsync(host, port, ct);
     await buyer.ConnectAsync(host, port, ct);
-    if (!(await seller.HandshakeAsync("1.17.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
-    if (!(await buyer.HandshakeAsync("1.17.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
+    if (!(await seller.HandshakeAsync("1.18.0", "pc-m7-seller", ct)).Accepted) throw new Exception("Seller handshake failed");
+    if (!(await buyer.HandshakeAsync("1.18.0", "pc-m7-buyer", ct)).Accepted) throw new Exception("Buyer handshake failed");
 
     await seller.RegisterAsync("m7_seller", "pass12345", "PC", ct);
     var loginS = await seller.LoginAsync("m7_seller", "pass12345", "PC", ct);
@@ -1393,8 +1405,8 @@ static async Task RunGuildAcceptanceAsync(string host, int port, CancellationTok
     await using var b = new LegendTcpClient();
     await a.ConnectAsync(host, port, ct);
     await b.ConnectAsync(host, port, ct);
-    if (!(await a.HandshakeAsync("1.17.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.17.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await a.HandshakeAsync("1.18.0", "pc-m6-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.18.0", "pc-m6-b", ct)).Accepted) throw new Exception("B handshake failed");
 
     await a.RegisterAsync("m6_leader", "pass12345", "PC", ct);
     var loginA = await a.LoginAsync("m6_leader", "pass12345", "PC", ct);
@@ -1523,7 +1535,7 @@ await using var clientA = new LegendTcpClient();
 await using var clientB = new LegendTcpClient();
 
 await clientA.ConnectAsync(host, port, cts.Token);
-var hsA = await clientA.HandshakeAsync("1.17.0", "pc-smoke-1.6.0", cts.Token);
+var hsA = await clientA.HandshakeAsync("1.18.0", "pc-smoke-1.6.0", cts.Token);
 if (!hsA.Accepted)
     throw new Exception($"Client A Handshake failed: {hsA.Message}");
 Console.WriteLine($"[Step 1] Handshake OK (Server={hsA.ServerProtocolVersion})");
@@ -1570,7 +1582,7 @@ if (!clientA.ReceivedServerNotices.TryDequeue(out var luaNotice))
 Console.WriteLine($"[Step 6] Lua Hook OK: {luaNotice.Title} / {luaNotice.GrantedItemId} x{luaNotice.GrantedItemCount}");
 
 await clientB.ConnectAsync(host, port, cts.Token);
-await clientB.HandshakeAsync("1.17.0", "android-smoke-1.6.0", cts.Token);
+await clientB.HandshakeAsync("1.18.0", "android-smoke-1.6.0", cts.Token);
 await clientB.RegisterAsync("hero_mobile", "pass456", "Android", cts.Token);
 var loginB = await clientB.LoginAsync("hero_mobile", "pass456", "Android", cts.Token);
 if (!loginB.Success)
@@ -2075,9 +2087,9 @@ static async Task RunWorldBossAcceptanceAsync(string host, int port, Cancellatio
     await b.ConnectAsync(host, port, ct);
     await spectator.ConnectAsync(host, port, ct);
 
-    if (!(await a.HandshakeAsync("1.17.0", "pc-m14-a", ct)).Accepted) throw new Exception("A handshake failed");
-    if (!(await b.HandshakeAsync("1.17.0", "pc-m14-b", ct)).Accepted) throw new Exception("B handshake failed");
-    if (!(await spectator.HandshakeAsync("1.17.0", "pc-m14-s", ct)).Accepted) throw new Exception("S handshake failed");
+    if (!(await a.HandshakeAsync("1.18.0", "pc-m14-a", ct)).Accepted) throw new Exception("A handshake failed");
+    if (!(await b.HandshakeAsync("1.18.0", "pc-m14-b", ct)).Accepted) throw new Exception("B handshake failed");
+    if (!(await spectator.HandshakeAsync("1.18.0", "pc-m14-s", ct)).Accepted) throw new Exception("S handshake failed");
 
     await a.RegisterAsync("m14_a", "secret12345", "PC", ct);
     await b.RegisterAsync("m14_b", "secret12345", "PC", ct);
@@ -2275,8 +2287,8 @@ static async Task RunMountFashionAcceptanceAsync(string host, int port, Cancella
     await rider.ConnectAsync(host, port, ct);
     await watcher.ConnectAsync(host, port, ct);
 
-    if (!(await rider.HandshakeAsync("1.17.0", "pc-m15-r", ct)).Accepted) throw new Exception("rider handshake failed");
-    if (!(await watcher.HandshakeAsync("1.17.0", "pc-m15-w", ct)).Accepted) throw new Exception("watcher handshake failed");
+    if (!(await rider.HandshakeAsync("1.18.0", "pc-m15-r", ct)).Accepted) throw new Exception("rider handshake failed");
+    if (!(await watcher.HandshakeAsync("1.18.0", "pc-m15-w", ct)).Accepted) throw new Exception("watcher handshake failed");
 
     await rider.RegisterAsync("m15_rider", "secret12345", "PC", ct);
     await watcher.RegisterAsync("m15_watch", "secret12345", "PC", ct);
@@ -2360,7 +2372,7 @@ static async Task RunMountFashionAcceptanceAsync(string host, int port, Cancella
 
     await using var rider2 = new LegendTcpClient();
     await rider2.ConnectAsync(host, port, ct);
-    AssertOk((await rider2.HandshakeAsync("1.17.0", "pc-m15-r2", ct)).Accepted, "r2 hs");
+    AssertOk((await rider2.HandshakeAsync("1.18.0", "pc-m15-r2", ct)).Accepted, "r2 hs");
     AssertOk((await rider2.LoginAsync("m15_rider", "secret12345", "PC", ct)).Success, "r2 login");
     await rider2.SelectCharAsync(idR, ct);
     var enter2 = await rider2.EnterWorldAsync(realmId, idR, ct);
@@ -2380,8 +2392,8 @@ static async Task RunPetAcceptanceAsync(string host, int port, CancellationToken
     await owner.ConnectAsync(host, port, ct);
     await watcher.ConnectAsync(host, port, ct);
 
-    if (!(await owner.HandshakeAsync("1.17.0", "pc-m16-o", ct)).Accepted) throw new Exception("owner handshake failed");
-    if (!(await watcher.HandshakeAsync("1.17.0", "pc-m16-w", ct)).Accepted) throw new Exception("watcher handshake failed");
+    if (!(await owner.HandshakeAsync("1.18.0", "pc-m16-o", ct)).Accepted) throw new Exception("owner handshake failed");
+    if (!(await watcher.HandshakeAsync("1.18.0", "pc-m16-w", ct)).Accepted) throw new Exception("watcher handshake failed");
 
     await owner.RegisterAsync("m16_owner", "secret12345", "PC", ct);
     await watcher.RegisterAsync("m16_watch", "secret12345", "PC", ct);
@@ -2518,7 +2530,7 @@ static async Task RunPetAcceptanceAsync(string host, int port, CancellationToken
 
     await using var owner2 = new LegendTcpClient();
     await owner2.ConnectAsync(host, port, ct);
-    AssertOk((await owner2.HandshakeAsync("1.17.0", "pc-m16-o2", ct)).Accepted, "o2 hs");
+    AssertOk((await owner2.HandshakeAsync("1.18.0", "pc-m16-o2", ct)).Accepted, "o2 hs");
     AssertOk((await owner2.LoginAsync("m16_owner", "secret12345", "PC", ct)).Success, "o2 login");
     await owner2.SelectCharAsync(idO, ct);
     var enter2 = await owner2.EnterWorldAsync(realmId, idO, ct);
@@ -2543,7 +2555,7 @@ static async Task RunGuildWarehouseAcceptanceAsync(string host, int port, Cancel
     {
         var c = new LegendTcpClient();
         await c.ConnectAsync(host, port, ct);
-        if (!(await c.HandshakeAsync("1.17.0", device, ct)).Accepted)
+        if (!(await c.HandshakeAsync("1.18.0", device, ct)).Accepted)
             throw new Exception($"handshake failed for {user}");
         await c.RegisterAsync(user, "secret12345", "PC", ct);
         var login = await c.LoginAsync(user, "secret12345", "PC", ct);
@@ -2637,3 +2649,106 @@ static async Task RunGuildWarehouseAcceptanceAsync(string host, int port, Cancel
     AssertOk(dep2.Success, $"member deposit: {dep2.Message}");
     Console.WriteLine("[M17.9] Member deposit OK — M17 guild warehouse acceptance passed");
 }
+
+static async Task RunGuildAuditAcceptanceAsync(string host, int port, CancellationToken ct)
+{
+    async Task<LegendTcpClient> LoginAsync(string user, string device)
+    {
+        var c = new LegendTcpClient();
+        await c.ConnectAsync(host, port, ct);
+        if (!(await c.HandshakeAsync("1.18.0", device, ct)).Accepted)
+            throw new Exception($"handshake failed for {user}");
+        await c.RegisterAsync(user, "secret12345", "PC", ct);
+        var login = await c.LoginAsync(user, "secret12345", "PC", ct);
+        if (!login.Success) throw new Exception($"login {user}: {login.Message}");
+        return c;
+    }
+
+    async Task<string> EnsureChar(LegendTcpClient c, string name, string cls)
+    {
+        var create = await c.CreateCharAsync(name, cls, ct);
+        if (create.Success) return create.Character.CharacterId;
+        var list = await c.CharListAsync(ct);
+        return list.Characters.First(x => x.Name == name).CharacterId;
+    }
+
+    await using var leader = await LoginAsync("m18_lead", "pc-m18-lead");
+    await using var member = await LoginAsync("m18_mem", "pc-m18-mem");
+    await using var whAdmin = await LoginAsync("m18_wh", "pc-m18-wh");
+
+    string idLead = await EnsureChar(leader, "审会长", "warrior");
+    string idMem = await EnsureChar(member, "审会员", "mage");
+    string idWh = await EnsureChar(whAdmin, "审仓管", "taoist");
+
+    var realms = await leader.GetRealmListAsync(ct);
+    string realmId = realms.Realms[0].RealmId;
+    await leader.SelectCharAsync(idLead, ct);
+    await member.SelectCharAsync(idMem, ct);
+    await whAdmin.SelectCharAsync(idWh, ct);
+    AssertOk((await leader.EnterWorldAsync(realmId, idLead, ct)).Success, "lead enter");
+    AssertOk((await member.EnterWorldAsync(realmId, idMem, ct)).Success, "mem enter");
+    AssertOk((await whAdmin.EnterWorldAsync(realmId, idWh, ct)).Success, "wh enter");
+    Console.WriteLine("[M18.1] Three characters entered world");
+
+    string gName = "审计行会";
+    var create = await leader.GuildCreateAsync(gName, ct);
+    AssertOk(create.Success, $"create: {create.Message}");
+    AssertOk((await member.GuildJoinAsync(gName, ct)).Success, "mem join");
+    AssertOk((await whAdmin.GuildJoinAsync(gName, ct)).Success, "wh join");
+    Console.WriteLine($"[M18.2] Guild ready id={create.GuildId}");
+
+    var denyRank = await member.GuildSetRankAsync(idWh, "warehouse_admin", ct);
+    AssertOk(!denyRank.Success, "member setrank should fail");
+    AssertOk(denyRank.ErrorCode == ProtocolErrorCode.ErrGuildRankDenied, $"deny={denyRank.ErrorCode}");
+    Console.WriteLine("[M18.3] Member set-rank denied");
+
+    var setWh = await leader.GuildSetRankAsync(idWh, "warehouse_admin", ct);
+    AssertOk(setWh.Success, $"set wh: {setWh.Message}");
+    AssertOk(setWh.NewRank == "warehouse_admin", setWh.NewRank);
+    AssertOk(setWh.OldRank == "member", setWh.OldRank);
+    Console.WriteLine("[M18.4] Leader appointed warehouse_admin");
+
+    var setVice = await leader.GuildSetRankAsync(idMem, "vice_leader", ct);
+    AssertOk(setVice.Success, $"set vice: {setVice.Message}");
+    AssertOk(setVice.NewRank == "vice_leader", setVice.NewRank);
+    Console.WriteLine("[M18.5] Leader appointed vice_leader");
+
+    var info = await leader.GuildInfoAsync("", ct);
+    AssertOk(info.Success, info.Message);
+    AssertOk(info.Members.Any(m => m.CharacterId == idWh && m.Rank == "warehouse_admin"), "info shows warehouse_admin");
+    AssertOk(info.Members.Any(m => m.CharacterId == idMem && m.Rank == "vice_leader"), "info shows vice_leader");
+    AssertOk(info.Members.Any(m => m.CharacterId == idLead && m.Rank == "leader"), "info shows leader");
+    Console.WriteLine("[M18.6] GuildInfo ranks correct");
+
+    var buy = await leader.ShopBuyAsync("npc_village_merchant", "item_hp_potion", 4, ct);
+    AssertOk(buy.Success, buy.Message);
+    var dep = await leader.GuildWarehouseDepositAsync("item_hp_potion", 3, ct);
+    AssertOk(dep.Success, dep.Message);
+    var wd = await member.GuildWarehouseWithdrawAsync("item_hp_potion", 1, ct);
+    AssertOk(wd.Success, wd.Message);
+    Console.WriteLine("[M18.7] Deposit/withdraw for audit trail");
+
+    var demote = await leader.GuildSetRankAsync(idMem, "member", ct);
+    AssertOk(demote.Success, demote.Message);
+    var clearDeny = await member.GuildWarehouseClearAsync(ct);
+    AssertOk(!clearDeny.Success, "member clear deny");
+    AssertOk(clearDeny.ErrorCode == ProtocolErrorCode.ErrGuildWarehouseDenied, $"clear deny code={clearDeny.ErrorCode}");
+    Console.WriteLine("[M18.8] Ordinary member clear denied");
+
+    var listWh = await whAdmin.GuildWarehouseListAsync(ct);
+    AssertOk(listWh.Success && listWh.CanClear, "warehouse_admin CanClear");
+    var clear = await whAdmin.GuildWarehouseClearAsync(ct);
+    AssertOk(clear.Success, $"wh clear: {clear.Message}");
+    AssertOk(clear.ClearedSlots >= 1, $"cleared={clear.ClearedSlots}");
+    Console.WriteLine("[M18.9] WarehouseAdmin cleared warehouse");
+
+    var audit = await leader.GuildWarehouseListAuditAsync(20, ct);
+    AssertOk(audit.Success, audit.Message);
+    AssertOk(audit.Entries.Count >= 3, $"audit count={audit.Entries.Count}");
+    AssertOk(audit.Entries.Any(e => e.Action == "deposit"), "has deposit");
+    AssertOk(audit.Entries.Any(e => e.Action == "withdraw"), "has withdraw");
+    AssertOk(audit.Entries.Any(e => e.Action == "clear"), "has clear");
+    AssertOk(audit.Entries.All(e => !string.IsNullOrEmpty(e.ActorCharacterId) && e.CreatedUnixMs > 0), "audit fields");
+    Console.WriteLine($"[M18.10] ListAudit entries={audit.Entries.Count} — M18 acceptance passed");
+}
+

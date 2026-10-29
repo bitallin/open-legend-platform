@@ -38,6 +38,9 @@ public interface IGuildStore
     Task<(bool Ok, string? Error)> RemoveMemberAsync(string guildId, string characterId, CancellationToken ct = default);
     Task DeleteAsync(string guildId, CancellationToken ct = default);
     Task SaveWarehouseAsync(string guildId, string warehouseJson, CancellationToken ct = default);
+    Task SaveRanksAsync(string guildId, string ranksJson, CancellationToken ct = default);
+    Task AppendWarehouseAuditAsync(GuildWarehouseAuditRecord entry, CancellationToken ct = default);
+    Task<IReadOnlyList<GuildWarehouseAuditRecord>> ListWarehouseAuditAsync(string guildId, int limit, CancellationToken ct = default);
 }
 
 public interface IFriendStore

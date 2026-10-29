@@ -163,14 +163,18 @@ public enum MsgId : ushort
     GuildWarehouseWithdrawReq = 3605,
     GuildWarehouseWithdrawResp = 3606,
     GuildWarehouseClearReq = 3607,
-    GuildWarehouseClearResp = 3608
+    GuildWarehouseClearResp = 3608,
+    GuildSetRankReq = 3701,
+    GuildSetRankResp = 3702,
+    GuildWarehouseListAuditReq = 3703,
+    GuildWarehouseListAuditResp = 3704
 }
 
 
 public static class ProtocolConstants
 {
-    public const string CurrentVersion = "1.17.0";
-    public const string MinCompatibleVersion = "1.17.0";
+    public const string CurrentVersion = "1.18.0";
+    public const string MinCompatibleVersion = "1.18.0";
     public const int HeaderSize = 10;
     public const int MaxPayloadSize = 1024 * 1024;
 

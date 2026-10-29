@@ -401,8 +401,22 @@ public sealed class GuildConfig
     public bool MemberCanDeposit { get; set; } = true;
     /// <summary>Any member (including leader) may withdraw when true.</summary>
     public bool MemberCanWithdraw { get; set; } = true;
-    /// <summary>Only the guild leader may clear (empty) the warehouse when true.</summary>
+    /// <summary>Guild leader may clear (empty) the warehouse when true.</summary>
     public bool LeaderCanClear { get; set; } = true;
+    /// <summary>Vice leader may clear the warehouse when true.</summary>
+    public bool ViceLeaderCanClear { get; set; } = true;
+    /// <summary>Warehouse admin may clear the warehouse when true.</summary>
+    public bool WarehouseAdminCanClear { get; set; } = true;
+    /// <summary>Ordinary members may clear the warehouse when true (default false).</summary>
+    public bool MemberCanClear { get; set; } = false;
+    /// <summary>Only the guild leader may appoint/dismiss ranks when true.</summary>
+    public bool LeaderCanSetRank { get; set; } = true;
+    /// <summary>Max concurrent vice_leader appointments (excluding the leader).</summary>
+    public int MaxViceLeaders { get; set; } = 2;
+    /// <summary>Max concurrent warehouse_admin appointments.</summary>
+    public int MaxWarehouseAdmins { get; set; } = 3;
+    /// <summary>Max warehouse audit entries returned by ListAudit (and retention hint).</summary>
+    public int AuditLogLimit { get; set; } = 100;
 }
 
 public sealed class TradeConfig
@@ -717,3 +731,5 @@ public sealed record PetChangedEvent(string CharacterId, string PlayerName, stri
 public sealed record GuildWarehouseDepositEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, string ItemId, int Count, int UsedSlots);
 public sealed record GuildWarehouseWithdrawEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, string ItemId, int Count, int UsedSlots);
 public sealed record GuildWarehouseClearEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, int ClearedSlots);
+public sealed record GuildRankChangedEvent(IClientSession Session, string ActorName, string ActorCharacterId, string GuildId, string GuildName, string TargetCharacterId, string TargetName, string OldRank, string NewRank);
+public sealed record GuildWarehouseAuditEvent(IClientSession Session, string PlayerName, string CharacterId, string GuildId, string GuildName, string Action, string ItemId, int Count, string AuditId);
