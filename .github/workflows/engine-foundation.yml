@@ -1,0 +1,21 @@
+# Builds the server solution and runs the E0 foundation tests.
+# Does not replace docs-site; docfx stays in that workflow.
+name: engine-foundation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build server solution
+        run: dotnet build server/LegendPlatform.sln -c Release --nologo
+      - name: Run foundation tests
+        run: dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --no-build --nologo --filter "FullyQualifiedName~ConfigSchema|FullyQualifiedName~LayerReference"

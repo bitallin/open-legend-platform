@@ -14,6 +14,13 @@ public sealed class VersionPackLoader : IVersionPackLoader
         AllowTrailingCommas = true
     };
 
+    private readonly IConfigSchemaValidator _schemaValidator;
+
+    public VersionPackLoader(IConfigSchemaValidator? schemaValidator = null)
+    {
+        _schemaValidator = schemaValidator ?? ConfigSchemaValidator.Instance;
+    }
+
     public LoadedVersionPack LoadFromManifest(string manifestPath)
     {
         string fullManifestPath = Path.GetFullPath(manifestPath);
@@ -48,6 +55,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Map config file not found: {mapPath}");
             string mapJson = File.ReadAllText(mapPath, Encoding.UTF8);
             hashInput.Append(mapJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Map, mapJson, rel);
             var mapConfig = JsonSerializer.Deserialize<MapConfig>(mapJson, JsonOptions)
                 ?? throw new InvalidDataException($"Failed to deserialize MapConfig: {rel}");
             mapConfig.EnsureBlockedCache();
@@ -215,6 +223,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Items config not found: {itemsPath}");
             string itemsJson = File.ReadAllText(itemsPath, Encoding.UTF8);
             hashInput.Append(itemsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Items, itemsJson, manifest.ItemsConfigFile);
             var itemsFile = JsonSerializer.Deserialize<ItemsConfigFile>(itemsJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize items.json");
             foreach (var item in itemsFile.Items)

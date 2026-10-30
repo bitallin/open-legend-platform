@@ -4,6 +4,15 @@
     <ProjectReference Include="..\Legend.Contracts\Legend.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Schemas\map.schema.json">
+      <LogicalName>Legend.Core.Schemas.map.schema.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schemas\items.schema.json">
+      <LogicalName>Legend.Core.Schemas.items.schema.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

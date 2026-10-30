@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/map.schema.json",
+  "title": "Open Legend map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mapId", "mapName", "width", "height", "spawnX", "spawnY"],
+  "properties": {
+    "mapId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "mapName": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "width": { "type": "integer", "minimum": 1, "maximum": 512 },
+    "height": { "type": "integer", "minimum": 1, "maximum": 512 },
+    "aoiCellSize": { "type": "integer", "minimum": 1, "maximum": 64 },
+    "aoiRadiusCells": { "type": "integer", "minimum": 0, "maximum": 8 },
+    "spawnX": { "type": "integer", "minimum": 0, "maximum": 511 },
+    "spawnY": { "type": "integer", "minimum": 0, "maximum": 511 },
+    "blockedBitsetBase64": { "type": "string", "maxLength": 400000 },
+    "blockedCells": {
+      "type": "array",
+      "maxItems": 200000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["x", "y"],
+        "properties": {
+          "x": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "y": { "type": "integer", "minimum": 0, "maximum": 511 }
+        }
+      }
+    },
+    "safeZones": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "x1", "y1", "x2", "y2"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "x1": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "y1": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "x2": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "y2": { "type": "integer", "minimum": 0, "maximum": 511 }
+        }
+      }
+    },
+    "portals": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["portalId", "x", "y", "targetMapId", "targetX", "targetY"],
+        "properties": {
+          "portalId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "x": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "y": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "targetMapId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "targetX": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "targetY": { "type": "integer", "minimum": 0, "maximum": 511 }
+        }
+      }
+    }
+  }
+}
