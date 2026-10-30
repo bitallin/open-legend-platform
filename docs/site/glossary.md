@@ -24,5 +24,19 @@
 | 热重载 | `POST /admin/reload-pack`，失败回滚已加载包 |
 | 沙箱支付 | `mock` / `wechat` / `alipay`，无密钥时 `sandbox_sim` |
 | TBD | 协议或配置尚未落地。文档可以写设计意图，不能发明 MsgId |
+| `currencyId` | 版本包声明的货币稳定 id，如 `gold`、`ingot`。扩展账本见 11。样例只启用 `gold` |
+| 绑定货币 | `currencyId` 以 `_bound` 结尾的余额。同组扣款时优先消耗，`tradable` 通常为 false |
+| 生肖容器 | `containerId` 为 `zodiac` 的 12 格容器，槽位 `zodiac_01` 至 `zodiac_12`。矩阵外，见 07 |
+| 神器槽 | `extraSlots` 中 `kind=artifact` 的装备位。等级不复用 `enhanceLevel`，见 07 与 16 |
+| 天赋点 | 天赋树节点的消耗。与内功经验不是同一池。配置 `configs/talents.json`，见 03 |
+| 内功 | 第二经验池 `internalLevel`，可选经络 `meridians`。不新开职业 id，见 03 |
+| 合击 | 主角与已出战英雄同时就绪时，服务端结算的一次伤害。见 05 与 15。英雄未做前客户端不显示合击槽 |
+| 坐骑状态 | 骑乘中允许走跑、吃药、点 NPC；默认禁止攻击、拾取、挖矿。见 15 |
+| 宠物模式 | `follow`、`attack`、`passive`、`rest`。与道士技能召唤兽的 AI 分开，见 15 |
+| 地图 flag | 地图布尔开关：`noPk`、`noMount`、`noSummon`、`noTeleport`、`noTrade`、`instance`、`noHang`、`noAutoPickup`。见 04 |
+| 内挂 | 客户端输入辅助。主规格占位，将写在 19。本轮不展开状态机，未进矩阵 |
+| 拾取过滤 | 辅助拾取时允许捡哪些地面物品。主规格占位，将写在 06 与 19 |
+| 红毒 / 绿毒 | 施毒术的两种 Debuff。红为持续掉血，绿为降低防御。扩展见 05。样例可仍用单一 `debuff_poison` |
+| 离线挂机 | 玩家角色离线后继续辅助。主规格占位，将写在 19 与 06。未进矩阵，不得标 Done |
 
 错误码段在 `protocol/legend_protocol.proto` 的 `ErrorCode`：业务拒绝从 `1001` 起，`ERR_INTERNAL = 1999`。查具体码时打开该枚举，不要在文档里复制一份会过期的全表。常用码在各功能页点名。

@@ -8,7 +8,7 @@
 
 套装是若干件同时穿戴时的额外加成（**E-14**）。件数不足不给套装属性。
 
-合成与镶嵌是扩展：把材料收成新物品，或在装备上打开宝石孔。未落地前，材料只是 `kind=material` 的普通物品（如 `item_copper_coin`）。
+合成与镶嵌是扩展：把材料收成新物品，或在装备上打开宝石孔。未落地前，材料只是 `kind=material` 的普通物品（如 `item_copper_coin`）。神器升级表在扩展路线，不复用装备强化等级。
 
 ## 协议 / MsgId
 
@@ -72,8 +72,9 @@ Unity 与 Playable 共用 2305。只在一边做窗口时，另一边至少不�
 
 1. **矿石消耗**。`EnhanceEquip` 增加可选材料 `itemId` 与数量。金币与材料都够才尝试。失败是否掉级由配置 `failMode`：`none`、`drop_level`、`destroy`。默认保持现在的「只花金币」直到配置出现。
 2. **合成**。`configs/craft.json`：配方 id、材料、产出、金币、NPC 限制。请求 MsgId **TBD**。一次只合成一份。材料不足 `ERR_ENHANCE_DENIED` 或新错误码，不要部分扣除。
-3. **打孔与镶嵌**。装备实例增加 `sockets[]`。开孔消耗道具。宝石是 `kind=gem` 的物品，镶入后加成生效，拆下返回背包。孔的数量上限写在物品模板。
+3. **打孔与镶嵌**。装备实例增加 `sockets[]`。开孔消耗道具。物品模板写 `socketCountMax`，超过则拒绝开孔。宝石是 `kind=gem` 的物品，镶入后加成生效，拆下返回背包。宝石只用白名单 `statId`（与 [03](03-attributes-growth.md) 自定义属性同一名单），禁止脚本随手写属性名。
 4. **刀魂**。独立进度条，满了换成固定技能加成 Buff。进度存在装备上。报文可与强化回包分字段，未分之前不要复用强化等级表示刀魂。
 5. **投保**。标记 `insured=true` 的装备死亡不掉，或掉了进邮件。与 [03](03-attributes-growth.md) 的 `deathItemChancePercent` 叠加：先排除投保件，再在其余物品里掷骰。投保费用走 NPC。
 6. **分解**。装备变材料，强化等级换额外材料数量。销毁前要客户端二次确认，服务端仍以请求为准。
 7. **穿戴提示**。纯客户端：背包里出现更高加成且等级足够的装备时，角色按钮显示提示。判定用本地缓存的模板，服务端不推「你该换装」。
+8. **神器升级**。`configs/artifacts.json`：`artifactItemId`、`level`、`materials`（材料 `itemId` 与数量）、`statBonuses`（白名单 `statId` 与数值）。槽位见 [07](07-equipment-inventory.md) 的 `kind=artifact`。神器等级存在神器实例自己的 `level` 上。**禁止**复用装备 `enhanceLevel` 表示神器等级。若需要失败规则，单独写 `failMode`，不要默默走强化失败。矩阵占位建议 `E-16` 与 07 相同，落地再写入矩阵，不计分。

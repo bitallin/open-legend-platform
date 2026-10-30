@@ -56,6 +56,8 @@ docfx build docs/site/docfx.json
 
 附录：[编写约定](conventions.md)、[术语表](glossary.md)、[经典名称对照](classic-name-map.md)、[调研来源](research/SOURCES.md)。
 
+私服常见扩展（货币多轨、生肖、英雄等）见各篇「扩展路线」。开发前先改规格再改协议。
+
 ## 和现有短文的关系
 
 | 现有文件 | 在本站的角色 |

@@ -83,7 +83,7 @@
 
 未来工作，未进入矩阵。
 
-1. **英雄**。独立于主角的可召唤单位：创建、改名、忠诚、出战、合击、装备触发。完整行为写在 [15](15-pet-hero-mount.md)。本页只约束：英雄不占用 `maxCharactersPerAccount` 的三个主角槽；英雄 id 与主角 `character_id` 分开；合击是技能域的组合技，见 [05](05-combat-skills.md)。
+1. **英雄**。独立于主角的可召唤单位。完整规格草案（存档、生命周期、忠诚、装备、模式、报文职责）写在 [15](15-pet-hero-mount.md) 扩展路线「A 英雄」。本页只约束：英雄不占用 `maxCharactersPerAccount` 的三个主角槽；英雄 id 与主角 `character_id` 分开；合击判定步骤见 [05](05-combat-skills.md) 扩展路线「合击」。
 2. **多职业**。第四职业及以上只加 `classes.json` 行、技能 `allowedClasses` 和客户端立绘。不要换 MsgId。未提供立绘与技能的职业 id 创建时返回 `ERR_INVALID_CLASS`。
 3. **阵营**。可选字符串，默认空。PK 规则仍以攻击模式为准（[10](10-pk-redname.md)）。阵营若参与「可攻击」，必须在服务端判定，客户端切换无效。报文 **TBD**。
 4. **国家**。与区服不同。国家是角色属性，区服是进程。改名、国王、国家仓库都未设计。在跨服（[17](17-cross-realm-merge.md)）之前不要做国家战。
