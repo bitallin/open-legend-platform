@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using Legend.Client.EditorTools;
 
 namespace Legend.Build
 {
@@ -29,11 +30,12 @@ namespace Legend.Build
                 EditorUserBuildSettings.SwitchActiveBuildTarget(
                     BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64);
 
+                EnsureBootScene();
                 string[] scenes = ResolveScenes();
                 if (scenes.Length == 0)
                 {
                     Debug.LogError(
-                        "Legend Windows build: no scenes. Use Legend → Create MVP Boot Scene first.");
+                        "Legend Windows build: no scenes even after EnsureBootScene.");
                     EditorApplication.Exit(2);
                     return;
                 }
