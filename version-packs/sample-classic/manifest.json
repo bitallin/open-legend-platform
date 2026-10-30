@@ -8,7 +8,9 @@
   "mapFiles": [
     "maps/novice_plain.json",
     "maps/dark_forest.json",
-    "maps/dungeon_slime_cave.json"
+    "maps/dungeon_slime_cave.json",
+    "maps/marsh_den.json",
+    "maps/bone_path.json"
   ],
   "classesConfigFile": "configs/classes.json",
   "skillsConfigFile": "configs/skills.json",

@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Text.Json;
+using Legend.Contracts;
 
 namespace Legend.Storage;
 
@@ -144,6 +145,7 @@ public static class AppearanceJson
         public string EquippedFashionId { get; set; } = "";
         public List<string> OwnedPets { get; set; } = new();
         public string ActivePetId { get; set; } = "";
+        public List<InventorySlot> Storage { get; set; } = new();
     }
 
     public static State Parse(string? json)
@@ -159,6 +161,7 @@ public static class AppearanceJson
             s.ActiveMountId ??= "";
             s.EquippedFashionId ??= "";
             s.ActivePetId ??= "";
+            s.Storage ??= new();
             return s;
         }
         catch
@@ -190,7 +193,11 @@ public static class AppearanceJson
             OwnedFashions = fashions,
             EquippedFashionId = state.EquippedFashionId ?? "",
             OwnedPets = pets,
-            ActivePetId = state.ActivePetId ?? ""
+            ActivePetId = state.ActivePetId ?? "",
+            Storage = (state.Storage ?? new())
+                .Where(s => !string.IsNullOrWhiteSpace(s.ItemId) && s.Count > 0)
+                .Select(s => new InventorySlot { ItemId = s.ItemId, Count = s.Count })
+                .ToList()
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

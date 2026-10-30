@@ -34,5 +34,17 @@
     <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\dungeon_slime_cave.json">
       <LogicalName>maps.dungeon_slime_cave.json</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\marsh_den.json">
+      <LogicalName>maps.marsh_den.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\bone_path.json">
+      <LogicalName>maps.bone_path.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\configs\skills.json">
+      <LogicalName>configs.skills.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\configs\items.json">
+      <LogicalName>configs.items.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

@@ -10,7 +10,28 @@
     "targetCount": 2,
     "rewardGold": 50,
     "rewardItems": [
-      { "itemId": "item_hp_potion", "count": 3 }
+      {
+        "itemId": "item_hp_potion",
+        "count": 3
+      }
     ]
+  },
+  {
+    "questId": "quest_bone_path",
+    "title": "骨脊清道",
+    "description": "清理绿史莱姆之后，去骨脊小径击杀 2 只骨行者，再回来找阿福。",
+    "acceptNpcId": "npc_village_merchant",
+    "turnInNpcId": "npc_village_merchant",
+    "objectiveType": "kill",
+    "targetMonsterId": "bone_walker",
+    "targetCount": 2,
+    "rewardGold": 80,
+    "rewardItems": [
+      {
+        "itemId": "item_mp_potion",
+        "count": 2
+      }
+    ],
+    "prerequisiteQuestId": "quest_slime_hunt"
   }
 ]

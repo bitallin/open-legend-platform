@@ -146,6 +146,154 @@
       "unlockPetId": "pet_wolf_pup",
       "healHp": 0,
       "healMp": 0
+    },
+    {
+      "itemId": "item_cloth_helmet",
+      "displayName": "布盔",
+      "kind": "equipment",
+      "slot": "helmet",
+      "defBonus": 2,
+      "maxHpBonus": 10,
+      "requiredLevel": 1,
+      "sellPriceGold": 6
+    },
+    {
+      "itemId": "item_copper_necklace",
+      "displayName": "铜项链",
+      "kind": "equipment",
+      "slot": "necklace",
+      "atkBonus": 1,
+      "defBonus": 1,
+      "requiredLevel": 1,
+      "sellPriceGold": 8
+    },
+    {
+      "itemId": "item_leather_bracelet",
+      "displayName": "皮手镯",
+      "kind": "equipment",
+      "slot": "bracelet",
+      "defBonus": 1,
+      "requiredLevel": 1,
+      "sellPriceGold": 5
+    },
+    {
+      "itemId": "item_iron_bracelet",
+      "displayName": "铁手镯",
+      "kind": "equipment",
+      "slot": "bracelet2",
+      "atkBonus": 2,
+      "requiredLevel": 1,
+      "sellPriceGold": 7
+    },
+    {
+      "itemId": "item_silver_ring",
+      "displayName": "银戒指",
+      "kind": "equipment",
+      "slot": "ring2",
+      "atkBonus": 2,
+      "defBonus": 1,
+      "requiredLevel": 1,
+      "sellPriceGold": 10
+    },
+    {
+      "itemId": "item_cloth_boots",
+      "displayName": "布靴",
+      "kind": "equipment",
+      "slot": "boots",
+      "defBonus": 1,
+      "maxHpBonus": 8,
+      "requiredLevel": 1,
+      "sellPriceGold": 5
+    },
+    {
+      "itemId": "item_rope_belt",
+      "displayName": "麻绳腰带",
+      "kind": "equipment",
+      "slot": "belt",
+      "defBonus": 1,
+      "maxHpBonus": 12,
+      "requiredLevel": 1,
+      "sellPriceGold": 4
+    },
+    {
+      "itemId": "item_torch",
+      "displayName": "火把",
+      "kind": "equipment",
+      "slot": "torch",
+      "atkBonus": 0,
+      "defBonus": 0,
+      "requiredLevel": 1,
+      "sellPriceGold": 2
+    },
+    {
+      "itemId": "item_bone_chip",
+      "displayName": "骨片",
+      "kind": "material",
+      "slot": "",
+      "sellPriceGold": 3
+    },
+    {
+      "itemId": "item_marsh_hide",
+      "displayName": "沼皮",
+      "kind": "material",
+      "slot": "",
+      "sellPriceGold": 4
+    },
+    {
+      "itemId": "item_skillbook_rush",
+      "displayName": "技能书·野蛮冲撞",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "rush"
+    },
+    {
+      "itemId": "item_skillbook_mana_shield",
+      "displayName": "技能书·魔法盾",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "mana_shield"
+    },
+    {
+      "itemId": "item_skillbook_ice_roar",
+      "displayName": "技能书·冰咆哮",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "ice_roar"
+    },
+    {
+      "itemId": "item_skillbook_fire_rain",
+      "displayName": "技能书·火雨",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "fire_rain"
+    },
+    {
+      "itemId": "item_skillbook_hide",
+      "displayName": "技能书·隐身术",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "hide"
+    },
+    {
+      "itemId": "item_skillbook_summon_bone",
+      "displayName": "技能书·召唤骷髅",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "summon_bone"
+    },
+    {
+      "itemId": "item_skillbook_summon_beast",
+      "displayName": "技能书·召唤神兽",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "summon_beast"
+    },
+    {
+      "itemId": "item_skillbook_group_hide",
+      "displayName": "技能书·集体隐身",
+      "kind": "skillbook",
+      "slot": "",
+      "teachesSkillId": "group_hide"
     }
   ],
   "enhanceRules": [

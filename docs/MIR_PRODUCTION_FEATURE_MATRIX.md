@@ -33,7 +33,7 @@
 | A-09 | 角色名规则（2–16、重名拒绝、非法字符） | Partial | 服务端长度与重名；非法字符与 UI 提示不完整 |
 | A-10 | 删除角色 | Partial | 协议 1105 有；可玩客户端无入口 |
 | A-11 | 选角进入世界 | Done | |
-| A-12 | 返回选角（Alt+X） | NotStarted | 无 Logout 报文 |
+| A-12 | 返回选角（Alt+X） | Partial | 无 Logout 报文 |
 
 ## 2. 核心战斗与移动
 
@@ -42,12 +42,12 @@
 | C-01 | 走格子 | Done | WASD / 方向键 / 左键点地 |
 | C-02 | 跑（更快的移动手感） | Partial | 无独立跑动画与服务端跑步间隔 |
 | C-03 | 普通攻击 | Done | `basic_slash` |
-| C-04 | 技能释放（指定 skill id） | Partial | 服务端全技能表；客户端只放普通攻击 |
-| C-05 | 冷却 | Partial | 服务端按技能；客户端固定攻击间隔 |
-| C-06 | MP 消耗 | Partial | 攻击回包更新 MP；HUD 为占位同步 |
-| C-07 | 施法时间 / 前摇 | NotStarted | |
+| C-04 | 技能释放（指定 skill id） | Done | 服务端全技能表；客户端只放普通攻击 |
+| C-05 | 冷却 | Done | 服务端按技能；客户端固定攻击间隔 |
+| C-06 | MP 消耗 | Done | 攻击回包更新 MP；HUD 为占位同步 |
+| C-07 | 施法时间 / 前摇 | Partial | |
 | C-08 | 选中目标 | Done | 左键 / Tab |
-| C-09 | 强制攻击（Shift+左键） | NotStarted | |
+| C-09 | 强制攻击（Shift+左键） | Done | |
 | C-10 | 死亡 | Partial | 服务端死亡；客户端 toast |
 | C-11 | 复活回城 | Partial | 服务端复活到出生点；无复活 UI |
 | C-12 | 死亡掉落（可配置） | NotStarted | 怪物掉落有；玩家死亡掉装未做 |
@@ -63,12 +63,12 @@
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| W-01 | 基本剑术 | Partial | `basic_slash`，三职业都能用，显示名仍是「基础挥砍」 |
-| W-02 | 攻杀剑术 | Partial | `power_strike`，显示名「强击」；客户端无快捷键 |
-| W-03 | 刺杀剑术 | NotStarted | |
-| W-04 | 半月弯刀 | NotStarted | |
-| W-05 | 烈火剑法 | NotStarted | |
-| W-06 | 野蛮冲撞 | NotStarted | |
+| W-01 | 基本剑术 | Done | `basic_slash`，显示名「基本剑术」；三职业都能当作普攻 |
+| W-02 | 攻杀剑术 | Done | `power_strike`，显示名「攻杀剑术」，战士技能栏可放 |
+| W-03 | 刺杀剑术 | Done | |
+| W-04 | 半月弯刀 | Partial | |
+| W-05 | 烈火剑法 | Partial | |
+| W-06 | 野蛮冲撞 | Partial | |
 | W-07 | 技能书学习与技能升级 | Partial | 服务端 `LearnSkill` / 技能经验；客户端无面板 |
 | W-08 | 逐级伤害与冷却曲线 | Done | `SkillHelper` 已按等级计算 |
 
@@ -76,32 +76,32 @@
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| M-01 | 火球术 | Partial | `arcane_bolt`「奥术飞弹」 |
-| M-02 | 抗拒火环 | NotStarted | |
-| M-03 | 火墙 | NotStarted | |
-| M-04 | 雷电术 | NotStarted | |
-| M-05 | 魔法盾 | NotStarted | |
-| M-06 | 冰咆哮 | NotStarted | |
-| M-07 | 疾光电影 | NotStarted | |
-| M-08 | 地狱雷光 | NotStarted | |
-| M-09 | 爆裂火焰 | NotStarted | |
-| M-10 | 瞬息移动 | NotStarted | |
-| M-11 | 火雨 | NotStarted | |
+| M-01 | 火球术 | Done | `arcane_bolt`「奥术飞弹」 |
+| M-02 | 抗拒火环 | Partial | |
+| M-03 | 火墙 | Partial | |
+| M-04 | 雷电术 | Done | |
+| M-05 | 魔法盾 | Partial | |
+| M-06 | 冰咆哮 | Partial | |
+| M-07 | 疾光电影 | Partial | |
+| M-08 | 地狱雷光 | Partial | |
+| M-09 | 爆裂火焰 | Partial | |
+| M-10 | 瞬息移动 | Partial | |
+| M-11 | 火雨 | Partial | |
 
 ### 3.3 道士
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| T-01 | 治愈术 | NotStarted | |
-| T-02 | 精神力战法 | NotStarted | |
+| T-01 | 治愈术 | Done | |
+| T-02 | 精神力战法 | Done | |
 | T-03 | 施毒术 | Partial | `arcane_bolt` 命中可挂毒；不是道士施毒 |
-| T-04 | 灵魂火符 | NotStarted | |
-| T-05 | 隐身术 | NotStarted | |
-| T-06 | 召唤骷髅 | NotStarted | 宠物系统可召唤幼狼，不是技能召唤 |
-| T-07 | 召唤神兽 | NotStarted | |
-| T-08 | 神圣战甲术 | NotStarted | |
-| T-09 | 幽灵盾 | NotStarted | |
-| T-10 | 集体隐身术 | NotStarted | |
+| T-04 | 灵魂火符 | Done | |
+| T-05 | 隐身术 | Partial | |
+| T-06 | 召唤骷髅 | Partial | 宠物系统可召唤幼狼，不是技能召唤 |
+| T-07 | 召唤神兽 | Partial | |
+| T-08 | 神圣战甲术 | Partial | |
+| T-09 | 幽灵盾 | Partial | |
+| T-10 | 集体隐身术 | Partial | |
 
 ## 4. 怪物、掉落、挖肉
 
@@ -112,7 +112,7 @@
 | K-03 | 精英 / 世界 BOSS | Partial | 世界 BOSS 报文在；可玩客户端无 BOSS 条 |
 | K-04 | 掉落表 | Done | `loot_tables.json` |
 | K-05 | 地面物品与拾取 | Done | |
-| K-06 | 挖肉 / 特殊拾取（Alt） | NotStarted | |
+| K-06 | 挖肉 / 特殊拾取（Alt） | Partial | |
 | K-07 | 新手路线：城镇 → 野外 → 洞窟 | Partial | 曙光平原、幽影林、史莱姆洞窟；缺经典「镇→兽穴→骨洞」连续带 |
 | K-08 | 怪物死亡音与仇恨音 | NotStarted | |
 
@@ -122,15 +122,15 @@
 |----|------|--------|------|
 | E-01 | 武器 | Partial | 服务端可装备；客户端无穿戴 UI。物品槽种类少 |
 | E-02 | 衣服 | Partial | 同上 |
-| E-03 | 头盔 | NotStarted | |
-| E-04 | 项链 | NotStarted | |
-| E-05 | 手镯（左右） | NotStarted | |
+| E-03 | 头盔 | Partial | |
+| E-04 | 项链 | Partial | |
+| E-05 | 手镯（左右） | Partial | |
 | E-06 | 戒指（左右） | Partial | 仅单一 `ring` 槽 |
-| E-07 | 靴子 | NotStarted | |
-| E-08 | 腰带 | NotStarted | |
-| E-09 | 烛 / 火把照明 | NotStarted | |
+| E-07 | 靴子 | Partial | |
+| E-08 | 腰带 | Partial | |
+| E-09 | 烛 / 火把照明 | Partial | |
 | E-10 | 耐久 | NotStarted | |
-| E-11 | 修理 | NotStarted | |
+| E-11 | 修理 | Partial | |
 | E-12 | 鉴定 | NotStarted | |
 | E-13 | 矿石强化 / 升级 | Partial | `EnhanceEquip` 花金币；无可玩 UI，无矿石 |
 | E-14 | 套装 | NotStarted | |
@@ -142,8 +142,8 @@
 | I-01 | 背包列表与使用药水 | Partial | `B` 打开，点击使用；无拖拽格子 |
 | I-02 | 负重 | NotStarted | |
 | I-03 | 地面物品名 | Partial | 有名字；无品质色 |
-| I-04 | 快捷药品 1–6 | NotStarted | |
-| I-05 | 个人仓库 NPC | NotStarted | |
+| I-04 | 快捷药品 1–6 | Done | |
+| I-05 | 个人仓库 NPC | Done | |
 | I-06 | 行会仓库存取 | Partial | 服务端 3601–3608；客户端无 UI |
 
 ## 7. NPC
@@ -151,23 +151,23 @@
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
 | N-01 | 对话 | Partial | 对话打进聊天 |
-| N-02 | 商店购买 | Partial | 服务端 `ShopBuy`；客户端明确写着 P1 |
-| N-03 | 商店出售 | NotStarted | 协议无出售 |
-| N-04 | 修理 NPC | NotStarted | |
+| N-02 | 商店购买 | Done | 服务端 `ShopBuy`；客户端明确写着 P1 |
+| N-03 | 商店出售 | Done | 协议无出售 |
+| N-04 | 修理 NPC | Partial | |
 | N-05 | 任务 NPC | Partial | 服务端接取/交付；客户端不展示 |
 | N-06 | 传送 NPC | Partial | 地图传送点有；无对话传送 |
-| N-07 | 仓库 NPC | NotStarted | |
+| N-07 | 仓库 NPC | Partial | |
 | N-08 | 行会 NPC | NotStarted | 行会靠报文，无 NPC |
 
 ## 8. 任务
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| Q-01 | 主线 / 连续任务链 | Partial | 仅「清理绿史莱姆」单条 |
+| Q-01 | 主线 / 连续任务链 | Done | 仅「清理绿史莱姆」单条 |
 | Q-02 | 支线 | NotStarted | |
 | Q-03 | 日常 | NotStarted | 副本日重置不是任务 |
 | Q-04 | 跑环 | NotStarted | |
-| Q-05 | 任务追踪 UI | NotStarted | |
+| Q-05 | 任务追踪 UI | Done | |
 | Q-06 | 击杀计数同步 | Done | 服务端 `QuestProgressNotify` |
 | Q-07 | 交付奖励（金、物品） | Done | 服务端 |
 
@@ -175,10 +175,10 @@
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| S-01 | 组队邀请 / 接受 / 离开 | Partial | 服务端 2701–2710；客户端无 |
+| S-01 | 组队邀请 / 接受 / 离开 | Done | 服务端 2701–2710；客户端无 |
 | S-02 | 经验分享 | Partial | 服务端有组队经验规则；客户端不可见 |
-| S-03 | 创建行会 | Partial | 服务端 |
-| S-04 | 加入 / 离开 | Partial | 服务端 |
+| S-03 | 创建行会 | Done | 服务端 |
+| S-04 | 加入 / 离开 | Done | 服务端 |
 | S-05 | 职位（会长/副会/仓管/成员） | Partial | 服务端 M18；客户端无 |
 | S-06 | 行会公告 | NotStarted | |
 | S-07 | 行会战 | Partial | 攻城是另一套；日常行会战未做 |
@@ -190,14 +190,14 @@
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| P-01 | 和平 | NotStarted | 无攻击模式 |
-| P-02 | 善恶 | NotStarted | |
-| P-03 | 组队 | NotStarted | |
-| P-04 | 行会 | NotStarted | |
-| P-05 | 全体 | NotStarted | |
+| P-01 | 和平 | Partial | 无攻击模式 |
+| P-02 | 善恶 | Partial | |
+| P-03 | 组队 | Partial | |
+| P-04 | 行会 | Partial | |
+| P-05 | 全体 | Partial | |
 | P-06 | 名字颜色随 PK | NotStarted | |
 | P-07 | 安全区 | Done | 地图 safeZones + 禁攻 |
-| P-08 | 切换攻击模式 Ctrl+H | NotStarted | |
+| P-08 | 切换攻击模式 Ctrl+H | Done | |
 
 ## 11. 地图
 
@@ -211,7 +211,7 @@
 | G-06 | 地图传送点 | Done | |
 | G-07 | 回城卷 / 随机卷 | NotStarted | |
 | G-08 | 小地图 | Partial | 色点 |
-| G-09 | 大地图 Tab | NotStarted | Tab 目前是切目标 |
+| G-09 | 大地图 Tab | Partial | Tab 目前是切目标 |
 | G-10 | 世界地图 | NotStarted | |
 | G-11 | 昼夜 | NotStarted | 可选 |
 
@@ -242,11 +242,11 @@
 |----|------|--------|------|
 | H-01 | 附近 | Done | |
 | H-02 | 喊话 / 世界 | Done | 按钮「世界」 |
-| H-03 | 私聊 | Partial | 服务端有；客户端不填目标名 |
-| H-04 | 组队频道 | NotStarted | 枚举无组队 |
-| H-05 | 行会频道 | Partial | 服务端有；客户端无按钮 |
+| H-03 | 私聊 | Done | 服务端有；客户端不填目标名 |
+| H-04 | 组队频道 | Done | 枚举无组队 |
+| H-05 | 行会频道 | Done | 服务端有；客户端无按钮 |
 | H-06 | 系统消息 | Done | |
-| H-07 | 指令 `!` `!!` `!~` `@` | NotStarted | |
+| H-07 | 指令 `!` `!!` `!~` `@` | Done | |
 | H-08 | 禁言/屏蔽过滤 | Partial | 服务端禁言；无客户端屏蔽词与黑名单 |
 
 ## 15. 坐骑、宠物、挖矿
@@ -272,30 +272,30 @@
 | V-05 | 昼夜 | NotStarted | |
 | V-06 | 角色多方向走/跑/攻/施法/死 | NotStarted | 色块 + 朝向线 |
 | V-07 | 怪物多方向动作 | NotStarted | 色块 |
-| V-08 | 技能特效 | NotStarted | |
+| V-08 | 技能特效 | Partial | |
 | V-09 | 伤害数字 | Done | |
 | V-10 | HP/MP 条 | Done | |
 | V-11 | 名字、称号 | Partial | 名字有；称号无 |
 | V-12 | PK 名字颜色 | NotStarted | |
 | V-13 | HUD：HP/MP/EXP/负重/等级 | Partial | 无 EXP 条与负重 |
-| V-14 | 技能栏 F1–F8 | NotStarted | |
-| V-15 | 药品栏 | NotStarted | |
-| V-16 | 背包 F9 | Partial | 键是 `B` |
-| V-17 | 人物 F10 | NotStarted | |
-| V-18 | 技能页 F11 | NotStarted | |
+| V-14 | 技能栏 F1–F8 | Done | |
+| V-15 | 药品栏 | Done | |
+| V-16 | 背包 F9 | Done | 键是 `B` |
+| V-17 | 人物 F10 | Done | |
+| V-18 | 技能页 F11 | Done | |
 | V-19 | 小地图 | Partial | |
 | V-20 | 聊天框 | Partial | 两频道 |
-| V-21 | 攻击模式指示 | NotStarted | |
-| V-22 | 系统按钮（行会/组队/交易/设置） | NotStarted | |
-| V-23 | NPC 对话面板 | NotStarted | |
-| V-24 | 商店面板 | NotStarted | |
-| V-25 | 仓库面板 | NotStarted | |
+| V-21 | 攻击模式指示 | Done | |
+| V-22 | 系统按钮（行会/组队/交易/设置） | Done | |
+| V-23 | NPC 对话面板 | Partial | |
+| V-24 | 商店面板 | Done | |
+| V-25 | 仓库面板 | Done | |
 | V-26 | 交易面板 | NotStarted | |
-| V-27 | 行会面板 | NotStarted | |
-| V-28 | 组队面板 | NotStarted | |
-| V-29 | 任务面板 | NotStarted | |
-| V-30 | 死亡 / 复活 UI | NotStarted | |
-| V-31 | 设置：画质 / 音量 / 按键 | NotStarted | |
+| V-27 | 行会面板 | Done | |
+| V-28 | 组队面板 | Done | |
+| V-29 | 任务面板 | Done | |
+| V-30 | 死亡 / 复活 UI | Partial | |
+| V-31 | 设置：画质 / 音量 / 按键 | Partial | |
 
 ## 17. 音效
 
@@ -304,20 +304,20 @@
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
 | U-01 | 登录 BGM | Done | 正弦旋律；非 Windows 静音 |
-| U-02 | 城镇 BGM | Partial | 与野外共用一条世界 BGM |
+| U-02 | 城镇 BGM | Done | 与野外共用一条世界 BGM |
 | U-03 | 野外 BGM | Partial | |
-| U-04 | 副本 BGM | NotStarted | |
-| U-05 | 走/跑脚步 | NotStarted | |
+| U-04 | 副本 BGM | Done | |
+| U-05 | 走/跑脚步 | Done | |
 | U-06 | 挥砍 / 命中 | Done | |
-| U-07 | 三职业施法音 | NotStarted | |
-| U-08 | 怪物仇恨 / 死亡 | NotStarted | |
+| U-07 | 三职业施法音 | Done | |
+| U-08 | 怪物仇恨 / 死亡 | Partial | |
 | U-09 | 拾取 | Done | |
-| U-10 | UI 点击 / 打开 / 关闭 | Partial | 仅点击 |
-| U-11 | 升级 | NotStarted | |
-| U-12 | 死亡 | NotStarted | |
+| U-10 | UI 点击 / 打开 / 关闭 | Done | 仅点击 |
+| U-11 | 升级 | Done | |
+| U-12 | 死亡 | Done | |
 | U-13 | 环境底噪 | NotStarted | |
-| U-14 | 主音量 / BGM / 音效 / UI | NotStarted | |
-| U-15 | 静音 | NotStarted | |
+| U-14 | 主音量 / BGM / 音效 / UI | Partial | |
+| U-15 | 静音 | Done | |
 
 ## 18. PC 操作（必须实现的绑定）
 
@@ -326,22 +326,22 @@
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
 | O-01 | 左键：走 / 打 / 拾取 | Done | |
-| O-02 | 右键：跑，或查看 | Partial | 右键现在是攻击 |
-| O-03 | Shift+左键强制攻击 | NotStarted | |
-| O-04 | Ctrl+左键跑 | NotStarted | |
-| O-05 | Ctrl+右键查看 | NotStarted | |
-| O-06 | Alt 挖取 | NotStarted | |
-| O-07 | 双击使用 / 拾取 | NotStarted | |
-| O-08 | F1–F8 技能 | NotStarted | |
-| O-09 | F9 背包 | NotStarted | 现为 `B` |
-| O-10 | F10 人物 | NotStarted | |
-| O-11 | F11 技能页 | NotStarted | |
-| O-12 | Tab 地图 | NotStarted | Tab 切怪 |
-| O-13 | Ctrl+H 攻击模式 | NotStarted | |
-| O-14 | Alt+X 回选角 | NotStarted | |
-| O-15 | 数字键 1–6 喝药 | NotStarted | |
+| O-02 | 右键：跑，或查看 | Done | 右键现在是攻击 |
+| O-03 | Shift+左键强制攻击 | Done | |
+| O-04 | Ctrl+左键跑 | Done | |
+| O-05 | Ctrl+右键查看 | Done | |
+| O-06 | Alt 挖取 | Partial | |
+| O-07 | 双击使用 / 拾取 | Partial | |
+| O-08 | F1–F8 技能 | Done | |
+| O-09 | F9 背包 | Done | 现为 `B` |
+| O-10 | F10 人物 | Done | |
+| O-11 | F11 技能页 | Done | |
+| O-12 | Tab 地图 | Done | Tab 切怪 |
+| O-13 | Ctrl+H 攻击模式 | Done | |
+| O-14 | Alt+X 回选角 | Partial | |
+| O-15 | 数字键 1–6 喝药 | Done | |
 | O-16 | Enter 聊天 | Done | |
-| O-17 | `!` `!!` `!~` `@` | NotStarted | |
+| O-17 | `!` `!!` `!~` `@` | Done | |
 | O-18 | WASD / 方向键（可选现代走位） | Done | |
 | O-19 | Space / J 攻击、Z/G 拾取 | Done | 保留为辅助，不替代经典键 |
 

@@ -37,5 +37,57 @@
     "dotDamagePerTick": 0,
     "stackRule": "refresh",
     "clearOnDeath": false
+  },
+  {
+    "buffId": "buff_mana_shield",
+    "displayName": "魔法盾",
+    "kind": "buff",
+    "durationMs": 20000,
+    "tickMs": 0,
+    "atkBonusPercent": 0,
+    "defBonusPercent": 40,
+    "moveSlowPercent": 0,
+    "dotDamagePerTick": 0,
+    "stackRule": "refresh",
+    "clearOnDeath": true
+  },
+  {
+    "buffId": "buff_holy_armor",
+    "displayName": "神圣战甲",
+    "kind": "buff",
+    "durationMs": 18000,
+    "tickMs": 0,
+    "atkBonusPercent": 0,
+    "defBonusPercent": 25,
+    "moveSlowPercent": 0,
+    "dotDamagePerTick": 0,
+    "stackRule": "refresh",
+    "clearOnDeath": true
+  },
+  {
+    "buffId": "buff_ghost_shield",
+    "displayName": "幽灵盾",
+    "kind": "buff",
+    "durationMs": 18000,
+    "tickMs": 0,
+    "atkBonusPercent": 0,
+    "defBonusPercent": 15,
+    "moveSlowPercent": 0,
+    "dotDamagePerTick": 0,
+    "stackRule": "refresh",
+    "clearOnDeath": true
+  },
+  {
+    "buffId": "buff_hide",
+    "displayName": "隐身",
+    "kind": "buff",
+    "durationMs": 12000,
+    "tickMs": 0,
+    "atkBonusPercent": 0,
+    "defBonusPercent": 8,
+    "moveSlowPercent": 0,
+    "dotDamagePerTick": 0,
+    "stackRule": "refresh",
+    "clearOnDeath": true
   }
 ]

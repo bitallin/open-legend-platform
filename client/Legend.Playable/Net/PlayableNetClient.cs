@@ -35,6 +35,15 @@ public sealed class PlayableNetClient : IDisposable
     public int EffectiveMaxHp { get; private set; }
     public int EffectiveMaxMp { get; private set; }
     public IReadOnlyList<InventoryItem> Inventory => _inventory;
+    public List<QuestProgress> Quests { get; } = new();
+    public List<EquippedSlot> Equipment { get; } = new();
+    public List<SkillState> Skills { get; } = new();
+    public List<InventoryItem> Storage { get; } = new();
+    public List<PartyMemberInfo> PartyMembers { get; } = new();
+    public string GuildId { get; private set; } = "";
+    public string GuildName { get; private set; } = "";
+    public string GuildRank { get; private set; } = "";
+    public string PartyId { get; private set; } = "";
 
     public event Action<EntitySnapshot>? OnSelfEnteredWorld;
     public event Action<EntitySnapshot>? OnEntityEnter;
@@ -51,6 +60,8 @@ public sealed class PlayableNetClient : IDisposable
     public event Action<ChatNotify>? OnChat;
     public event Action<ServerNotice>? OnNotice;
     public event Action? OnDisconnected;
+    public event Action? OnMeta;
+    public event Action<PartyInviteNotify>? OnPartyInvite;
 
     public void Pump()
     {
@@ -173,6 +184,12 @@ public sealed class PlayableNetClient : IDisposable
         EffectiveMaxHp = enter.EffectiveMaxHp;
         EffectiveMaxMp = enter.EffectiveMaxMp;
         ReplaceInventory(enter.Inventory);
+        Replace(Quests, enter.Quests);
+        Replace(Equipment, enter.Equipment);
+        Replace(Skills, enter.Skills);
+        GuildId = enter.GuildId ?? "";
+        GuildName = enter.GuildName ?? "";
+        GuildRank = enter.GuildRank ?? "";
         var self = enter.SelfEntity;
         var nearby = enter.NearbyEntities.ToList();
         _main.Enqueue(() =>
@@ -234,7 +251,11 @@ public sealed class PlayableNetClient : IDisposable
         }, ct).ConfigureAwait(false);
         var resp = TalkResp.Parser.ParseFrom(frame.Payload);
         if (resp.Success)
+        {
             Gold = resp.Gold;
+            foreach (var quest in resp.Quests)
+                UpsertQuest(quest);
+        }
         return resp;
     }
 
@@ -254,7 +275,7 @@ public sealed class PlayableNetClient : IDisposable
         return resp;
     }
 
-    public async Task SendChatAsync(ChatChannel channel, string content, CancellationToken ct = default)
+    public async Task SendChatAsync(ChatChannel channel, string content, string? targetName = null, CancellationToken ct = default)
     {
         if (_stream == null)
             throw new InvalidOperationException("未连接");
@@ -265,13 +286,283 @@ public sealed class PlayableNetClient : IDisposable
             await PacketCodec.WriteFrameAsync(_stream, MsgId.ChatReq, seq, new ChatReq
             {
                 Channel = channel,
-                Content = content
+                Content = content,
+                TargetName = targetName ?? ""
             }, ct).ConfigureAwait(false);
         }
         finally
         {
             _write.Release();
         }
+    }
+
+    public async Task<ShopBuyResp> ShopBuyAsync(string npcId, string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.ShopBuyReq, new ShopBuyReq
+        {
+            NpcEntityId = npcId,
+            ItemId = itemId,
+            Count = count
+        }, ct).ConfigureAwait(false);
+        var resp = ShopBuyResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            ReplaceInventory(resp.Inventory);
+        }
+        return resp;
+    }
+
+    public async Task<ShopSellResp> ShopSellAsync(string npcId, string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.ShopSellReq, new ShopSellReq
+        {
+            NpcEntityId = npcId,
+            ItemId = itemId,
+            Count = count
+        }, ct).ConfigureAwait(false);
+        var resp = ShopSellResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            ReplaceInventory(resp.Inventory);
+        }
+        return resp;
+    }
+
+    public async Task<RepairResp> RepairAsync(string npcId, string slot, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.RepairReq, new RepairReq
+        {
+            NpcEntityId = npcId,
+            Slot = slot ?? ""
+        }, ct).ConfigureAwait(false);
+        var resp = RepairResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            Replace(Equipment, resp.Equipment);
+        }
+        return resp;
+    }
+
+    public async Task<StorageListResp> StorageListAsync(string npcId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StorageListReq, new StorageListReq { NpcEntityId = npcId }, ct).ConfigureAwait(false);
+        var resp = StorageListResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Replace(Storage, resp.Items);
+        return resp;
+    }
+
+    public async Task<StorageDepositResp> StorageDepositAsync(string npcId, string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StorageDepositReq, new StorageDepositReq
+        {
+            NpcEntityId = npcId,
+            ItemId = itemId,
+            Count = count
+        }, ct).ConfigureAwait(false);
+        var resp = StorageDepositResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            ReplaceInventory(resp.Inventory);
+            Replace(Storage, resp.Storage);
+        }
+        return resp;
+    }
+
+    public async Task<StorageWithdrawResp> StorageWithdrawAsync(string npcId, string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.StorageWithdrawReq, new StorageWithdrawReq
+        {
+            NpcEntityId = npcId,
+            ItemId = itemId,
+            Count = count
+        }, ct).ConfigureAwait(false);
+        var resp = StorageWithdrawResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            ReplaceInventory(resp.Inventory);
+            Replace(Storage, resp.Storage);
+        }
+        return resp;
+    }
+
+    public async Task<QuestAcceptResp> QuestAcceptAsync(string npcId, string questId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.QuestAcceptReq, new QuestAcceptReq
+        {
+            NpcEntityId = npcId,
+            QuestId = questId
+        }, ct).ConfigureAwait(false);
+        var resp = QuestAcceptResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success && resp.Quest != null)
+            UpsertQuest(resp.Quest);
+        return resp;
+    }
+
+    public async Task<QuestTurnInResp> QuestTurnInAsync(string npcId, string questId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.QuestTurnInReq, new QuestTurnInReq
+        {
+            NpcEntityId = npcId,
+            QuestId = questId
+        }, ct).ConfigureAwait(false);
+        var resp = QuestTurnInResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            ReplaceInventory(resp.Inventory);
+            if (resp.Quest != null)
+                UpsertQuest(resp.Quest);
+        }
+        return resp;
+    }
+
+    public async Task<SkillListResp> SkillListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SkillListReq, new SkillListReq(), ct).ConfigureAwait(false);
+        var resp = SkillListResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Replace(Skills, resp.Skills);
+        return resp;
+    }
+
+    public async Task<LearnSkillResp> LearnSkillAsync(string itemId, string skillId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.LearnSkillReq, new LearnSkillReq
+        {
+            ItemId = itemId,
+            SkillId = skillId
+        }, ct).ConfigureAwait(false);
+        var resp = LearnSkillResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            ReplaceInventory(resp.Inventory);
+        return resp;
+    }
+
+    public async Task<EquipResp> EquipAsync(string itemId, string slot, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.EquipReq, new EquipReq { ItemId = itemId, Slot = slot }, ct).ConfigureAwait(false);
+        var resp = EquipResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            ReplaceInventory(resp.Inventory);
+            Replace(Equipment, resp.Equipment);
+            EffectiveAtk = resp.EffectiveAtk;
+            EffectiveDef = resp.EffectiveDef;
+            EffectiveMaxHp = resp.EffectiveMaxHp;
+        }
+        return resp;
+    }
+
+    public async Task<PartyInviteResp> PartyInviteAsync(string name, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyInviteReq, new PartyInviteReq { TargetName = name }, ct).ConfigureAwait(false);
+        return PartyInviteResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PartyAcceptResp> PartyAcceptAsync(string partyId, bool accept, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyAcceptReq, new PartyAcceptReq { PartyId = partyId, Accept = accept }, ct).ConfigureAwait(false);
+        return PartyAcceptResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<PartyLeaveResp> PartyLeaveAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.PartyLeaveReq, new PartyLeaveReq(), ct).ConfigureAwait(false);
+        var resp = PartyLeaveResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            PartyId = "";
+            PartyMembers.Clear();
+        }
+        return resp;
+    }
+
+    public async Task<GuildCreateResp> GuildCreateAsync(string name, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildCreateReq, new GuildCreateReq { Name = name }, ct).ConfigureAwait(false);
+        var resp = GuildCreateResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            GuildId = resp.GuildId ?? "";
+            GuildName = resp.GuildName ?? "";
+            GuildRank = resp.GuildRank ?? "";
+        }
+        return resp;
+    }
+
+    public async Task<GuildJoinResp> GuildJoinAsync(string name, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildJoinReq, new GuildJoinReq { GuildName = name }, ct).ConfigureAwait(false);
+        var resp = GuildJoinResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            GuildId = resp.GuildId ?? "";
+            GuildName = resp.GuildName ?? "";
+            GuildRank = resp.GuildRank ?? "";
+        }
+        return resp;
+    }
+
+    public async Task<GuildLeaveResp> GuildLeaveAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildLeaveReq, new GuildLeaveReq(), ct).ConfigureAwait(false);
+        var resp = GuildLeaveResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            GuildId = "";
+            GuildName = "";
+            GuildRank = "";
+        }
+        return resp;
+    }
+
+    public async Task<GuildInfoResp> GuildInfoAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildInfoReq, new GuildInfoReq(), ct).ConfigureAwait(false);
+        var resp = GuildInfoResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            GuildId = resp.GuildId ?? "";
+            GuildName = resp.GuildName ?? "";
+        }
+        return resp;
+    }
+
+    public async Task<GuildWarehouseListResp> GuildWarehouseListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseListReq, new GuildWarehouseListReq(), ct).ConfigureAwait(false);
+        return GuildWarehouseListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<GuildWarehouseDepositResp> GuildWarehouseDepositAsync(string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseDepositReq, new GuildWarehouseDepositReq
+        {
+            ItemId = itemId,
+            Count = count
+        }, ct).ConfigureAwait(false);
+        var resp = GuildWarehouseDepositResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            ReplaceInventory(resp.Inventory);
+        return resp;
+    }
+
+    public async Task<GuildWarehouseWithdrawResp> GuildWarehouseWithdrawAsync(string itemId, int count, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.GuildWarehouseWithdrawReq, new GuildWarehouseWithdrawReq
+        {
+            ItemId = itemId,
+            Count = count
+        }, ct).ConfigureAwait(false);
+        var resp = GuildWarehouseWithdrawResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            ReplaceInventory(resp.Inventory);
+        return resp;
     }
 
     public void Dispose()
@@ -493,6 +784,50 @@ public sealed class PlayableNetClient : IDisposable
                 _main.Enqueue(() => OnNotice?.Invoke(notice));
                 break;
             }
+            case MsgId.SkillListNotify:
+            {
+                var list = SkillListNotify.Parser.ParseFrom(frame.Payload);
+                Replace(Skills, list.Skills);
+                _main.Enqueue(() => OnMeta?.Invoke());
+                break;
+            }
+            case MsgId.QuestProgressNotify:
+            {
+                var quest = QuestProgressNotify.Parser.ParseFrom(frame.Payload);
+                if (quest.Quest != null)
+                    UpsertQuest(quest.Quest);
+                _main.Enqueue(() => OnMeta?.Invoke());
+                break;
+            }
+            case MsgId.PartyInfoNotify:
+            {
+                var party = PartyInfoNotify.Parser.ParseFrom(frame.Payload);
+                PartyId = party.PartyId ?? "";
+                Replace(PartyMembers, party.Members);
+                _main.Enqueue(() => OnMeta?.Invoke());
+                break;
+            }
+            case MsgId.PartyInviteNotify:
+            {
+                var invite = PartyInviteNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnPartyInvite?.Invoke(invite));
+                break;
+            }
         }
+    }
+
+    private static void Replace<T>(List<T> target, IEnumerable<T> source)
+    {
+        target.Clear();
+        target.AddRange(source);
+    }
+
+    private void UpsertQuest(QuestProgress quest)
+    {
+        int idx = Quests.FindIndex(q => string.Equals(q.QuestId, quest.QuestId, StringComparison.OrdinalIgnoreCase));
+        if (idx >= 0)
+            Quests[idx] = quest;
+        else
+            Quests.Add(quest);
     }
 }

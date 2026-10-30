@@ -55,6 +55,34 @@
       "respawnMs": 0,
       "ai": "chase",
       "expReward": 120
+    },
+    {
+      "monsterId": "marsh_crawler",
+      "displayName": "沼行兽",
+      "maxHp": 70,
+      "atk": 10,
+      "def": 3,
+      "aggroRange": 5,
+      "attackRange": 1,
+      "attackCooldownMs": 1400,
+      "lootTableId": "marsh_basic",
+      "respawnMs": 10000,
+      "ai": "chase",
+      "expReward": 45
+    },
+    {
+      "monsterId": "bone_walker",
+      "displayName": "骨行者",
+      "maxHp": 90,
+      "atk": 14,
+      "def": 5,
+      "aggroRange": 5,
+      "attackRange": 1,
+      "attackCooldownMs": 1300,
+      "lootTableId": "bone_basic",
+      "respawnMs": 12000,
+      "ai": "chase",
+      "expReward": 70
     }
   ],
   "spawns": [
@@ -85,6 +113,20 @@
       "x": 12,
       "y": 12,
       "count": 2
+    },
+    {
+      "monsterId": "marsh_crawler",
+      "mapId": "marsh_den",
+      "x": 16,
+      "y": 12,
+      "count": 3
+    },
+    {
+      "monsterId": "bone_walker",
+      "mapId": "bone_path",
+      "x": 18,
+      "y": 10,
+      "count": 3
     }
   ]
 }

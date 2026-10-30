@@ -32,6 +32,8 @@ public sealed class WorldPlayerEntity
     public bool IsDead { get; set; }
     public Dictionary<string, long> SkillReadyAtUnixMs { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<InventorySlot> Inventory { get; set; } = new();
+    /// <summary>Personal warehouse stacks. Persisted inside appearance JSON.</summary>
+    public List<InventorySlot> Storage { get; set; } = new();
     public int Gold { get; set; }
     public List<QuestProgressState> Quests { get; set; } = new();
     public List<EquippedItemState> Equipment { get; set; } = new();

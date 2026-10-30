@@ -6,7 +6,12 @@
     "x": 12,
     "y": 12,
     "shopId": "shop_novice_general",
-    "dialogue": "欢迎来到曙光平原！我这儿有药水和干粮。村口的绿史莱姆最近闹得凶，愿意帮忙清理吗？",
-    "questIds": ["quest_slime_hunt"]
+    "dialogue": "曙光镇的货和仓库都在我这儿。东边沼窟通骨脊小径，史莱姆清完了就去看看骨行者。",
+    "questIds": [
+      "quest_slime_hunt",
+      "quest_bone_path"
+    ],
+    "canRepair": true,
+    "canStore": true
   }
 ]

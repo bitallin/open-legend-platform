@@ -27,6 +27,13 @@ public sealed class PlayableSession : IDisposable
     public int MaxMp { get; private set; } = 1;
     public int Atk { get; private set; }
     public int Def { get; private set; }
+    public string ClassId { get; private set; } = "warrior";
+    public string GuildName { get; private set; } = "";
+    public string GuildRank { get; private set; } = "";
+    public string PartyId { get; private set; } = "";
+    public TalkResp? LastTalk { get; private set; }
+    public string PendingPartyId { get; private set; } = "";
+    public string PendingInviter { get; private set; } = "";
     public IReadOnlyList<CharacterSummary> Characters => _characters;
     public PlayableNetClient Net => _net;
 
@@ -34,6 +41,8 @@ public sealed class PlayableSession : IDisposable
     public event Action<CombatSync>? CombatSeen;
     public event Action? PickedUp;
     public event Action? Disconnected;
+    public event Action? MetaChanged;
+    public event Action? LeveledUp;
 
     public void Configure(LaunchOptions options)
     {
@@ -106,6 +115,10 @@ public sealed class PlayableSession : IDisposable
             _net.Pump();
             ApplyEnterVitals(character);
             SyncInventory();
+            ClassId = string.IsNullOrWhiteSpace(character.ClassId) ? ClassId : character.ClassId;
+            GuildName = _net.GuildName;
+            GuildRank = _net.GuildRank;
+            CopyMeta();
             var map = _net.SelfEntity?.MapId ?? character.MapId;
             Fsm.MarkInWorld(string.IsNullOrEmpty(map) ? "?" : map);
             Chat.Add($"[系统] 进入 {World.Map.MapName}");
@@ -126,11 +139,12 @@ public sealed class PlayableSession : IDisposable
         return sync;
     }
 
-    public async Task<AttackResp?> AttackAsync(string targetId)
+    public async Task<AttackResp?> AttackAsync(string targetId, string? skillId = null)
     {
         if (Fsm.Phase != SessionPhase.InWorld)
             return null;
-        var resp = await _net.RequestAttackAsync(targetId, PlayableTuning.BasicSkillId);
+        string skill = string.IsNullOrWhiteSpace(skillId) ? PlayableTuning.BasicSkillId : skillId;
+        var resp = await _net.RequestAttackAsync(targetId, skill);
         if (resp.Success || resp.RemainingMp > 0 || (resp.Message ?? "").Contains("MP", StringComparison.OrdinalIgnoreCase))
             Mp = Math.Max(0, resp.RemainingMp);
         return resp;
@@ -154,16 +168,14 @@ public sealed class PlayableSession : IDisposable
         if (Fsm.Phase != SessionPhase.InWorld)
             return null;
         var resp = await _net.RequestTalkAsync(npcId);
+        _npcEntityId = npcId;
         if (resp.Success)
         {
             string who = string.IsNullOrWhiteSpace(resp.NpcName) ? "NPC" : resp.NpcName;
             if (!string.IsNullOrWhiteSpace(resp.Dialogue))
                 Chat.Add($"[{who}] {resp.Dialogue}");
-            if (resp.ShopOffers.Count > 0)
-            {
-                var offers = string.Join("，", resp.ShopOffers.Select(o => $"{o.ItemId} {o.PriceGold}金"));
-                Chat.Add($"[商店] {offers}（购买界面为 P1）");
-            }
+            LastTalk = resp;
+            MetaChanged?.Invoke();
         }
         else if (!string.IsNullOrWhiteSpace(resp.Message))
         {
@@ -187,11 +199,221 @@ public sealed class PlayableSession : IDisposable
         return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "无法使用" : resp.Message);
     }
 
-    public async Task SendChatAsync(ChatChannel channel, string content)
+    public async Task SendChatAsync(ChatChannel channel, string content, string? targetName = null)
     {
         if (Fsm.Phase != SessionPhase.InWorld)
             return;
-        await _net.SendChatAsync(channel, content.Trim());
+        await _net.SendChatAsync(channel, content.Trim(), targetName);
+    }
+
+    public async Task<string?> ShopBuyAsync(string itemId, int count = 1)
+    {
+        if (LastTalk == null)
+            return "先和商人说话";
+        var resp = await _net.ShopBuyAsync(_npcEntityId, itemId, count);
+        if (resp.Success)
+        {
+            SyncInventory();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "购买失败" : resp.Message;
+    }
+
+    public string NpcEntityId() => _npcEntityId;
+
+    private string _npcEntityId = "";
+
+    public async Task<string?> ShopSellAsync(string itemId, int count = 1)
+    {
+        if (string.IsNullOrEmpty(_npcEntityId))
+            return "先和商人说话";
+        var resp = await _net.ShopSellAsync(_npcEntityId, itemId, count);
+        if (resp.Success)
+        {
+            SyncInventory();
+            Chat.Add($"[商店] 卖出 {itemId}，获得 {resp.GoldGained} 金");
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "出售失败" : resp.Message;
+    }
+
+    public async Task<string?> RepairAsync()
+    {
+        if (string.IsNullOrEmpty(_npcEntityId))
+            return "先和修理的人说话";
+        var resp = await _net.RepairAsync(_npcEntityId, "");
+        if (resp.Success)
+        {
+            SyncInventory();
+            Atk = _net.EffectiveAtk;
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "修理失败" : resp.Message;
+    }
+
+    public async Task<string?> OpenStorageAsync()
+    {
+        if (string.IsNullOrEmpty(_npcEntityId))
+            return "先和仓库管理员说话";
+        var resp = await _net.StorageListAsync(_npcEntityId);
+        return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "打不开仓库" : resp.Message);
+    }
+
+    public async Task<string?> StorageDepositAsync(string itemId)
+    {
+        var resp = await _net.StorageDepositAsync(_npcEntityId, itemId, 1);
+        if (resp.Success)
+        {
+            SyncInventory();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "存入失败" : resp.Message;
+    }
+
+    public async Task<string?> StorageWithdrawAsync(string itemId)
+    {
+        var resp = await _net.StorageWithdrawAsync(_npcEntityId, itemId, 1);
+        if (resp.Success)
+        {
+            SyncInventory();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "取出失败" : resp.Message;
+    }
+
+    public async Task<string?> AcceptQuestAsync(string questId)
+    {
+        var resp = await _net.QuestAcceptAsync(_npcEntityId, questId);
+            if (resp.Success)
+            {
+                MetaChanged?.Invoke();
+                return null;
+            }
+            return string.IsNullOrWhiteSpace(resp.Message) ? "接取失败" : resp.Message;
+        }
+
+    public async Task<string?> TurnInQuestAsync(string questId)
+    {
+        var resp = await _net.QuestTurnInAsync(_npcEntityId, questId);
+        if (resp.Success)
+        {
+            SyncInventory();
+            MetaChanged?.Invoke();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "交付失败" : resp.Message;
+    }
+
+    public async Task<string?> EquipAsync(string itemId, string slot)
+    {
+        var resp = await _net.EquipAsync(itemId, slot);
+        if (resp.Success)
+        {
+            SyncInventory();
+            Atk = resp.EffectiveAtk;
+            Def = resp.EffectiveDef;
+            if (World.Self != null && resp.EffectiveMaxHp > 0)
+                World.Self.MaxHp = resp.EffectiveMaxHp;
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "装备失败" : resp.Message;
+    }
+
+    public async Task<string?> LearnAsync(string itemId, string skillId)
+    {
+        var resp = await _net.LearnSkillAsync(itemId, skillId);
+        if (resp.Success)
+        {
+            SyncInventory();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "学习失败" : resp.Message;
+    }
+
+    public async Task<string?> InvitePartyAsync(string name)
+    {
+        var resp = await _net.PartyInviteAsync(name);
+        return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "邀请失败" : resp.Message);
+    }
+
+    public async Task<string?> AcceptPartyAsync(bool accept)
+    {
+        if (string.IsNullOrEmpty(PendingPartyId))
+            return "没有邀请";
+        var resp = await _net.PartyAcceptAsync(PendingPartyId, accept);
+        if (resp.Success && !accept)
+        {
+            PendingPartyId = "";
+            PendingInviter = "";
+        }
+        return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "组队失败" : resp.Message);
+    }
+
+    public async Task<string?> LeavePartyAsync()
+    {
+        var resp = await _net.PartyLeaveAsync();
+        if (resp.Success)
+        {
+            PartyId = "";
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "离队失败" : resp.Message;
+    }
+
+    public async Task<string?> CreateGuildAsync(string name)
+    {
+        var resp = await _net.GuildCreateAsync(name);
+        if (resp.Success)
+        {
+            SyncInventory();
+            GuildName = resp.GuildName;
+            GuildRank = resp.GuildRank;
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "创建行会失败" : resp.Message;
+    }
+
+    public async Task<string?> JoinGuildAsync(string name)
+    {
+        var resp = await _net.GuildJoinAsync(name);
+        if (resp.Success)
+        {
+            GuildName = resp.GuildName;
+            GuildRank = resp.GuildRank;
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "加入失败" : resp.Message;
+    }
+
+    public async Task<string?> LeaveGuildAsync()
+    {
+        var resp = await _net.GuildLeaveAsync();
+        if (resp.Success)
+        {
+            GuildName = "";
+            GuildRank = "";
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "退出失败" : resp.Message;
+    }
+
+    public async Task<GuildInfoResp?> RefreshGuildAsync()
+    {
+        var resp = await _net.GuildInfoAsync();
+        if (resp.Success)
+            GuildName = resp.GuildName;
+        return resp;
+    }
+
+    public void ReturnToLogin()
+    {
+        _suppressDisconnect = true;
+        try { _net.Dispose(); }
+        catch { /* already closed */ }
+        _suppressDisconnect = false;
+        LastTalk = null;
+        _npcEntityId = "";
+        Fsm.Reset();
     }
 
     public async Task ReconnectAsync()
@@ -223,6 +445,20 @@ public sealed class PlayableSession : IDisposable
         Mp = fromChar > 0 ? Math.Min(fromChar, MaxMp) : MaxMp;
         if (World.Self != null && _net.EffectiveMaxHp > 0)
             World.Self.MaxHp = Math.Max(World.Self.MaxHp, _net.EffectiveMaxHp);
+    }
+
+    public IReadOnlyList<QuestProgress> Quests => _net.Quests;
+    public IReadOnlyList<SkillState> Skills => _net.Skills;
+    public IReadOnlyList<EquippedSlot> Equipment => _net.Equipment;
+    public IReadOnlyList<InventoryItem> Storage => _net.Storage;
+    public IReadOnlyList<PartyMemberInfo> Party => _net.PartyMembers;
+
+    private void CopyMeta()
+    {
+        if (!string.IsNullOrEmpty(_net.GuildName))
+            GuildName = _net.GuildName;
+        GuildRank = string.IsNullOrEmpty(_net.GuildRank) ? GuildRank : _net.GuildRank;
+        PartyId = _net.PartyId;
     }
 
     private void SyncInventory()
@@ -330,6 +566,18 @@ public sealed class PlayableSession : IDisposable
             ExpToNext = exp.ExpToNext;
             Chat.Add($"[经验] +{exp.GainedExp}");
         };
+        net.OnMeta += () =>
+        {
+            CopyMeta();
+            MetaChanged?.Invoke();
+        };
+        net.OnPartyInvite += invite =>
+        {
+            PendingPartyId = invite.PartyId ?? "";
+            PendingInviter = invite.InviterName ?? "";
+            Chat.Add($"[组队] {PendingInviter} 邀请你加入队伍");
+            MetaChanged?.Invoke();
+        };
         net.OnLevelUp += lu =>
         {
             Level = lu.NewLevel;
@@ -347,6 +595,7 @@ public sealed class PlayableSession : IDisposable
                     World.Self.MaxHp = lu.EffectiveMaxHp;
             }
             Chat.Add($"[系统] 升级到 {lu.NewLevel}");
+            LeveledUp?.Invoke();
         };
         net.OnDisconnected += () =>
         {

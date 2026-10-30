@@ -18,7 +18,8 @@ public sealed class WorldCanvas : Control
     public WorldState? World { get; set; }
     public string Toast { get; set; } = "";
     public double ToastAge { get; set; }
-    public event Action<Point, bool>? WorldPressed;
+    public double AnimTime { get; set; }
+    public event Action<Point, bool, bool, bool, bool, int>? WorldPressed;
 
     public WorldCanvas()
     {
@@ -70,7 +71,14 @@ public sealed class WorldCanvas : Control
         bool right = props.IsRightButtonPressed;
         if (props.IsLeftButtonPressed || right)
         {
-            WorldPressed?.Invoke(point, right);
+            var mods = e.KeyModifiers;
+            WorldPressed?.Invoke(
+                point,
+                right,
+                mods.HasFlag(KeyModifiers.Shift),
+                mods.HasFlag(KeyModifiers.Control),
+                mods.HasFlag(KeyModifiers.Alt),
+                e.ClickCount);
             e.Handled = true;
         }
         base.OnPointerPressed(e);
@@ -96,6 +104,8 @@ public sealed class WorldCanvas : Control
             DrawMarker(context, world.GoalX, world.GoalY, camX, camY, w, h, cell);
         foreach (var actor in world.Actors.Values)
             DrawActor(context, world, actor, camX, camY, w, h, cell);
+        foreach (var fx in world.Effects)
+            DrawFx(context, fx, camX, camY, w, h, cell);
         foreach (var floater in world.Floats)
             DrawFloat(context, floater, camX, camY, w, h, cell);
         DrawMinimap(context, world, w, h);
@@ -138,7 +148,7 @@ public sealed class WorldCanvas : Control
         context.DrawEllipse(Brush("#663DDC78"), new Pen(Brush("#B6F5C8"), 2), new Point(sx, sy), 10, 10);
     }
 
-    private static void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h, double cell)
+    private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h, double cell)
     {
         var (sx, sy) = GridMath.GridToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h, cell);
         var center = new Point(sx, sy);
@@ -156,8 +166,10 @@ public sealed class WorldCanvas : Control
                 context.DrawEllipse(fill, null, center, 11, 11);
                 break;
             default:
-                context.DrawEllipse(fill, null, new Point(sx, sy + 2), 11, 12);
-                context.DrawEllipse(Brush("#F4E2C4"), null, new Point(sx, sy - 12), 6, 6);
+                double bob = Math.Sin(AnimTime * 8 + actor.GridX) * 1.5;
+                context.DrawEllipse(fill, null, new Point(sx, sy + 4 + bob), 8, 11);
+                context.DrawEllipse(Brush("#F4E2C4"), null, new Point(sx, sy - 12 + bob), 6, 6);
+                context.FillRectangle(Brush("#3A2A22"), new Rect(sx - 7, sy - 2 + bob, 14, 6));
                 break;
         }
 
@@ -192,6 +204,19 @@ public sealed class WorldCanvas : Control
             g.EndFigure(true);
         }
         context.DrawGeometry(fill, new Pen(Brush("#FFF1B8"), 1), geo);
+    }
+
+    private static void DrawFx(DrawingContext context, CastFx fx, double camX, double camY, double w, double h, double cell)
+    {
+        var (sx, sy) = GridMath.GridToScreen(fx.GridX, fx.GridY, camX, camY, w, h, cell);
+        string hex = fx.School switch
+        {
+            "mage" => "#66F08A3C",
+            "taoist" => "#6688E0C8",
+            _ => "#66F2E2A0"
+        };
+        double radius = 8 + fx.Age * 36;
+        context.DrawEllipse(null, new Pen(Brush(hex.Length == 9 ? "#" + hex[3..] : hex), 2), new Point(sx, sy), radius, radius * 0.6);
     }
 
     private static void DrawFloat(DrawingContext context, FloatText floater, double camX, double camY, double w, double h, double cell)

@@ -15,6 +15,12 @@ public sealed class PlayableAudio : IDisposable
     private WaveStream? _bgmStream;
     private bool _disposed;
 
+    public float Master { get; set; } = 1f;
+    public float BgmVolume { get; set; } = 0.7f;
+    public float SfxVolume { get; set; } = 1f;
+    public float UiVolume { get; set; } = 1f;
+    public bool Muted { get; set; }
+
     public PlayableAudio()
     {
         _clips = new Dictionary<string, byte[]>(StringComparer.Ordinal)
@@ -24,7 +30,18 @@ public sealed class PlayableAudio : IDisposable
             ["hit"] = ProceduralWav.Hit(),
             ["pickup"] = ProceduralWav.Pickup(),
             ["login"] = ProceduralWav.LoginBgm(),
-            ["world"] = ProceduralWav.WorldBgm()
+            ["world"] = ProceduralWav.WorldBgm(),
+            ["town"] = ProceduralWav.Melody(new[] { 294, 349, 392, 349, 330, 294 }, 0.46, 0.16),
+            ["dungeon"] = ProceduralWav.Melody(new[] { 146, 174, 196, 155, 146 }, 0.5, 0.14),
+            ["step"] = ProceduralWav.Tone(new[] { 140f, 90f }, 0.05f, 0.22f),
+            ["cast_w"] = ProceduralWav.Tone(new[] { 180f, 240f }, 0.12f, 0.35f),
+            ["cast_m"] = ProceduralWav.Tone(new[] { 520f, 780f }, 0.18f, 0.28f),
+            ["cast_t"] = ProceduralWav.Tone(new[] { 360f, 480f, 240f }, 0.16f, 0.26f),
+            ["level"] = ProceduralWav.Tone(new[] { 523f, 659f, 784f }, 0.28f, 0.3f),
+            ["death"] = ProceduralWav.Tone(new[] { 196f, 130f, 98f }, 0.4f, 0.35f),
+            ["open"] = ProceduralWav.Tone(new[] { 440f, 660f }, 0.07f, 0.22f),
+            ["close"] = ProceduralWav.Tone(new[] { 330f, 220f }, 0.07f, 0.2f),
+            ["monster"] = ProceduralWav.Tone(new[] { 110f, 80f }, 0.2f, 0.3f)
         };
     }
 
@@ -32,10 +49,40 @@ public sealed class PlayableAudio : IDisposable
 
     public void PlayLoginBgm() => Loop("login");
     public void PlayWorldBgm() => Loop("world");
-    public void PlayUiClick() => OneShot("ui");
+    public void PlayTownBgm() => Loop("town");
+    public void PlayDungeonBgm() => Loop("dungeon");
+    public void PlayForMap(string? mapId, bool safe)
+    {
+        if (safe)
+        {
+            PlayTownBgm();
+            return;
+        }
+        if (mapId != null && (mapId.Contains("dungeon", StringComparison.OrdinalIgnoreCase)
+                              || mapId.Contains("bone", StringComparison.OrdinalIgnoreCase)
+                              || mapId.Contains("marsh", StringComparison.OrdinalIgnoreCase)))
+        {
+            PlayDungeonBgm();
+            return;
+        }
+        PlayWorldBgm();
+    }
+    public void PlayUiClick() => OneShot("ui", ui: true);
+    public void PlayOpen() => OneShot("open", ui: true);
+    public void PlayClose() => OneShot("close", ui: true);
     public void PlayAttack() => OneShot("attack");
     public void PlayHit() => OneShot("hit");
     public void PlayPickup() => OneShot("pickup");
+    public void PlayStep() => OneShot("step");
+    public void PlayLevel() => OneShot("level");
+    public void PlayDeath() => OneShot("death");
+    public void PlayMonster() => OneShot("monster");
+    public void PlayCast(string? school) => OneShot(school switch
+    {
+        "mage" => "cast_m",
+        "taoist" => "cast_t",
+        _ => "cast_w"
+    });
 
     public void StopBgm()
     {
@@ -65,7 +112,7 @@ public sealed class PlayableAudio : IDisposable
         {
             StopBgm();
             var stream = new LoopWaveStream(new WaveFileReader(new MemoryStream(_clips[key], writable: false)));
-            var device = new WaveOutEvent { Volume = 0.35f };
+            var device = new WaveOutEvent { Volume = Gain(BgmVolume, 0.35f) };
             device.Init(stream);
             lock (_gate)
             {
@@ -80,14 +127,19 @@ public sealed class PlayableAudio : IDisposable
         }
     }
 
-    private void OneShot(string key)
+    private float Gain(float channel, float scale)
+        => Muted ? 0f : Math.Clamp(Master * channel * scale, 0f, 1f);
+
+    private void OneShot(string key, bool ui = false)
     {
-        if (!OperatingSystem.IsWindows() || _disposed)
+        if (!OperatingSystem.IsWindows() || _disposed || Muted)
+            return;
+        if (!_clips.ContainsKey(key))
             return;
         try
         {
             var reader = new WaveFileReader(new MemoryStream(_clips[key], writable: false));
-            var device = new WaveOutEvent { Volume = 0.85f };
+            var device = new WaveOutEvent { Volume = Gain(ui ? UiVolume : SfxVolume, 0.85f) };
             device.Init(reader);
             device.PlaybackStopped += (_, _) =>
             {

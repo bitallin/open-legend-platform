@@ -1,6 +1,6 @@
 {
   "mapId": "novice_plain",
-  "mapName": "曙光平原（原创）",
+  "mapName": "曙光镇外（原创，对照新手主城）",
   "width": 64,
   "height": 64,
   "aoiCellSize": 8,
@@ -58,6 +58,14 @@
       "targetMapId": "dark_forest",
       "targetX": 20,
       "targetY": 20
+    },
+    {
+      "portalId": "to_marsh",
+      "x": 40,
+      "y": 18,
+      "targetMapId": "marsh_den",
+      "targetX": 4,
+      "targetY": 4
     }
   ]
 }

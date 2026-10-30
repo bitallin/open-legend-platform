@@ -119,6 +119,8 @@ enum ChatChannel {
   CHAT_NEARBY = 1;
   CHAT_GUILD = 2;
   CHAT_WHISPER = 3;
+  // Phase L additive. Old servers ignore the value; see docs/PROTOCOL_NOTES.md.
+  CHAT_PARTY = 4;
 }
 
 // 1. Handshake (MsgId: 1001 / 1002)
@@ -1565,4 +1567,75 @@ message PaymentFulfilledNotify {
   int32 reward_gold = 4;
   string reward_item_id = 5;
   int32 reward_item_count = 6;
+}
+
+// 27. Phase L shop sell / repair / personal storage (MsgId: 3901–3910)
+// Version string stays 1.21.0 until milestone verifiers are retargeted.
+message ShopSellReq {
+  string npc_entity_id = 1;
+  string item_id = 2;
+  int32 count = 3;
+}
+
+message ShopSellResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 gold_gained = 4;
+  int32 gold = 5;
+  repeated InventoryItem inventory = 6;
+}
+
+message RepairReq {
+  string npc_entity_id = 1;
+  string slot = 2;
+}
+
+message RepairResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 gold_spent = 4;
+  int32 gold = 5;
+  repeated EquippedSlot equipment = 6;
+}
+
+message StorageListReq {
+  string npc_entity_id = 1;
+}
+
+message StorageListResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated InventoryItem items = 4;
+  int32 capacity = 5;
+}
+
+message StorageDepositReq {
+  string npc_entity_id = 1;
+  string item_id = 2;
+  int32 count = 3;
+}
+
+message StorageDepositResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated InventoryItem inventory = 4;
+  repeated InventoryItem storage = 5;
+}
+
+message StorageWithdrawReq {
+  string npc_entity_id = 1;
+  string item_id = 2;
+  int32 count = 3;
+}
+
+message StorageWithdrawResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated InventoryItem inventory = 4;
+  repeated InventoryItem storage = 5;
 }

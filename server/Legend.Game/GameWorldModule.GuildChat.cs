@@ -399,6 +399,17 @@ public sealed partial class GameWorldModule
             return;
         }
 
+        if (req.Channel == ChatChannel.ChatParty && string.IsNullOrEmpty(player.PartyId))
+        {
+            await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+            {
+                NoticeType = "chat_denied",
+                Title = "聊天",
+                Content = "未加入队伍，无法使用组队频道"
+            }, ct);
+            return;
+        }
+
         if (req.Channel == ChatChannel.ChatWhisper)
         {
             string targetName = (req.TargetName ?? string.Empty).Trim();
@@ -482,6 +493,7 @@ public sealed partial class GameWorldModule
                 .Where(p => !string.IsNullOrEmpty(p.GuildId)
                             && string.Equals(p.GuildId, player.GuildId, StringComparison.Ordinal)),
             ChatChannel.ChatNearby => GetNearbyChatRecipients(player, cfg.NearbyChebyshev),
+            ChatChannel.ChatParty => PartyChatRecipients(player),
             _ => Array.Empty<WorldPlayerEntity>()
         };
 
@@ -495,6 +507,20 @@ public sealed partial class GameWorldModule
         // ensure sender always receives own message if somehow missed
         if (sent.Add(player.EntityId))
             await player.Session.SendAsync(MsgId.ChatNotify, 0, notify, ct);
+    }
+
+    private List<WorldPlayerEntity> PartyChatRecipients(WorldPlayerEntity self)
+    {
+        var list = new List<WorldPlayerEntity> { self };
+        if (string.IsNullOrEmpty(self.PartyId) || !_parties.TryGetValue(self.PartyId, out var party))
+            return list;
+        foreach (string id in party.MemberCharacterIds)
+        {
+            var member = FindOnlineByCharacterId(id);
+            if (member != null && list.All(p => p.EntityId != member.EntityId))
+                list.Add(member);
+        }
+        return list;
     }
 
     private List<WorldPlayerEntity> GetNearbyChatRecipients(WorldPlayerEntity self, int chebyshev)
