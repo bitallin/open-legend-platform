@@ -19,7 +19,7 @@ E0 does not change the matrix score. `MATRIX_COMPLETE` stays true. DocOnly exten
 | Protocol | `protocol/legend_protocol.proto`，`Legend.Contracts.MsgId`，`ProtocolConstants`（1.21.0） | 00、conventions、PROTOCOL_NOTES |
 | Login | `server/Legend.Login/LoginModule` | 01、02 |
 | World / Logic | `server/Legend.Game/GameWorldModule` 及其 partial（移动、战斗、经济、行会、攻城、副本、外观、宠物、支付） | 03–17 |
-| Persistence | `server/Legend.Storage`（InMemory / Sqlite / Postgres，Redis 会话）。端口 `ILegendStorage` 目前定义在 Storage 程序集内 | 17、21 |
+| Persistence | `server/Legend.Storage`（InMemory / Sqlite / Postgres，Redis 会话）。端口 `ILegendStorage` 与记录类型在 `Legend.Contracts` 程序集，命名空间仍是 `Legend.Storage` | 17、21 |
 | Config / Script | `Legend.Core.VersionPackLoader`，`version-packs/*`，`Legend.Script.LuaScriptHost`（`legend_api`） | 18 |
 | ClientCore | `client/Legend.ClientCore`：会话状态机、背包视图模型，无 Unity / Avalonia | 19 |
 | Playable | `client/Legend.Playable`：Avalonia 渲染、UI、程序音效、网络收发 | 19、20 |
@@ -28,7 +28,7 @@ E0 does not change the matrix score. `MATRIX_COMPLETE` stays true. DocOnly exten
 
 已知耦合（E0 只登记，不搬文件）：
 
-- `Legend.Game` 与 `Legend.Login` 直接引用 `Legend.Storage`。端口与实现同程序集。
+- `Legend.Game` 与 `Legend.Login` 只引用端口所在的 `Legend.Contracts`。存储实现仍由 Host 注入。
 - `GameWorldModule` 按 partial 切文件，类型仍是一个模块，战斗和移动没有独立端口。
 - `Legend.Playable` 引用 `Legend.Contracts` 以编解码报文。这是允许的。它不引用 Game / Host / Storage。
 - 配置校验主要是反序列化后的空 id 与少量交叉引用。`tools/Legend.MapValidate` 另做地图语义检查，Host 启动不调用它。
@@ -111,11 +111,11 @@ Contracts       -> (none; protobuf generated from protocol/)
 - Contracts 引用任何业务项目。
 - Core 引用 Game、Storage、Gate、Script、Host、Login。
 - Storage 引用 Core 或 Game（日志与加载留在 Core；存储不知道世界）。
-- Game 引用 Host、Gate、Script、Login。脚本由 Host 订阅事件总线，世界不调用 Lua 主机。
+- Game 与 Login 引用 Host、Gate、Script、Login，以及 `Legend.Storage` 实现项目。脚本由 Host 订阅事件总线，世界不调用 Lua 主机。
 - Script 引用 Game。钩子参数保持标量与 id，不传入实体对象。
 - 客户端引用服务端世界或存储。
 
-E0 用 `EngineLayerRules`（Contracts）和 `LayerReferenceScanner`（Core）锁住上表。`Legend.Game` / `Legend.Login` 在 E2 之前仍允许引用 `Legend.Storage` 程序集，因为端口还住在那里。测试项目与 `tools/` 里除已点名者外不进这张表。
+E0 用 `EngineLayerRules`（Contracts）和 `LayerReferenceScanner`（Core）锁住上表。E2 起 `Legend.Game` / `Legend.Login` 不再引用 `Legend.Storage` 实现项目。测试项目与 `tools/` 里除已点名者外不进这张表。
 
 已点名、允许的工具边：
 
@@ -202,7 +202,9 @@ Schema 文件：
 
 测试：`dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --filter "FullyQualifiedName~ConfigSchema"`，外加一条加载器交叉引用测试。
 
-### E2 — 持久化端口上移
+### E2 — 持久化端口上移（已完成）
+
+状态：已完成。`ILegendStorage`、各存储端口，以及它们签名里的记录类型和 JSON 辅助类型编进 `Legend.Contracts`。命名空间仍是 `Legend.Storage`，方法签名未改。实现留在 `Legend.Storage`。Game / Login 不再引用该实现项目。没有 SQL 变更。
 
 范围：把 `ILegendStorage` 及账户、角色、会话、行会、交易、邮件、支付等存储端口从 `Legend.Storage` 挪到 `Legend.Contracts`（或一个只含端口的新项目，由 Contracts 再导出）。实现留在 Storage。Game / Login 的项目引用改为只依赖端口所在项目。行为不变，不写新迁移。
 
