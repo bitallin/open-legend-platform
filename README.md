@@ -6,6 +6,21 @@
 
 可玩演示已合并，**还不等于生产版本**。玩法、画面、音效、PC 操作的条目与状态以 [docs/MIR_PRODUCTION_FEATURE_MATRIX.md](docs/MIR_PRODUCTION_FEATURE_MATRIX.md) 为准，进度数字以 [docs/DEV_PROGRESS.md](docs/DEV_PROGRESS.md) 为准。协议增补记在 [docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md)。资源只允许原创 / CC0 / 程序生成。
 
+## 文档站（功能规格）
+
+引擎、服务端、客户端、登录器的功能规格在 [docs/site](docs/site/index.md)，按 00–22 一文一域。完成度只维护矩阵，文档站不另做一套状态表。
+
+生成静态站（.NET SDK 8，DocFX 2.78）：
+
+```bash
+dotnet tool install -g docfx --version 2.78.3
+export PATH="$PATH:$HOME/.dotnet/tools"
+docfx build docs/site/docfx.json
+# 浏览器打开 docs/site/_site/index.html
+```
+
+也可以运行 `./scripts/build-docs-site.sh`。只改文档时，CI 工作流 `.github/workflows/docs-site.yml` 会执行同样的 `docfx build`，不跑游戏验收脚本。
+
 ## 可玩 PC 客户端（验收路径，无需 Unity）
 
 协议 **1.21.0**。Windows 玩家包用 `dotnet publish` 生成，不依赖 Unity Editor。登录器选区后启动 `LegendClient.exe`，连上公网试玩服即可移动、打怪、拾取、聊天。

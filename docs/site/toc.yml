@@ -1,0 +1,60 @@
+- name: 首页
+  href: index.md
+- name: 编写约定
+  href: conventions.md
+- name: 功能规格
+  items:
+    - name: 00 总览与架构
+      href: 00-overview.md
+    - name: 01 账号、登录与登录器
+      href: 01-account-login-launcher.md
+    - name: 02 角色与职业
+      href: 02-character-class.md
+    - name: 03 属性与成长
+      href: 03-attributes-growth.md
+    - name: 04 地图与移动
+      href: 04-map-movement.md
+    - name: 05 战斗与技能
+      href: 05-combat-skills.md
+    - name: 06 怪物与掉落
+      href: 06-monsters-loot.md
+    - name: 07 装备、背包与仓库
+      href: 07-equipment-inventory.md
+    - name: 08 NPC 与任务
+      href: 08-npc-quests.md
+    - name: 09 行会与攻沙
+      href: 09-guild-siege.md
+    - name: 10 PK 与红名
+      href: 10-pk-redname.md
+    - name: 11 交易、摆摊与拍卖
+      href: 11-trade-stall-auction.md
+    - name: 12 商城与支付
+      href: 12-mall-payment.md
+    - name: 13 聊天与社交
+      href: 13-chat-social.md
+    - name: 14 Buff、称号与时装
+      href: 14-buff-title-fashion.md
+    - name: 15 宠物、英雄与坐骑
+      href: 15-pet-hero-mount.md
+    - name: 16 合成、强化与镶嵌
+      href: 16-craft-enhance-gem.md
+    - name: 17 跨服、合区与多区
+      href: 17-cross-realm-merge.md
+    - name: 18 脚本、配置与热更
+      href: 18-script-config-hotreload.md
+    - name: 19 客户端 UI 与操作
+      href: 19-client-ui-controls.md
+    - name: 20 音效与画面
+      href: 20-audio-visual.md
+    - name: 21 运维、部署与 GM
+      href: 21-ops-gm-deploy.md
+    - name: 22 安全与反外挂
+      href: 22-security-anti-cheat.md
+- name: 附录
+  items:
+    - name: 术语表
+      href: glossary.md
+    - name: 经典名称对照
+      href: classic-name-map.md
+    - name: 调研来源
+      href: research/SOURCES.md

@@ -1,0 +1,38 @@
+# Builds the spec site only. Does not compile the game or run verify-*.sh.
+name: docs-site
+
+on:
+  pull_request:
+    paths:
+      - "docs/site/**"
+      - "docs/MIR_PRODUCTION_FEATURE_MATRIX.md"
+      - "docs/PROTOCOL_NOTES.md"
+      - "docs/DEV_PROGRESS.md"
+      - "docs/PLAYABLE_PC.md"
+      - "docs/LAUNCHER.md"
+      - "docs/VISUAL_PARITY.md"
+      - "docs/PAYMENT_SANDBOX.md"
+      - "docs/TRIAL_DEPLOY.md"
+      - "docs/PUBLIC_DEPLOY_BUDGET.md"
+      - "docs/UNITY_CLIENT_MVP.md"
+      - "docs/UNITY_CLIENT_UGUI.md"
+      - "docs/ANDROID_BUILD.md"
+      - "scripts/build-docs-site.sh"
+      - ".github/workflows/docs-site.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/site/**"
+      - "scripts/build-docs-site.sh"
+      - ".github/workflows/docs-site.yml"
+
+jobs:
+  docfx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build documentation site
+        run: ./scripts/build-docs-site.sh
