@@ -125,7 +125,7 @@ Host 启动示例见仓库 `README.md`：`--manifest`、`--storage`、`--realm-i
 | 打孔、合成、刀魂、投保 | [16](16-craft-enhance-gem.md) |
 | 跨服、通区、跨服攻城、合区变量 | [17](17-cross-realm-merge.md) |
 | 定时脚本、GUI 元变量（只作 UI 能力清单） | [18](18-script-config-hotreload.md)、[19](19-client-ui-controls.md) |
-| 挂机、H5 | [19](19-client-ui-controls.md) |
+| H5 界面 | [19](19-client-ui-controls.md) |
 | 自研特效管线配置 | [20](20-audio-visual.md) |
 | 数据上报、GM 命令表、排行榜 | [21](21-ops-gm-deploy.md) |
 | 防刷策略与客户端完整性 | [22](22-security-anti-cheat.md) |
@@ -135,6 +135,10 @@ Host 启动示例见仓库 `README.md`：`--manifest`、`--storage`、`--realm-i
 | 翅膀与限时时装 | [14](14-buff-title-fashion.md) |
 | 英雄合击完整草案、坐骑状态机、宠物蛋 | [15](15-pet-hero-mount.md)、[05](05-combat-skills.md) |
 | 地图 flags、岛屿对照 | [04](04-map-movement.md) |
-| 内挂、拾取过滤、红毒绿毒、离线挂机 | 占位。主规格在 [19](19-client-ui-controls.md)、[06](06-monsters-loot.md)。红毒绿毒拆分见 [05](05-combat-skills.md)，地图禁挂见 [04](04-map-movement.md) |
+| 客户端内挂、三职业自动、自动施毒、保护吃药 | [19](19-client-ui-controls.md) |
+| 拾取过滤、范围连拾 | [06](06-monsters-loot.md)、[19](19-client-ui-controls.md) |
+| 红绿毒 Debuff | [05](05-combat-skills.md)、[14](14-buff-title-fashion.md) |
+| 地图禁挂 | [04](04-map-movement.md) |
+| 离线挂机运营 | [21](21-ops-gm-deploy.md)、[22](22-security-anti-cheat.md) |
 
-表末新增行是扩展规格入口，仍未进入矩阵，不计分。内挂只占位，不在本 PR 展开。字段形状以各篇「扩展路线」为准。
+表末各行是扩展规格入口，仍未进入矩阵，不计分。字段形状以各篇「扩展路线」为准。
