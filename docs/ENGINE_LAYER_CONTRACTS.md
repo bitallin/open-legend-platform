@@ -32,7 +32,7 @@
 void Validate(string schemaId, string json, string sourceName);
 ```
 
-- `schemaId` 使用 `ConfigSchemaIds.Map`（`"map"`）或 `ConfigSchemaIds.Items`（`"items"`）。
+- `schemaId` 使用 `ConfigSchemaIds`：`map`、`items`，以及 E1 的 `skills`、`monsters`、`lootTables`、`npcs`、`shops`、`quests`、`levels`、`guild`、`trade`。
 - `json` 是文件原文。允许与加载器相同的注释和尾逗号。
 - `sourceName` 写进错误信息，一般是相对路径。
 - 成功则返回。失败抛 `ConfigSchemaException`（独立异常；`InvalidDataException` 不可继承）。现有热更 `catch (Exception)` 会回滚。

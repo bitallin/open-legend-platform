@@ -5,7 +5,7 @@
 | 项 | 值 |
 |----|----|
 | 最后更新 | 2026-10-31 |
-| 阶段 | Phase R：斜视角、装备分层、加帧、主界面贴图。功能清单仍是 100%。引擎重构 E0 只加地基，不计矩阵分，见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
+| 阶段 | Phase R：斜视角、装备分层、加帧、主界面贴图。功能清单仍是 100%。引擎重构 E1 已补齐生产配置 Schema，不计矩阵分，见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
 | 总体 | **100%**（217 / 217） |
@@ -62,3 +62,4 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：补占位：地图 `noHang` / `noAutoPickup`，红毒绿毒拆分，内挂、拾取过滤与离线挂机仅交叉链（主规格留 19 与 06）。矩阵仍 100%。
 - 2026-10-31：文档站 Round2（内挂/拾取过滤/三职业自动与施毒；B 域二扫增量）。矩阵仍 100%（H-*/L-* 仅 DocOnly 草案）。详见各篇扩展路线。
 - 2026-10-30：引擎重构 E0。计划与 E0–E8 里程碑见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md)，端口与登录到战斗的数据流见 [ENGINE_LAYER_CONTRACTS.md](ENGINE_LAYER_CONTRACTS.md)。地图与物品在 Host 启动时按 Schema 失败即停。矩阵仍 100%。多货币、生肖、英雄合击、内挂、天赋留在 E8 之后。
+- 2026-10-30：引擎重构 E1。技能、怪物、掉落、NPC、商店、任务、等级、行会、交易走同一 Schema 校验器。掉落物品 id 等交叉引用在加载期失败。`Legend.MapValidate` 校验单张地图时调用该校验器。矩阵仍 100%。协议仍是 1.21.0。
