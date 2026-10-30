@@ -68,6 +68,9 @@ public sealed class WorldPlayerEntity
     public string ActivePetEntityId { get; set; } = string.Empty;
     public string AttackMode { get; set; } = "peace";
     public int PkKills { get; set; }
+    public string Gender { get; set; } = "";
+    public string MentorName { get; set; } = "";
+    public List<string> Blacklist { get; set; } = new();
 
     public EntitySnapshot ToSnapshot() => new()
     {
@@ -89,7 +92,8 @@ public sealed class WorldPlayerEntity
         PetId = ActivePetId ?? string.Empty,
         PkKills = PkKills,
         NameColor = PhaseMRules.NameColor(PkKills),
-        AttackMode = string.IsNullOrEmpty(AttackMode) ? "peace" : AttackMode
+        AttackMode = string.IsNullOrEmpty(AttackMode) ? "peace" : AttackMode,
+        Gender = Gender ?? ""
     };
 }
 

@@ -148,6 +148,9 @@ public static class AppearanceJson
         public List<InventorySlot> Storage { get; set; } = new();
         public int PkKills { get; set; }
         public string AttackMode { get; set; } = "peace";
+        public string Gender { get; set; } = "";
+        public string MentorName { get; set; } = "";
+        public List<string> Blacklist { get; set; } = new();
     }
 
     public static State Parse(string? json)
@@ -203,7 +206,10 @@ public static class AppearanceJson
                 .Select(s => new InventorySlot { ItemId = s.ItemId, Count = s.Count, Identified = s.Identified })
                 .ToList(),
             PkKills = Math.Max(0, state.PkKills),
-            AttackMode = string.IsNullOrWhiteSpace(state.AttackMode) ? "peace" : state.AttackMode
+            AttackMode = string.IsNullOrWhiteSpace(state.AttackMode) ? "peace" : state.AttackMode,
+            Gender = state.Gender ?? "",
+            MentorName = state.MentorName ?? "",
+            Blacklist = (state.Blacklist ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

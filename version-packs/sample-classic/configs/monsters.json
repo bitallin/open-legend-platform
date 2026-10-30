@@ -125,6 +125,20 @@
       "respawnMs": 15000,
       "ai": "stationary",
       "expReward": 80
+    },
+    {
+      "monsterId": "temple_wraith",
+      "displayName": "碑灵",
+      "maxHp": 110,
+      "atk": 16,
+      "def": 6,
+      "aggroRange": 5,
+      "attackRange": 1,
+      "attackCooldownMs": 1400,
+      "lootTableId": "bone_basic",
+      "respawnMs": 14000,
+      "ai": "chase",
+      "expReward": 90
     }
   ],
   "spawns": [
@@ -190,6 +204,13 @@
       "x": 20,
       "y": 20,
       "count": 1
+    },
+    {
+      "monsterId": "temple_wraith",
+      "mapId": "sealed_temple",
+      "x": 18,
+      "y": 12,
+      "count": 2
     }
   ]
 }

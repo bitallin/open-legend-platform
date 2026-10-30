@@ -109,6 +109,23 @@ public sealed partial class PlayableSession
         return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "宣战失败" : resp.Message);
     }
 
+    public async Task<string?> TravelAsync(string mapId)
+    {
+        var resp = await _net.WorldTravelAsync(mapId);
+        return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "无法传送" : resp.Message);
+    }
+
+    public async Task<string?> MineAsync()
+    {
+        var resp = await _net.MineAsync();
+        if (resp.Success)
+        {
+            SyncInventory();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "挖矿失败" : resp.Message;
+    }
+
     public async Task<string?> SiegeCaptureAsync()
     {
         var resp = await _net.SiegeCaptureAsync();

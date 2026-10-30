@@ -328,7 +328,8 @@ public sealed partial class GameWorldModule
             Message = "ok",
             GuildId = guild.GuildId,
             GuildName = guild.Name,
-            LeaderCharacterId = guild.LeaderCharacterId
+            LeaderCharacterId = guild.LeaderCharacterId,
+            Notice = ReadGuildNotice(guild.RanksJson)
         };
         foreach (string mid in guild.MemberCharacterIds)
         {
@@ -379,6 +380,9 @@ public sealed partial class GameWorldModule
             }, ct);
             return;
         }
+
+        if (await TryChatUtilityAsync(player, content, req.Channel, ct))
+            return;
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (_lastChatUnixMs.TryGetValue(player.EntityId, out long last) && now - last < cfg.ChatCooldownMs)
@@ -441,6 +445,16 @@ public sealed partial class GameWorldModule
                     NoticeType = "chat_denied",
                     Title = "私聊",
                     Content = "目标不在线"
+                }, ct);
+                return;
+            }
+            if (target.Blacklist.Any(n => string.Equals(n, player.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                await session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice
+                {
+                    NoticeType = "chat_denied",
+                    Title = "私聊",
+                    Content = "对方已屏蔽你"
                 }, ct);
                 return;
             }

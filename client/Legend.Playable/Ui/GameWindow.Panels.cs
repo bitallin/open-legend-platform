@@ -278,7 +278,7 @@ public sealed partial class GameWindow
                     string id = item.ItemId;
                     var sell = new Button
                     {
-                        Content = $"卖 {ContentCatalog.ItemName(id)} x1",
+                        Content = $"卖 {ContentCatalog.ItemName(id)} x1  回收约 {Math.Max(1, offerPrice(id))}金",
                         HorizontalAlignment = HorizontalAlignment.Stretch
                     };
                     sell.Click += async (_, _) => Toast(await _session.ShopSellAsync(id) ?? "已出售");
@@ -405,28 +405,39 @@ public sealed partial class GameWindow
                     no.Click += async (_, _) => Toast(await _session.TradeRespondAsync(false) ?? "已拒绝");
                     _panelBody.Children.Add(yes);
                     _panelBody.Children.Add(no);
-                    var offerItem = new TextBox { Watermark = "放入的物品 id，可空" };
                     var offerGold = new TextBox { Watermark = "金币", Text = "0" };
-                    var put = new Button { Content = "放入", HorizontalAlignment = HorizontalAlignment.Stretch };
-                    put.Click += async (_, _) =>
+                    _panelBody.Children.Add(Block("点背包格子放入，再点一次撤下"));
+                    foreach (var item in _session.Inventory.Items)
                     {
-                        int.TryParse(offerGold.Text, out int gold);
-                        Toast(await _session.TradePutAsync(offerItem.Text ?? "", string.IsNullOrWhiteSpace(offerItem.Text) ? 0 : 1, gold) ?? "已放入");
-                    };
+                        string id = item.ItemId;
+                        bool offered = _session.TradeState?.SelfItems.Any(s => s.ItemId == id) == true;
+                        var slot = new Button
+                        {
+                            Content = (offered ? "撤下 " : "放入 ") + ContentCatalog.ItemName(id) + " x" + item.Count,
+                            HorizontalAlignment = HorizontalAlignment.Stretch
+                        };
+                        slot.Click += async (_, _) =>
+                        {
+                            int.TryParse(offerGold.Text, out int gold);
+                            int count = offered ? 0 : 1;
+                            Toast(await _session.TradePutAsync(id, count, gold) ?? (offered ? "已撤下" : "已放入"));
+                        };
+                        _panelBody.Children.Add(slot);
+                    }
                     var lockBtn = new Button { Content = "锁定成交", HorizontalAlignment = HorizontalAlignment.Stretch };
                     lockBtn.Click += async (_, _) => Toast(await _session.TradeLockAsync(true) ?? "已锁定");
                     var cancel = new Button { Content = "取消", HorizontalAlignment = HorizontalAlignment.Stretch };
                     cancel.Click += async (_, _) => await _session.TradeCancelAsync();
-                    _panelBody.Children.Add(offerItem);
                     _panelBody.Children.Add(offerGold);
-                    _panelBody.Children.Add(put);
                     _panelBody.Children.Add(lockBtn);
                     _panelBody.Children.Add(cancel);
                     if (_session.TradeState != null)
                     {
                         var st = _session.TradeState;
-                        _panelBody.Children.Add(Block($"我 {st.SelfItemId} x{st.SelfCount} 金{st.SelfGold} {(st.SelfLocked ? "已锁" : "")}"));
-                        _panelBody.Children.Add(Block($"对方 {st.PeerName} {st.PeerItemId} x{st.PeerCount} 金{st.PeerGold} {(st.PeerLocked ? "已锁" : "")}"));
+                        string mine = st.SelfItems.Count == 0 ? "空" : string.Join("，", st.SelfItems.Select(s => ContentCatalog.ItemName(s.ItemId) + "x" + s.Count));
+                        string peerItems = st.PeerItems.Count == 0 ? "空" : string.Join("，", st.PeerItems.Select(s => ContentCatalog.ItemName(s.ItemId) + "x" + s.Count));
+                        _panelBody.Children.Add(Block($"我 {mine} 金{st.SelfGold} {(st.SelfLocked ? "已锁" : "")}"));
+                        _panelBody.Children.Add(Block($"对方 {st.PeerName} {peerItems} 金{st.PeerGold} {(st.PeerLocked ? "已锁" : "")}"));
                     }
                 }
                 break;
@@ -446,10 +457,14 @@ public sealed partial class GameWindow
                 break;
             case "world":
                 _panelTitle.Text = "世界地图";
-                _panelBody.Children.Add(Block("曙光镇外 → 盟誓城 → 沙门关 → 幽影林皇宫"));
-                _panelBody.Children.Add(Block("曙光镇外 → 沼窟外廊 → 骨脊小径"));
-                _panelBody.Children.Add(Block("幽影林 ↔ 曙光镇外"));
-                _panelBody.Children.Add(Block("回城卷回到曙光镇出生点。当前：" + _session.World.Map.MapName));
+                _panelBody.Children.Add(Block("安全区内点相邻地图传送。当前：" + _session.World.Map.MapName));
+                foreach (var (id, label) in WorldNodes())
+                {
+                    string mapId = id;
+                    var go = new Button { Content = label, HorizontalAlignment = HorizontalAlignment.Stretch };
+                    go.Click += async (_, _) => Toast(await _session.TravelAsync(mapId) ?? ("到达 " + label));
+                    _panelBody.Children.Add(go);
+                }
                 break;
             case "settings":
                 _panelTitle.Text = "设置";
@@ -467,12 +482,27 @@ public sealed partial class GameWindow
 
     private void OpenNpcPanel(TalkResp resp)
     {
-        if (resp.ShopOffers.Count > 0)
+        if (resp.NpcId.Contains("guild", StringComparison.OrdinalIgnoreCase))
+            _openPanel = "guild";
+        else if (resp.ShopOffers.Count > 0)
             _openPanel = "shop";
         else if (resp.Quests.Count > 0)
             _openPanel = "quest";
         _panelFp = "";
     }
+
+    private static int offerPrice(string itemId) => itemId.Contains("potion", StringComparison.OrdinalIgnoreCase) ? 5 : 1;
+
+    private static (string Id, string Label)[] WorldNodes() => new[]
+    {
+        ("novice_plain", "曙光镇外"),
+        ("oath_city", "盟誓城"),
+        ("sand_gate", "沙门关"),
+        ("dark_forest", "幽影林"),
+        ("marsh_den", "沼窟外廊"),
+        ("bone_path", "骨脊小径"),
+        ("sealed_temple", "封碑神殿")
+    };
 
     private bool TryPhaseLKey(KeyEventArgs e)
     {
@@ -608,7 +638,11 @@ public sealed partial class GameWindow
         var nearest = _session.World.Nearest(EntityKind.EntityLoot, self.GridX, self.GridY, 2, livingOnly: false);
         if (nearest == null)
         {
-            Toast("这里没有可挖的东西");
+            _ = Safe(async () =>
+            {
+                string? err = await _session.MineAsync();
+                Toast(err ?? "挖到粗矿");
+            });
             return;
         }
         var loot = _session.World.Get(nearest)!;

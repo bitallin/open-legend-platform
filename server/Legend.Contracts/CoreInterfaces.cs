@@ -224,6 +224,10 @@ public sealed class SkillConfigItem
     public string AoeCenter { get; set; } = "";
     public int AoeRadius { get; set; }
     public int ChargeSteps { get; set; }
+    public int GroundDurationMs { get; set; }
+    public int GroundTickMs { get; set; }
+    /// <summary>circle | arc</summary>
+    public string AoeShape { get; set; } = "";
 }
 
 public sealed class BuffConfigItem
@@ -347,6 +351,8 @@ public sealed class QuestTemplate
     public List<QuestRewardItem> RewardItems { get; set; } = new();
     /// <summary>Empty = no prerequisite. Otherwise that quest must be completed.</summary>
     public string PrerequisiteQuestId { get; set; } = string.Empty;
+    /// <summary>daily | ring | empty</summary>
+    public string Repeatable { get; set; } = "";
 }
 
 public sealed class QuestProgressState
@@ -355,6 +361,7 @@ public sealed class QuestProgressState
     /// <summary>active | ready | completed</summary>
     public string Status { get; set; } = "active";
     public int Progress { get; set; }
+    public string CompletedOn { get; set; } = "";
 }
 
 public sealed class ItemTemplate
@@ -393,6 +400,7 @@ public sealed class ItemTemplate
     public bool NeedsIdentify { get; set; }
     /// <summary>When kind is recall, empty means the pack default town spawn.</summary>
     public string RecallMapId { get; set; } = "";
+    public string SetId { get; set; } = "";
 }
 
 public sealed class LevelEntryConfig
@@ -479,6 +487,10 @@ public sealed class SiegeConfig
     public string OwnerTitle { get; set; } = "沙巴克城主行会";
     public int WinnerRewardGold { get; set; } = 100;
     public string ScheduleNote { get; set; } = "";
+    public int OpenHour { get; set; } = -1;
+    public int CloseHour { get; set; } = -1;
+    public string GateMonsterId { get; set; } = "castle_gate";
+    public string GatePortalId { get; set; } = "gate";
 }
 
 
@@ -626,6 +638,9 @@ public sealed class LevelsConfigFile
     public int MaxLevel { get; set; } = 10;
     public List<LevelEntryConfig> Entries { get; set; } = new();
     public Dictionary<string, ClassGrowthConfig> ClassGrowth { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public int DeathGoldPercent { get; set; } = 10;
+    public int DeathItemChancePercent { get; set; } = 25;
+    public int DeathMaxItems { get; set; } = 1;
 
     public int GetExpToNext(int level)
     {

@@ -33,5 +33,48 @@
       }
     ],
     "prerequisiteQuestId": "quest_slime_hunt"
+  },
+  {
+    "questId": "quest_boar_side",
+    "title": "野猪皮",
+    "description": "支线：猎一只野猪，把消息带回给阿福。",
+    "acceptNpcId": "npc_village_merchant",
+    "turnInNpcId": "npc_village_merchant",
+    "objectiveType": "kill",
+    "targetMonsterId": "boar_wild",
+    "targetCount": 1,
+    "rewardGold": 30,
+    "rewardItems": [
+      {
+        "itemId": "item_dried_meat",
+        "count": 2
+      }
+    ]
+  },
+  {
+    "questId": "quest_daily_slime",
+    "title": "每日清史莱姆",
+    "description": "每天可再接一次：击杀 1 只绿史莱姆。",
+    "acceptNpcId": "npc_village_merchant",
+    "turnInNpcId": "npc_village_merchant",
+    "objectiveType": "kill",
+    "targetMonsterId": "slime_green",
+    "targetCount": 1,
+    "rewardGold": 20,
+    "rewardItems": [],
+    "repeatable": "daily"
+  },
+  {
+    "questId": "quest_ring_walk",
+    "title": "跑环·巡路",
+    "description": "可重复：再击杀 1 只沼行兽。",
+    "acceptNpcId": "npc_village_merchant",
+    "turnInNpcId": "npc_village_merchant",
+    "objectiveType": "kill",
+    "targetMonsterId": "marsh_crawler",
+    "targetCount": 1,
+    "rewardGold": 25,
+    "rewardItems": [],
+    "repeatable": "ring"
   }
 ]

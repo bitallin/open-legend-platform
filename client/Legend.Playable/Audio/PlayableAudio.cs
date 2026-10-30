@@ -41,7 +41,8 @@ public sealed class PlayableAudio : IDisposable
             ["death"] = ProceduralWav.Tone(new[] { 196f, 130f, 98f }, 0.4f, 0.35f),
             ["open"] = ProceduralWav.Tone(new[] { 440f, 660f }, 0.07f, 0.22f),
             ["close"] = ProceduralWav.Tone(new[] { 330f, 220f }, 0.07f, 0.2f),
-            ["monster"] = ProceduralWav.Tone(new[] { 110f, 80f }, 0.2f, 0.3f)
+            ["monster"] = ProceduralWav.Tone(new[] { 110f, 80f }, 0.2f, 0.3f),
+            ["ambient"] = ProceduralWav.Tone(new[] { 70f, 90f }, 1.2f, 0.08f)
         };
     }
 
@@ -77,6 +78,7 @@ public sealed class PlayableAudio : IDisposable
     public void PlayLevel() => OneShot("level");
     public void PlayDeath() => OneShot("death");
     public void PlayMonster() => OneShot("monster");
+    public void PlayAmbient() => OneShot("ambient");
     public void PlayCast(string? school) => OneShot(school switch
     {
         "mage" => "cast_m",

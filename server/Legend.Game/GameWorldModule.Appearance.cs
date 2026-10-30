@@ -75,6 +75,9 @@ public sealed partial class GameWorldModule
             .ToList();
         player.PkKills = Math.Max(0, state.PkKills);
         player.AttackMode = string.IsNullOrWhiteSpace(state.AttackMode) ? "peace" : state.AttackMode;
+        player.Gender = state.Gender ?? "";
+        player.MentorName = state.MentorName ?? "";
+        player.Blacklist = state.Blacklist ?? new();
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
         player.LastMoveUnixMs = 0;
@@ -93,7 +96,10 @@ public sealed partial class GameWorldModule
             ActivePetId = player.ActivePetId ?? "",
             Storage = player.Storage ?? new(),
             PkKills = player.PkKills,
-            AttackMode = string.IsNullOrWhiteSpace(player.AttackMode) ? "peace" : player.AttackMode
+            AttackMode = string.IsNullOrWhiteSpace(player.AttackMode) ? "peace" : player.AttackMode,
+            Gender = player.Gender ?? "",
+            MentorName = player.MentorName ?? "",
+            Blacklist = player.Blacklist ?? new()
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);

@@ -200,7 +200,12 @@ public enum MsgId : ushort
     TradeLockResp = 3950,
     TradeCancelReq = 3951,
     TradeCancelResp = 3952,
-    TradeResultNotify = 3953
+    TradeResultNotify = 3953,
+    WorldTravelReq = 3961,
+    WorldTravelResp = 3962,
+    MineReq = 3963,
+    MineResp = 3964,
+    GroundEffectNotify = 3967
 }
 
 

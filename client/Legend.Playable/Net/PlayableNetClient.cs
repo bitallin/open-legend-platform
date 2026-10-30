@@ -67,6 +67,7 @@ public sealed partial class PlayableNetClient : IDisposable
     public event Action<TradeStateNotify>? OnTradeState;
     public event Action<TradeResultNotify>? OnTradeResult;
     public event Action<SiegeStateNotify>? OnSiege;
+    public event Action<GroundEffectNotify>? OnGround;
 
     public void Pump()
     {
@@ -141,13 +142,14 @@ public sealed partial class PlayableNetClient : IDisposable
         return resp.Characters.ToList();
     }
 
-    public async Task<CharacterSummary> CreateCharAsync(string name, string classId, CancellationToken ct = default)
+    public async Task<CharacterSummary> CreateCharAsync(string name, string classId, string gender = "m", CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.CreateCharReq, new CreateCharReq
         {
             SessionToken = SessionToken ?? "",
             Name = name,
-            ClassId = classId
+            ClassId = classId,
+            Gender = gender
         }, ct).ConfigureAwait(false);
         var resp = CreateCharResp.Parser.ParseFrom(frame.Payload);
         if (!resp.Success || resp.Character == null)
@@ -847,6 +849,12 @@ public sealed partial class PlayableNetClient : IDisposable
                         ReplaceInventory(result.Inventory);
                 }
                 _main.Enqueue(() => OnTradeResult?.Invoke(result));
+                break;
+            }
+            case MsgId.GroundEffectNotify:
+            {
+                var ground = GroundEffectNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnGround?.Invoke(ground));
                 break;
             }
             case MsgId.SiegeStateNotify:

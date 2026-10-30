@@ -12,7 +12,8 @@
     "maps/marsh_den.json",
     "maps/bone_path.json",
     "maps/oath_city.json",
-    "maps/sand_gate.json"
+    "maps/sand_gate.json",
+    "maps/sealed_temple.json"
   ],
   "classesConfigFile": "configs/classes.json",
   "skillsConfigFile": "configs/skills.json",

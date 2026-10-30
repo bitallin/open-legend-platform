@@ -46,6 +46,9 @@
     <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\sand_gate.json">
       <LogicalName>maps.sand_gate.json</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\sealed_temple.json">
+      <LogicalName>maps.sealed_temple.json</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\version-packs\sample-classic\configs\skills.json">
       <LogicalName>configs.skills.json</LogicalName>
     </EmbeddedResource>

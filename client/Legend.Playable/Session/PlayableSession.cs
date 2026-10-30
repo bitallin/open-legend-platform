@@ -86,13 +86,13 @@ public sealed partial class PlayableSession : IDisposable
         _characters.AddRange(list);
     }
 
-    public async Task CreateCharacterAsync(string name, string classId)
+    public async Task CreateCharacterAsync(string name, string classId, string gender = "m")
     {
         if (Fsm.Phase != SessionPhase.CharSelect)
             return;
         try
         {
-            await _net.CreateCharAsync(name.Trim(), classId);
+            await _net.CreateCharAsync(name.Trim(), classId, gender);
             await RefreshCharactersAsync();
             Fsm.SetStatus("已创建 " + name.Trim());
         }
@@ -606,6 +606,10 @@ public sealed partial class PlayableSession : IDisposable
                 TradeState = null;
             }
             TradeChanged?.Invoke();
+        };
+        net.OnGround += ground =>
+        {
+            World.AddGround(ground.MapId, ground.X, ground.Y, ground.Radius, ground.DurationMs / 1000.0);
         };
         net.OnSiege += siege =>
         {

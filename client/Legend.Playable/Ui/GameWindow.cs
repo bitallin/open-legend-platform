@@ -35,6 +35,7 @@ public sealed partial class GameWindow : Window
     private readonly StackPanel _charList;
     private readonly TextBox _newName;
     private readonly ComboBox _classBox;
+    private readonly ComboBox _genderBox;
     private readonly TextBlock _charStatus;
     private readonly TextBlock _hpText;
     private readonly TextBlock _mpText;
@@ -91,6 +92,10 @@ public sealed partial class GameWindow : Window
         foreach (var choice in ClassChoices)
             _classBox.Items.Add(choice);
         _classBox.SelectedIndex = 0;
+        _genderBox = new ComboBox { MinWidth = 140 };
+        _genderBox.Items.Add("男");
+        _genderBox.Items.Add("女");
+        _genderBox.SelectedIndex = 0;
         _charStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brush("#F0D8A8") };
         _chars = BuildChars();
 
@@ -132,7 +137,11 @@ public sealed partial class GameWindow : Window
         root.Children.Add(_reconnect);
         Content = root;
 
-        _session.EnteredWorld += () => _audio.PlayForMap(_session.World.Map.MapId, _session.World.Self?.InSafeZone == true);
+        _session.EnteredWorld += () =>
+        {
+            _audio.PlayForMap(_session.World.Map.MapId, _session.World.Self?.InSafeZone == true);
+            _audio.PlayAmbient();
+        };
         _session.LeveledUp += () => _audio.PlayLevel();
         _session.MetaChanged += () => { };
         _session.PickedUp += () => _audio.PlayPickup();
@@ -499,6 +508,9 @@ public sealed partial class GameWindow : Window
     {
         if (cs.Result is not CombatResultKind.CombatMiss and not CombatResultKind.CombatHeal)
             _audio.PlayHit();
+        var attacker = _session.World.Get(cs.AttackerEntityId);
+        if (attacker != null && attacker.Kind == EntityKind.EntityMonster)
+            _audio.PlayMonster();
         if (_session.World.Self != null && cs.TargetEntityId == _session.World.Self.EntityId && cs.TargetDied)
         {
             _audio.PlayDeath();
@@ -884,7 +896,8 @@ public sealed partial class GameWindow : Window
                 return;
             }
             string classId = (_classBox.SelectedItem as ClassChoice)?.Id ?? "warrior";
-            try { await _session.CreateCharacterAsync(name, classId); }
+            string gender = _genderBox.SelectedIndex == 1 ? "f" : "m";
+            try { await _session.CreateCharacterAsync(name, classId, gender); }
             catch (Exception ex) { _charStatus.Text = ex.Message; }
             _charCount = -1;
         };
@@ -893,6 +906,7 @@ public sealed partial class GameWindow : Window
         panel.Children.Add(new ScrollViewer { Content = _charList, MaxHeight = 240 });
         panel.Children.Add(_newName);
         panel.Children.Add(_classBox);
+        panel.Children.Add(_genderBox);
         panel.Children.Add(create);
         panel.Children.Add(_charStatus);
         var wrap = Card(panel, "#F014100E");

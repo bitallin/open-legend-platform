@@ -71,6 +71,7 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.StorageListReq or MsgId.StorageDepositReq or MsgId.StorageWithdrawReq or
         MsgId.SetAttackModeReq or MsgId.IdentifyReq or
         MsgId.TradeStartReq or MsgId.TradeRespondReq or MsgId.TradePutReq or MsgId.TradeLockReq or MsgId.TradeCancelReq or
+        MsgId.WorldTravelReq or MsgId.MineReq or
         MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
         MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq or
         MsgId.GuildCreateReq or MsgId.GuildJoinReq or MsgId.GuildLeaveReq or MsgId.GuildInfoReq or
@@ -219,6 +220,12 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.TradeCancelReq:
                 await HandleTradeCancelAsync(session, frame, ct);
+                break;
+            case MsgId.WorldTravelReq:
+                await HandleWorldTravelAsync(session, frame, ct);
+                break;
+            case MsgId.MineReq:
+                await HandleMineAsync(session, frame, ct);
                 break;
             case MsgId.QuestAcceptReq:
                 await HandleQuestAcceptAsync(session, frame, ct);
@@ -653,6 +660,21 @@ public sealed partial class GameWorldModule : IGameModule
         int toX = req.ToX;
         int toY = req.ToY;
 
+        if (GateBlocks(entity.MapId, toX, toY))
+        {
+            await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
+            {
+                EntityId = entity.EntityId,
+                FromX = fromX, FromY = fromY, ToX = fromX, ToY = fromY,
+                Direction = entity.Direction,
+                Accepted = false,
+                ErrorCode = ProtocolErrorCode.ErrMoveBlocked,
+                Reason = "城门未破",
+                InSafeZone = entity.InSafeZone
+            }, ct);
+            return;
+        }
+
         if (!aoi.IsWalkable(toX, toY))
         {
             await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
@@ -932,7 +954,11 @@ public sealed partial class GameWorldModule : IGameModule
         await session.SendAsync(MsgId.CombatSync, 0, combat, ct);
         await WearWeaponAsync(attacker, ct);
         if (string.Equals(skill.Kind, "aoe", StringComparison.OrdinalIgnoreCase))
+        {
             await SplashAoeAsync(session, attacker, monster, skill, dmgMult, ct);
+            if (skill.GroundDurationMs > 0)
+                await PlaceGroundFireAsync(attacker, monster.X, monster.Y, skill, ct);
+        }
 
         if (!killed)
             await TryPetAssistAfterOwnerAttackAsync(attacker, monster, ct);
@@ -949,6 +975,7 @@ public sealed partial class GameWorldModule : IGameModule
         {
             monster.Alive = false;
             monster.RespawnAtUnixMs = now + Math.Max(1000, monster.Template.RespawnMs);
+            await OnStructureDestroyedAsync(monster, ct);
             await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.EntityDespawn,
                 new EntityDespawn { EntityId = monster.EntityId, Reason = "Killed", MapId = monster.MapId }, ct);
 
@@ -1207,6 +1234,8 @@ public sealed partial class GameWorldModule : IGameModule
                 await TickWorldBossesAsync(ct);
                 await TickLootExpiryAsync(ct);
                 await TickPlayerBuffsAsync(ct);
+                await TickGroundsAsync(ct);
+                await TickSiegeScheduleAsync(ct);
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
@@ -1352,6 +1381,7 @@ public sealed partial class GameWorldModule : IGameModule
 
     private async Task RevivePlayerAsync(WorldPlayerEntity player, GridAoiManager aoi, CancellationToken ct)
     {
+        await ApplyDeathDropAsync(player, ct);
         player.IsDead = false;
         player.Hp = player.MaxHp;
         player.Mp = player.MaxMp;
@@ -1773,11 +1803,27 @@ public sealed partial class GameWorldModule : IGameModule
         }
         if (existing != null && string.Equals(existing.Status, "completed", StringComparison.OrdinalIgnoreCase))
         {
+            string today = DateTime.UtcNow.ToString("yyyyMMdd");
+            if (!PhaseNRules.CanRepeatQuest(tmpl.Repeatable, existing.CompletedOn, today))
+            {
+                await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                    Message = "Quest already completed"
+                }, ct);
+                return;
+            }
+            existing.Status = "active";
+            existing.Progress = 0;
+            await _storage.Characters.SaveQuestsAsync(player.CharacterId, QuestHelper.Serialize(player.Quests), ct);
+            var again = QuestHelper.ToProto(existing, tmpl);
             await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
             {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
-                Message = "Quest already completed"
+                Success = true,
+                ErrorCode = ProtocolErrorCode.ErrNone,
+                Message = "Quest accepted",
+                Quest = again
             }, ct);
             return;
         }
@@ -1892,6 +1938,7 @@ public sealed partial class GameWorldModule : IGameModule
 
         state.Status = "completed";
         state.Progress = tmpl.TargetCount;
+        state.CompletedOn = DateTime.UtcNow.ToString("yyyyMMdd");
         player.Gold += Math.Max(0, tmpl.RewardGold);
         foreach (var reward in tmpl.RewardItems)
         {
@@ -2493,8 +2540,9 @@ public sealed partial class GameWorldModule : IGameModule
         bool isPetUnlock =
             string.Equals(tmpl.Kind, "pet_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockPetId);
         bool isRecall = string.Equals(tmpl.Kind, "recall", StringComparison.OrdinalIgnoreCase);
+        bool isRandom = string.Equals(tmpl.Kind, "random", StringComparison.OrdinalIgnoreCase);
 
-        if (isRecall)
+        if (isRecall || isRandom)
         {
             if (!InventoryHelper.TryRemoveItem(player.Inventory, itemId, 1))
             {
@@ -2508,14 +2556,19 @@ public sealed partial class GameWorldModule : IGameModule
             }
             await PersistEconomyAsync(player, ct);
             if (_maps.TryGetValue(player.MapId, out var fromAoi))
-                await RecallToTownAsync(session, player, fromAoi, tmpl.RecallMapId, ct);
+            {
+                if (isRandom)
+                    await TryRandomScrollAsync(session, player, fromAoi, ct);
+                else
+                    await RecallToTownAsync(session, player, fromAoi, tmpl.RecallMapId, ct);
+            }
             int remRecall = player.Inventory.Where(s =>
                 string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);
             var recallResp = new UseItemResp
             {
                 Success = true,
                 ErrorCode = ProtocolErrorCode.ErrNone,
-                Message = "回城",
+                Message = isRandom ? "随机传送" : "回城",
                 ItemId = itemId,
                 RemainingCount = remRecall,
                 Hp = player.Hp,

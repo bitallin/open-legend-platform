@@ -13,5 +13,9 @@
   "ownerBuffId": "buff_castle_lord",
   "ownerTitle": "沙巴克城主行会",
   "winnerRewardGold": 100,
-  "scheduleNote": "每日 20:00–21:00（占位）。行会可宣战，管理员或控制报文可开关攻城，皇宫区内占领旗帜。"
+  "scheduleNote": "UTC 20:00–21:00 若已有行会宣战则自动开战，到点结束并发放城主金币。城门被打破后才能进入皇宫。",
+  "openHour": 20,
+  "closeHour": 21,
+  "gateMonsterId": "castle_gate",
+  "gatePortalId": "gate"
 }

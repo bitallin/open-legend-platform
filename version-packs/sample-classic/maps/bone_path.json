@@ -38,6 +38,14 @@
       "targetMapId": "dark_forest",
       "targetX": 28,
       "targetY": 20
+    },
+    {
+      "portalId": "to_temple",
+      "x": 30,
+      "y": 14,
+      "targetMapId": "sealed_temple",
+      "targetX": 4,
+      "targetY": 4
     }
   ]
 }
