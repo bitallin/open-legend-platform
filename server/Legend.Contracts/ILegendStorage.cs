@@ -1,3 +1,6 @@
+// Persistence ports live in the Legend.Contracts assembly.
+// The Legend.Storage namespace is unchanged so method signatures and existing usings stay stable.
+// Implementations remain in the Legend.Storage project.
 namespace Legend.Storage;
 
 public interface IAccountStore

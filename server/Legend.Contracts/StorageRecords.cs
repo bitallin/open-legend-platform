@@ -2,6 +2,7 @@ using System.Linq;
 using System.Text.Json;
 using Legend.Contracts;
 
+// Record types on the storage ports. Same assembly and namespace note as ILegendStorage.cs.
 namespace Legend.Storage;
 
 public sealed class AccountRecord
@@ -529,4 +530,35 @@ public sealed class PaymentOrderRecord
         CreatedAt = CreatedAt,
         UpdatedAt = UpdatedAt
     };
+}
+
+public static class GuildRanksJson
+{
+    private static readonly JsonSerializerOptions Opts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    public static string Serialize(IReadOnlyDictionary<string, string> ranks)
+        => JsonSerializer.Serialize(ranks, Opts);
+
+    public static Dictionary<string, string> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}") return new(StringComparer.Ordinal);
+        try
+        {
+            var d = JsonSerializer.Deserialize<Dictionary<string, string>>(json, Opts);
+            return d is null
+                ? new(StringComparer.Ordinal)
+                : new Dictionary<string, string>(d, StringComparer.Ordinal);
+        }
+        catch
+        {
+            return new(StringComparer.Ordinal);
+        }
+    }
+
+    public static void RemoveMember(ref string ranksJson, string characterId)
+    {
+        var map = Parse(ranksJson);
+        if (map.Remove(characterId))
+            ranksJson = Serialize(map);
+    }
 }

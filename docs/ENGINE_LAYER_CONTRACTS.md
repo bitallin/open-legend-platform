@@ -15,7 +15,7 @@
 | `IAntiCheatProbe` | Legend.Contracts | `ValidateMove`。默认实现 `DefaultAntiCheatProbe` 限制切比雪夫步长。世界在采纳移动前调用。 |
 | `IVersionPackLoader` | Legend.Contracts | `LoadFromManifest`。实现是 `VersionPackLoader`。Host 启动与 `reload-pack` 都走它。 |
 | `IPaymentProvider` / `IMerchantPaymentProvider` | Legend.Contracts | 支付沙箱。与 E0 无关，签名保持。 |
-| `ILegendStorage` 及 `IAccountStore`、`ICharacterStore`、`ISessionStore` 等 | Legend.Storage | 持久化端口。E2 再上移到 Contracts。E0 不搬。 |
+| `ILegendStorage` 及 `IAccountStore`、`ICharacterStore`、`ISessionStore` 等 | Legend.Contracts（命名空间 `Legend.Storage`） | 持久化端口与记录类型。Sqlite / Postgres / 内存实现仍在 `Legend.Storage` 项目。 |
 | `LegendSessionFsm` | Legend.ClientCore | 客户端会话阶段：断开、连接、登录、选角、进世界。不是服务端端口。网络 IO 在 Playable / Unity。 |
 
 组合根是 `LegendServerEngine`。它创建加载器、存储、脚本、登录、世界和 Gate，不把具体类型泄漏给对端。
@@ -117,7 +117,7 @@ sequenceDiagram
 
 | 预期端口 | 里程碑 | 原因 |
 |----------|--------|------|
-| 存储端口搬到 Contracts | E2 | 现在搬会让本 PR 变成存储重构 |
+| 存储端口搬到 Contracts | E2 已完成 | 端口在 Contracts 程序集；Host 仍负责选择实现 |
 | `IMovementRules` | E3 | 需要先有测试锁住现有拒绝码 |
 | `ICombatResolver` | E4 | 同上，且不能改伤害数字 |
 | ClientCore 预测端口 | E5 | 视觉原型未要求本 PR 改 Avalonia |
