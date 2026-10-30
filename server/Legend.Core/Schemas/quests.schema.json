@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/quests.schema.json",
+  "title": "Open Legend quests",
+  "type": "array",
+  "maxItems": 2000,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["questId", "title"],
+    "properties": {
+      "questId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+      "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+      "description": { "type": "string", "maxLength": 500 },
+      "acceptNpcId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "turnInNpcId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "objectiveType": { "type": "string", "enum": ["kill", "gather"] },
+      "targetMonsterId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "targetCount": { "type": "integer", "minimum": 1, "maximum": 10000 },
+      "rewardGold": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+      "rewardItems": {
+        "type": "array",
+        "maxItems": 16,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["itemId"],
+          "properties": {
+            "itemId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+            "count": { "type": "integer", "minimum": 1, "maximum": 9999 }
+          }
+        }
+      },
+      "prerequisiteQuestId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "repeatable": { "type": "string", "enum": ["", "daily", "ring"] }
+    }
+  }
+}

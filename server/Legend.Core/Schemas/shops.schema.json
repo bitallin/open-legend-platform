@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/shops.schema.json",
+  "title": "Open Legend shops",
+  "type": "array",
+  "maxItems": 500,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["shopId", "displayName"],
+    "properties": {
+      "shopId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+      "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+      "offers": {
+        "type": "array",
+        "maxItems": 200,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["itemId", "priceGold"],
+          "properties": {
+            "itemId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+            "priceGold": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+            "stock": { "type": "integer", "minimum": -1, "maximum": 1000000 }
+          }
+        }
+      }
+    }
+  }
+}

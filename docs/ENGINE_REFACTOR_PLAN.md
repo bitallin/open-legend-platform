@@ -160,15 +160,15 @@ Schema 文件：
 
 方言是 JSON Schema draft 2020-12 的一个显式子集。求值器遇到未实现关键字（例如 `$ref`、`allOf`、`if`）会在构造期失败，避免静默忽略。已实现：`type`、`properties`、`required`、`additionalProperties`（布尔）、`items`、`enum`、`pattern`、`minLength`、`maxLength`、`minimum`、`maximum`、`minItems`、`maxItems`。忽略：`$schema`、`$id`、`title`、`description`、`$comment`。
 
-结构校验之外的同文档不变量放在 `ConfigSemanticRules`：出生点、阻挡、传送门、安全区必须落在宽高内；物品 id 与强化目标等级不重复；`kind=equipment` 必须有槽位。跨文件引用（掉落表 id、NPC id、传送目标地图是否存在）仍由加载器里已有的检查负责。E1 把其余生产配置纳入 Schema，并补齐交叉引用。
+结构校验之外的同文档不变量放在 `ConfigSemanticRules`：出生点、阻挡、传送门、安全区必须落在宽高内；物品 id 与强化目标等级不重复；`kind=equipment` 必须有槽位；技能、怪物、掉落表、NPC、商店、任务 id 不重复；掉落 `countMax` 不小于 `countMin`。跨文件引用在 `VersionPackLoader.EnsureCrossReferences` 抛 `InvalidDataException`：刷怪怪物与地图、NPC 地图、任务 NPC、掉落物品 id、怪物掉落表、商店与任务奖励、任务目标怪物、技能书与职业。E1 已把技能、怪物、掉落、NPC、商店、任务、等级、行会、交易纳入同一校验器。Buff、攻城、邮件、副本、世界 Boss、坐骑、时装、宠物仍只做原有检查。
 
 热更边界：
 
 | 可以热更 | 不可以热更 |
 |----------|------------|
 | 版本包 JSON 与 Lua（整包替换，失败回滚） | 协议版本字符串、MsgId、帧格式 |
-| 地图与物品（E0 起，坏文件拒绝整包） | 正在结算的那一次请求混用新旧表 |
-| 后续里程碑列入 Schema 的其它 `configs/*.json` | 客户端上传脚本或配置 |
+| 地图、物品，以及 E1 的技能、怪物、掉落、NPC、商店、任务、等级、行会、交易 | 正在结算的那一次请求混用新旧表 |
+| 尚未纳入 Schema 的其余 `configs/*.json` | 客户端上传脚本或配置 |
 
 `paperdoll` 出现在物品 JSON 里，给客户端纸娃娃用。服务端 POCO 不读取它。Schema 允许该字段，避免加载被客户端表现字段打断。地图 flag（`noHang`、`noAutoPickup` 等）是 DocOnly，样例地图没有这些键。E0 的地图 Schema 使用 `additionalProperties: false`，未知键会拒绝加载。等对应里程碑把 flag 写进规格和 Schema 后再出现在包里。
 
@@ -188,7 +188,9 @@ Schema 文件：
 
 风险：Schema 比旧加载器更严，手写地图若带未知字段会起不来。样例包已对齐。
 
-### E1 — 生产配置 Schema 补齐
+### E1 — 生产配置 Schema 补齐（已完成）
+
+状态：已合入实现。`sample-classic` 的 `item_slime_gel` 与 `item_boar_hide` 补进 `items.json`，因为掉落表已经引用它们，否则整包无法在新的交叉引用下加载。出售这两件物品时，未知物品从拒绝变为按 `SellUnitPrice` 计价（无商店报价时为 1）。不改战斗公式，不新增 MsgId。
 
 范围：技能、怪物与刷怪、掉落、NPC、商店、任务、等级、行会、交易这些 `manifest` 已指向的文件。交叉引用（刷怪怪物 id、NPC 地图、任务 NPC、掉落物品 id）在加载期失败。`Legend.MapValidate` 改为调用同一校验器，避免两套规则。
 

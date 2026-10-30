@@ -12,13 +12,44 @@ public static class ConfigSemanticRules
 {
     public static void Apply(string schemaId, JsonElement root, List<string> errors)
     {
-        if (errors.Count > 0 || root.ValueKind != JsonValueKind.Object)
+        if (errors.Count > 0)
             return;
 
-        if (schemaId == ConfigSchemaIds.Map)
-            ApplyMap(root, errors);
-        else if (schemaId == ConfigSchemaIds.Items)
-            ApplyItems(root, errors);
+        switch (schemaId)
+        {
+            case ConfigSchemaIds.Map when root.ValueKind == JsonValueKind.Object:
+                ApplyMap(root, errors);
+                break;
+            case ConfigSchemaIds.Items when root.ValueKind == JsonValueKind.Object:
+                ApplyItems(root, errors);
+                break;
+            case ConfigSchemaIds.Skills when root.ValueKind == JsonValueKind.Array:
+                RequireUnique(root, "skillId", "$", errors);
+                break;
+            case ConfigSchemaIds.Monsters when root.ValueKind == JsonValueKind.Object:
+                if (root.TryGetProperty("templates", out var templates))
+                    RequireUnique(templates, "monsterId", "$.templates", errors);
+                break;
+            case ConfigSchemaIds.LootTables when root.ValueKind == JsonValueKind.Array:
+                RequireUnique(root, "lootTableId", "$", errors);
+                ApplyLootCounts(root, errors);
+                break;
+            case ConfigSchemaIds.Npcs when root.ValueKind == JsonValueKind.Array:
+                RequireUnique(root, "npcId", "$", errors);
+                break;
+            case ConfigSchemaIds.Shops when root.ValueKind == JsonValueKind.Array:
+                RequireUnique(root, "shopId", "$", errors);
+                break;
+            case ConfigSchemaIds.Quests when root.ValueKind == JsonValueKind.Array:
+                RequireUnique(root, "questId", "$", errors);
+                break;
+            case ConfigSchemaIds.Levels when root.ValueKind == JsonValueKind.Object:
+                ApplyLevelEntries(root, errors);
+                break;
+            case ConfigSchemaIds.Trade when root.ValueKind == JsonValueKind.Object:
+                ApplyTradePrices(root, errors);
+                break;
+        }
     }
 
     private static void ApplyMap(JsonElement root, List<string> errors)
@@ -98,6 +129,77 @@ public static class ConfigSemanticRules
             if (!seenLevels.Add(level))
                 errors.Add($"$.enhanceRules[{ruleIndex}].targetLevel: duplicate {level}.");
             ruleIndex++;
+        }
+    }
+
+    private static void ApplyLootCounts(JsonElement tables, List<string> errors)
+    {
+        int tableIndex = 0;
+        foreach (var table in tables.EnumerateArray())
+        {
+            if (!table.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+            {
+                tableIndex++;
+                continue;
+            }
+
+            int entryIndex = 0;
+            foreach (var entry in entries.EnumerateArray())
+            {
+                int min = entry.TryGetProperty("countMin", out var minEl) ? minEl.GetInt32() : 1;
+                int max = entry.TryGetProperty("countMax", out var maxEl) ? maxEl.GetInt32() : 1;
+                if (max < min)
+                    errors.Add($"$[{tableIndex}].entries[{entryIndex}]: countMax {max} is below countMin {min}.");
+                entryIndex++;
+            }
+
+            tableIndex++;
+        }
+    }
+
+    private static void ApplyLevelEntries(JsonElement root, List<string> errors)
+    {
+        if (!root.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+            return;
+
+        var seen = new HashSet<int>();
+        int index = 0;
+        foreach (var entry in entries.EnumerateArray())
+        {
+            int level = entry.GetProperty("level").GetInt32();
+            if (!seen.Add(level))
+                errors.Add($"$.entries[{index}].level: duplicate {level}.");
+            index++;
+        }
+    }
+
+    private static void ApplyTradePrices(JsonElement root, List<string> errors)
+    {
+        if (!root.TryGetProperty("minUnitPriceGold", out var minEl) || !root.TryGetProperty("maxUnitPriceGold", out var maxEl))
+            return;
+        if (maxEl.GetInt32() < minEl.GetInt32())
+            errors.Add("$.maxUnitPriceGold: below minUnitPriceGold.");
+    }
+
+    private static void RequireUnique(JsonElement array, string idProperty, string path, List<string> errors)
+    {
+        if (array.ValueKind != JsonValueKind.Array)
+            return;
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int index = 0;
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Object
+                && item.TryGetProperty(idProperty, out var idEl)
+                && idEl.ValueKind == JsonValueKind.String)
+            {
+                string id = idEl.GetString() ?? "";
+                if (id.Length > 0 && !seen.Add(id))
+                    errors.Add($"{path}[{index}].{idProperty}: duplicate '{id}'.");
+            }
+
+            index++;
         }
     }
 

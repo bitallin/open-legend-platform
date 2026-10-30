@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/monsters.schema.json",
+  "title": "Open Legend monsters",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["templates", "spawns"],
+  "properties": {
+    "templates": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["monsterId", "displayName"],
+        "properties": {
+          "monsterId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "maxHp": { "type": "integer", "minimum": 1, "maximum": 10000000 },
+          "atk": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+          "def": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+          "aggroRange": { "type": "integer", "minimum": 0, "maximum": 64 },
+          "attackRange": { "type": "integer", "minimum": 0, "maximum": 64 },
+          "attackCooldownMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+          "lootTableId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+          "respawnMs": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+          "ai": { "type": "string", "enum": ["chase", "stationary"] },
+          "expReward": { "type": "integer", "minimum": 0, "maximum": 10000000 }
+        }
+      }
+    },
+    "spawns": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["monsterId", "mapId", "x", "y"],
+        "properties": {
+          "monsterId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+          "mapId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+          "x": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "y": { "type": "integer", "minimum": 0, "maximum": 511 },
+          "count": { "type": "integer", "minimum": 1, "maximum": 100 }
+        }
+      }
+    }
+  }
+}

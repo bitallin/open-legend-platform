@@ -353,6 +353,20 @@
       "slot": "",
       "weight": 2,
       "sellPriceGold": 4
+    },
+    {
+      "itemId": "item_slime_gel",
+      "displayName": "史莱姆凝胶",
+      "kind": "material",
+      "slot": "",
+      "weight": 1
+    },
+    {
+      "itemId": "item_boar_hide",
+      "displayName": "野猪皮",
+      "kind": "material",
+      "slot": "",
+      "weight": 1
     }
   ],
   "enhanceRules": [

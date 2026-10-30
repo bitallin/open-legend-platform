@@ -5,11 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Schemas\map.schema.json">
-      <LogicalName>Legend.Core.Schemas.map.schema.json</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Schemas\items.schema.json">
-      <LogicalName>Legend.Core.Schemas.items.schema.json</LogicalName>
+    <EmbeddedResource Include="Schemas\*.schema.json">
+      <LogicalName>Legend.Core.Schemas.%(Filename).json</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 
