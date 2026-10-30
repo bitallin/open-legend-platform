@@ -216,7 +216,9 @@ Schema 文件：
 
 测试：`dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --filter "FullyQualifiedName~LayerReference|FullyQualifiedName~M1"`。M1 覆盖登录与进世界所依赖的存储。
 
-### E3 — 世界切片：进图与移动
+### E3 — 世界切片：进图与移动（已完成）
+
+状态：已完成纯判定抽取。`IMovementRules` / `DefaultMovementRules` 决定阻挡、城门、步长探针、骑乘移速、进世界落点和传送门。安全区标记仍由 `GridAoiManager` 写入，但改调同一规则。AOI 进出视野没有改。报文仍是 2001–2007。
 
 范围：从 `GameWorldModule` 抽出进世界与移动的纯判定（阻挡、传送、安全区标记、`IAntiCheatProbe.ValidateMove`、移速），放到同程序集的小类型，例如 `IMovementRules`。报文仍是 2001–2007。`GameWorldModule` 变薄，仍是 `IGameModule`。
 

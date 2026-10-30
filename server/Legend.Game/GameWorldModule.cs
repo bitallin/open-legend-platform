@@ -20,6 +20,7 @@ public sealed partial class GameWorldModule : IGameModule
     private LoadedVersionPack _versionPack;
     private readonly ILegendStorage _storage;
     private readonly IAntiCheatProbe _antiCheatProbe;
+    private readonly IMovementRules _movement;
     private readonly ConcurrentDictionary<string, GridAoiManager> _maps = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, MonsterEntity> _monsters = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, LootEntity> _loots = new(StringComparer.Ordinal);
@@ -40,12 +41,14 @@ public sealed partial class GameWorldModule : IGameModule
         IEventBus eventBus,
         LoadedVersionPack versionPack,
         ILegendStorage storage,
-        IAntiCheatProbe? antiCheatProbe = null)
+        IAntiCheatProbe? antiCheatProbe = null,
+        IMovementRules? movementRules = null)
     {
         _eventBus = eventBus;
         _versionPack = versionPack;
         _storage = storage;
         _antiCheatProbe = antiCheatProbe ?? new DefaultAntiCheatProbe(maxStepDistance: 2);
+        _movement = movementRules ?? DefaultMovementRules.Instance;
 
         foreach (var map in versionPack.Maps.Values)
             _maps[map.MapId] = new GridAoiManager(map);
@@ -471,13 +474,7 @@ public sealed partial class GameWorldModule : IGameModule
         await _storage.Sessions.BindCharacterAsync(req.SessionToken, character.CharacterId, ct);
 
         var map = ResolveMapConfig(character.MapId);
-        int x = character.X;
-        int y = character.Y;
-        if (map.IsBlocked(x, y))
-        {
-            x = map.SpawnX;
-            y = map.SpawnY;
-        }
+        (int x, int y) = _movement.ResolveEnterCell(map, character.X, character.Y);
 
         if (!_versionPack.Classes.TryGetValue(character.ClassId, out var cls))
         {
@@ -664,7 +661,21 @@ public sealed partial class GameWorldModule : IGameModule
         int toX = req.ToX;
         int toY = req.ToY;
 
-        if (GateBlocks(entity.MapId, toX, toY))
+        var decision = _movement.EvaluateMove(new MoveContext(
+            aoi.Map,
+            entity.EntityId,
+            fromX,
+            fromY,
+            toX,
+            toY,
+            GateBlocks(entity.MapId, toX, toY),
+            IsBreached(entity.MapId, toX, toY),
+            _antiCheatProbe,
+            !string.IsNullOrWhiteSpace(entity.ActiveMountId),
+            entity.MoveIntervalMs,
+            entity.LastMoveUnixMs,
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+        if (!decision.Accepted)
         {
             await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
             {
@@ -672,57 +683,14 @@ public sealed partial class GameWorldModule : IGameModule
                 FromX = fromX, FromY = fromY, ToX = fromX, ToY = fromY,
                 Direction = entity.Direction,
                 Accepted = false,
-                ErrorCode = ProtocolErrorCode.ErrMoveBlocked,
-                Reason = "城门未破",
+                ErrorCode = decision.ErrorCode,
+                Reason = decision.Reason,
                 InSafeZone = entity.InSafeZone
             }, ct);
             return;
         }
 
-        if (!aoi.IsWalkable(toX, toY) && !IsBreached(entity.MapId, toX, toY))
-        {
-            await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
-            {
-                EntityId = entity.EntityId,
-                FromX = fromX, FromY = fromY, ToX = fromX, ToY = fromY,
-                Direction = entity.Direction,
-                Accepted = false,
-                ErrorCode = ProtocolErrorCode.ErrMoveBlocked,
-                Reason = $"Target cell ({toX},{toY}) is blocked or out of map bounds.",
-                InSafeZone = entity.InSafeZone
-            }, ct);
-            return;
-        }
-
-        if (!_antiCheatProbe.ValidateMove(entity.EntityId, fromX, fromY, toX, toY, out string acReason))
-        {
-            await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
-            {
-                EntityId = entity.EntityId,
-                FromX = fromX, FromY = fromY, ToX = fromX, ToY = fromY,
-                Direction = entity.Direction,
-                Accepted = false,
-                ErrorCode = ProtocolErrorCode.ErrMoveBlocked,
-                Reason = acReason,
-                InSafeZone = entity.InSafeZone
-            }, ct);
-            return;
-        }
-
-        if (!TryValidateMoveInterval(entity, out string speedReason))
-        {
-            await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
-            {
-                EntityId = entity.EntityId,
-                FromX = fromX, FromY = fromY, ToX = fromX, ToY = fromY,
-                Direction = entity.Direction,
-                Accepted = false,
-                ErrorCode = ProtocolErrorCode.ErrMoveTooFast,
-                Reason = speedReason,
-                InSafeZone = entity.InSafeZone
-            }, ct);
-            return;
-        }
+        entity.LastMoveUnixMs = decision.LastMoveUnixMs;
 
         var (leftViewers, enteredViewers, currentViewers) = aoi.MoveEntity(entity.EntityId, toX, toY, req.Direction);
 
@@ -774,7 +742,7 @@ public sealed partial class GameWorldModule : IGameModule
         await _eventBus.PublishAsync(new PlayerMovedEvent(
             entity.EntityId, entity.Name, entity.MapId, fromX, fromY, toX, toY), ct);
 
-        var portal = aoi.Map.FindPortalAt(toX, toY);
+        var portal = _movement.FindPortal(aoi.Map, toX, toY);
         if (portal is not null)
             await TransferViaPortalAsync(session, entity, aoi, portal, ct);
     }

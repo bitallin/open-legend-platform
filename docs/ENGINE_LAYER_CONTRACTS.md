@@ -118,7 +118,7 @@ sequenceDiagram
 | 预期端口 | 里程碑 | 原因 |
 |----------|--------|------|
 | 存储端口搬到 Contracts | E2 已完成 | 端口在 Contracts 程序集；Host 仍负责选择实现 |
-| `IMovementRules` | E3 | 需要先有测试锁住现有拒绝码 |
+| `IMovementRules` | E3 已完成 | 纯判定在 `DefaultMovementRules`；AOI 仍在 `GridAoiManager` |
 | `ICombatResolver` | E4 | 同上，且不能改伤害数字 |
 | ClientCore 预测端口 | E5 | 视觉原型未要求本 PR 改 Avalonia |
 | 协议目录生成器 | E6 | E0 只给阅读指针 |
