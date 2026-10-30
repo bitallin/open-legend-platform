@@ -111,7 +111,7 @@
 
 | 字段 | 含义 |
 |------|------|
-| `currencyId` | 稳定 id。建议取值：`gold`、`gold_bound`、`ingot`、`ingot_bound`、`honor`、`token` |
+| `currencyId` | 稳定 id。建议取值：`gold`、`gold_bound`、`ingot`、`ingot_bound`、`honor`、`token`。可选示例再加 `diamond`（金刚石一类）、`credit`（声望一类）。显示名写在 `displayName`，id 保持这些字符串 |
 | `displayName` | 客户端显示名。元宝类显示名绑在 `ingot` 上，不新造协议枚举 |
 | `tradable` | 能否进入面对面交易 |
 | `stallAllowed` | 能否作为寄售标价或货款 |
@@ -138,13 +138,30 @@
 |------|------|
 | `itemId` | 可回收物品 |
 | `currencyId` | 付出的货币，须在 `currencies.json` 声明。未启用多货币时只能是 `gold` |
-| `amount` | 单件回收额 |
-| `dailyLimit` | 该角色该 `itemId` 的每日上限。0 表示不限。计数按区服日切，存在服务端 |
+| `amount` | 单件回收额（货币数量） |
+| `grantExp` | 可选整数。回收时额外给予的经验。省略或 0 表示不给经验。经验入账走现有升级规则，不另造报文 |
+| `dailyLimit` | 该角色该 `itemId` 的每日上限。0 表示不限。计数按区服日切，存在服务端。`amount` 与 `grantExp` 共用这一上限（按件数计） |
 | `destroyItem` | 为真时回收即销毁，不进 NPC 商店库存 |
 
 NPC 对话只是入口（见 [08](08-npc-quests.md)）。日限、货币种类与是否销毁由服务端校验。客户端显示的「今日剩余」只反映回包，不能本地先扣。
 
 矩阵占位建议：`Y-07` 回收日限。实现前不写入矩阵、不计分。
+
+客户端背包空格不足时的「自动回收」见 [19](19-client-ui-controls.md)。它只是发起入口。日限、`currencyId`、`amount` 与 `grantExp` 的校验仍在本表。
+
+### 扩展 · 货币兑换（可选）
+
+`configs/currency_exchange.json` 每一行是一种单向兑换。未配置则不开放兑换 NPC。
+
+| 字段 | 含义 |
+|------|------|
+| `fromId` | 付出的 `currencyId`，须已在 `currencies.json` 声明 |
+| `toId` | 获得的 `currencyId` |
+| `rate` | 正整数。付出 `rate` 单位 `fromId`，获得 1 单位 `toId`。不足 `rate` 的余数不兑换 |
+| `minAmount` | 单次最少付出 |
+| `dailyLimit` | 该角色该行的每日付出上限。0 表示不限 |
+
+兑换在服务端账本上原子扣加。客户端只提交档位 id 与数量，不上传汇率。MsgId **TBD**，不要占用 2601 或 3941。样例包可以不放此文件。`diamond` 与 `credit` 只有写进 `currencies.json` 之后才能出现在兑换行里。
 
 ### 其余条目
 

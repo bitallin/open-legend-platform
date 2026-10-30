@@ -42,4 +42,11 @@
 | 元宝一类显示名 | `ingot` | 扩展货币。显示名可叫元宝，id 保持 `ingot`。样例包未启用 |
 | 绑定金币 / 绑定元宝 | `gold_bound` / `ingot_bound` | 绑定后缀 `_bound`。同组扣款优先，通常不可交易 |
 
-支付商品 `gold_100`、`gold_1000` 在现网表示发 `gold`，不是第二种货币 id。多货币账本与充值改发 `ingot` 的规格见 [11](11-trade-stall-auction.md) 与 [12](12-mall-payment.md)，未进入矩阵。
+支付商品 `gold_100`、`gold_1000` 在现网表示发 `gold`，不是第二种货币 id。多货币账本与充值改发 `ingot` 的规格见 [11](11-trade-stall-auction.md) 与 [12](12-mall-payment.md)，未进入矩阵。可选货币示例 `diamond`、`credit` 也只在 11 的账本里声明。
+
+## 客户端辅助
+
+| 经典说法 | OLP |
+|----------|-----|
+| 内挂 / F12 辅助 | 客户端 Assist。状态机、三职业旋转、施毒与保护在 [19](19-client-ui-controls.md)。服务端不提供「开始挂机」特权通道 |
+| 光速拾取 / 拾取小精灵 | 过滤加范围连续 `PickupReq`，见 [06](06-monsters-loot.md) 与 19。本轮不实现拾取精灵召唤实体 |

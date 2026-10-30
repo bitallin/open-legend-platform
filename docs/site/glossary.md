@@ -34,9 +34,11 @@
 | 坐骑状态 | 骑乘中允许走跑、吃药、点 NPC；默认禁止攻击、拾取、挖矿。见 15 |
 | 宠物模式 | `follow`、`attack`、`passive`、`rest`。与道士技能召唤兽的 AI 分开，见 15 |
 | 地图 flag | 地图布尔开关：`noPk`、`noMount`、`noSummon`、`noTeleport`、`noTrade`、`instance`、`noHang`、`noAutoPickup`。见 04 |
-| 内挂 | 客户端输入辅助。主规格占位，将写在 19。本轮不展开状态机，未进矩阵 |
-| 拾取过滤 | 辅助拾取时允许捡哪些地面物品。主规格占位，将写在 06 与 19 |
-| 红毒 / 绿毒 | 施毒术的两种 Debuff。红为持续掉血，绿为降低防御。扩展见 05。样例可仍用单一 `debuff_poison` |
-| 离线挂机 | 玩家角色离线后继续辅助。主规格占位，将写在 19 与 06。未进矩阵，不得标 Done |
+| 内挂 | 客户端输入辅助状态机：寻怪、走近、技能旋转、拾取、吃药、回城。每步发送现有移动、攻击、拾取、使用物品报文。默认关闭。见 19。未进矩阵 |
+| `client_assist` | 内挂默认配置文件 `configs/client_assist.json`。玩家覆盖可在本机；跟账号同步的字段 TBD |
+| 拾取过滤 | `configs/pickup_filters.json` 决定辅助拾取捡哪些地面物品。客户端只能再收紧。见 06 与 19 |
+| 红毒 / 绿毒 | 施毒术的两种 Debuff。红为 `debuff_poison_red`（持续掉血），绿为 `debuff_poison_green`（降低防御）。扩展见 05 与 14。样例可仍用单一 `debuff_poison` |
+| `noHang` | 地图 flag。为 true 时禁止维持内挂状态机。见 04 与 19 |
+| 离线挂机 | 玩家角色在断线后由服务端按显式 `hangMode=offline` 继续结算。默认关闭。见 21 与 22。未进矩阵，不得标 Done |
 
 错误码段在 `protocol/legend_protocol.proto` 的 `ErrorCode`：业务拒绝从 `1001` 起，`ERR_INTERNAL = 1999`。查具体码时打开该枚举，不要在文档里复制一份会过期的全表。常用码在各功能页点名。

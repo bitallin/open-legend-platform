@@ -36,7 +36,7 @@ Buff 的数值结算在服务端。客户端图标只反映通知。魔法盾的
 | buffId | 显示名 | 要点 |
 |--------|--------|------|
 | `buff_war_cry` | 战吼 | 12 秒，攻击 +25%，`stackRule=refresh`，死亡清除 |
-| `debuff_poison` | 中毒 | 10 秒，每 2 秒 5 点，防御 -10%，减速 30% |
+| `debuff_poison` | 中毒 | 10 秒，每 2 秒 5 点，防御 -10%，减速 30%。样例未拆分前，红毒与绿毒都等价于这一条 |
 | `buff_castle_lord` | 沙巴克城主 | 攻城奖励，id 与 `siege.json` 的 `ownerBuffId` 一致 |
 
 公共字段：`kind`（`buff`/`debuff`）、`durationMs`、`tickMs`、`atkBonusPercent`、`defBonusPercent`、`moveSlowPercent`、`dotDamagePerTick`、`stackRule`、`clearOnDeath`。
@@ -79,7 +79,7 @@ Buff 的数值结算在服务端。客户端图标只反映通知。魔法盾的
 
 - 不移植第三方 Buff 列表控件或「Buff id 从 10000 起」的保留段。OLP 的 id 是字符串。
 - 称号不由客户端本地根据击杀自行升级。
-- 时装不改变 `atkBonus`。属性药和装备才改属性。
+- 时装不改变 `atkBonus`。属性药和装备才改属性。私服里常见的「时装带攻击」不进入默认规格，时装槽不写 `atkBonus`。
 
 ## 扩展路线
 
@@ -96,3 +96,12 @@ Buff 的数值结算在服务端。客户端图标只反映通知。魔法盾的
 9. **隐藏时装**。客户端开关 `hideFashion`：自己看纸娃娃时可以隐藏时装层。其他人是否看见，由服务端旗标决定；默认他人看见实际穿戴。开关本身不改属性。
 
 以上外形位不改变矩阵 **R-02**（披风）的完成度，未进矩阵、不计分。时装仍然不改变 `atkBonus`。
+
+10. **红毒 / 绿毒**。在 buff 表增加两条，供 [05](05-combat-skills.md) 的 `poison_charm.variants` 使用。未进矩阵。样例包在拆分落地前继续只用 `debuff_poison`。
+
+| buffId | 显示名 | 要点 |
+|--------|--------|------|
+| `debuff_poison_red` | 红毒 | 持续掉血。`dotDamagePerTick`、`tickMs`、`durationMs` 写在本行。不附带减速与减防 |
+| `debuff_poison_green` | 绿毒 | 降低防御。负的 `defBonusPercent` 写在本行。不附带掉血 |
+
+两条使用现有公共字段，可以同时挂在同一目标上，`stackRule` 各自 `refresh`，互不覆盖。内挂如何选择施加哪一种，见 [19](19-client-ui-controls.md)。

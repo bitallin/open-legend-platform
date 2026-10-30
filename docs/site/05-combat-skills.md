@@ -122,5 +122,33 @@
 3. **技能书物品**。`requiresLearn: true` 的技能必须先 2801。物品使用与学习的衔接保持在服务端：使用技能书成功后推 `SkillListNotify`。
 4. **更多地面效果**。沿用 3967，用效果 id 区分火墙、毒区、治疗圈。id 放版本包，不放魔法数字在客户端。
 5. **开关技能**。半月、刺杀一类「开启后普攻变形态」若要做成开关，用 Buff 或技能状态位，**TBD** 字段。在落地前，每次施放就是一次 `AttackReq`。
-6. **红毒 / 绿毒**。样例可继续单一 `debuff_poison`（见 [14](14-buff-title-fashion.md)）。扩展时 `poison_charm` 增加 `variants`：`poison_red` 施加 `debuff_poison_red`（持续掉血），`poison_green` 施加 `debuff_poison_green`（降低防御）。两种可以同时存在，数值写在 buff 表，不写进协议里的物品显示名。客户端内挂里的自动施毒开关留在 [19](19-client-ui-controls.md)，本页不写那套状态机。未进矩阵。
-7. **三职业默认技能旋转**。内挂用的默认施法顺序主规格在 [19](19-client-ui-controls.md)。这里只约束：旋转中的 `skillId` 必须是本页技能表已有 id；冷却与 MP 仍由服务端判定。
+6. **红毒 / 绿毒（施毒术）**。样例可继续单一 `debuff_poison`（`poison_charm` 现有 `applyDebuffOnHit`，见 [14](14-buff-title-fashion.md)）。扩展时在 `poison_charm` 上增加 `variants`，数值写在 buff 表，不写进协议里的物品显示名。未进矩阵。
+
+```json
+{
+  "skillId": "poison_charm",
+  "variants": [
+    { "id": "poison_red", "applyDebuff": "debuff_poison_red" },
+    { "id": "poison_green", "applyDebuff": "debuff_poison_green" }
+  ]
+}
+```
+
+| variant id | Debuff | 效果 |
+|------------|--------|------|
+| `poison_red` | `debuff_poison_red` | 持续掉血。`dotDamagePerTick` 与 `tickMs` 在 buff 表 |
+| `poison_green` | `debuff_poison_green` | 降低防御。负的 `defBonusPercent` 在 buff 表 |
+
+两种可以同时存在，互不刷新对方的持续时间。未配置 `variants` 时，施放仍只挂样例的 `debuff_poison`。客户端选择红或绿时，`AttackReq` 仍使用 `skillId=poison_charm`；具体变体若需要额外字段，字段名与 MsgId **TBD**，在落地前由服务端按目标缺失的 Debuff 与版本包默认变体决定，不接受客户端上传伤害数字。
+
+自动施毒的开关、补毒提前量与可选消耗品在 [19](19-client-ui-controls.md)。本页不写那套状态机。
+
+7. **内挂默认技能旋转（文档建议）**。正式顺序在 `configs/client_assist.json`。本页只保证旋转里的 `skillId` 都来自上面的技能表，冷却与 MP 仍由服务端判定。建议顺序：
+
+| 职业 | 有序 `skillId` | 备注 |
+|------|----------------|------|
+| `warrior` | `thrust_slash`、`fatal_strike`、`half_moon` | 近战优先；高伤技能让位给冷却；`half_moon` 仅当周围怪数达到配置门槛 |
+| `mage` | `mana_shield`、`fire_wall`、`ice_roar`、`lightning` | 自保盾优先；火墙为地面效果；`ice_roar` 为范围；单体可用 `lightning` 或已学的 `arcane_bolt` |
+| `taoist` | `summon_bone`、`poison_charm`、`soul_charm`、`heal`、`holy_armor` | 无自身召唤兽时先召唤；施毒走上一节红绿变体；火符单体；治愈看自身 HP 百分比；战甲在 buff 缺失时补。`ghost_shield` 由配置追加 |
+
+门槛、优先级与合击 `comboPriority` 的字段表在 [19](19-client-ui-controls.md)。未学会的 id 跳过，不在客户端造假图标。
