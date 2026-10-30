@@ -304,12 +304,23 @@ public static class EquipmentHelper
         int totalDef = player.BaseDef;
         int totalMaxHp = player.BaseMaxHp;
 
+        var setCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var eq in player.Equipment)
         {
             var (atk, def, hp) = ComputeSlotBonus(eq, items);
             totalAtk += atk;
             totalDef += def;
             totalMaxHp += hp;
+            if (items.TryGetValue(eq.ItemId, out var tmpl) && !string.IsNullOrWhiteSpace(tmpl.SetId))
+                setCounts[tmpl.SetId] = setCounts.GetValueOrDefault(tmpl.SetId) + 1;
+        }
+        foreach (var count in setCounts.Values)
+        {
+            if (count >= 2)
+            {
+                totalAtk += 3;
+                totalDef += 3;
+            }
         }
 
         player.Atk = totalAtk;

@@ -382,6 +382,12 @@ public sealed class LoginModule : IGameModule
         await session.SendAsync(MsgId.CharListResp, frame.Seq, resp, ct);
     }
 
+    private static string NormalizeGender(string? gender)
+    {
+        string g = (gender ?? "").Trim().ToLowerInvariant();
+        return g is "f" or "female" or "女" ? "f" : "m";
+    }
+
     private async Task HandleCreateCharAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
         var req = CreateCharReq.Parser.ParseFrom(frame.Payload);
@@ -426,7 +432,11 @@ public sealed class LoginModule : IGameModule
             MaxMp = classConfig.BaseMp,
             InventoryJson = InventoryJson.Empty,
             Gold = QuestJson.StartingGold,
-            QuestJson = QuestJson.Empty
+            QuestJson = QuestJson.Empty,
+            AppearanceJson = AppearanceJson.Serialize(new AppearanceJson.State
+            {
+                Gender = NormalizeGender(req.Gender)
+            })
         };
 
         int maxChars = _versionPack.Manifest.MaxCharactersPerAccount > 0

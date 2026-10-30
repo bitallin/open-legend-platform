@@ -88,7 +88,8 @@
       "enhanceDefPerLevel": 2,
       "enhanceHpPerLevel": 10,
       "requiredLevel": 1,
-      "weight": 10
+      "weight": 10,
+      "setId": "set_dawn_cloth"
     },
     {
       "itemId": "item_bronze_ring",
@@ -164,7 +165,8 @@
       "maxHpBonus": 10,
       "requiredLevel": 1,
       "sellPriceGold": 6,
-      "weight": 4
+      "weight": 4,
+      "setId": "set_dawn_cloth"
     },
     {
       "itemId": "item_copper_necklace",
@@ -217,7 +219,8 @@
       "maxHpBonus": 8,
       "requiredLevel": 1,
       "sellPriceGold": 5,
-      "weight": 3
+      "weight": 3,
+      "setId": "set_dawn_cloth"
     },
     {
       "itemId": "item_rope_belt",
@@ -330,6 +333,21 @@
       "needsIdentify": true,
       "requiredLevel": 1,
       "sellPriceGold": 20
+    },
+    {
+      "itemId": "item_random_scroll",
+      "displayName": "随机传送卷",
+      "kind": "random",
+      "slot": "",
+      "weight": 1
+    },
+    {
+      "itemId": "item_rough_ore",
+      "displayName": "粗矿",
+      "kind": "material",
+      "slot": "",
+      "weight": 2,
+      "sellPriceGold": 4
     }
   ],
   "enhanceRules": [

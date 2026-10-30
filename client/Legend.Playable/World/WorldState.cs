@@ -10,6 +10,15 @@ public enum FloatKind
     Kill
 }
 
+public sealed class GroundPatch
+{
+    public string MapId { get; init; } = "";
+    public int X { get; init; }
+    public int Y { get; init; }
+    public int Radius { get; init; } = 1;
+    public double Life { get; set; } = 8;
+}
+
 public sealed class CastFx
 {
     public double GridX { get; init; }
@@ -42,6 +51,7 @@ public sealed class ActorView
     public bool IsSelf { get; set; }
     public bool InSafeZone { get; set; }
     public string NameColor { get; set; } = "white";
+    public string Gender { get; set; } = "";
     public string Pose { get; set; } = "idle";
 }
 
@@ -52,6 +62,7 @@ public sealed class WorldState
     public IReadOnlyDictionary<string, ActorView> Actors => _actors;
     public List<FloatText> Floats { get; } = new();
     public List<CastFx> Effects { get; } = new();
+    public List<GroundPatch> Grounds { get; } = new();
     public MapLayout Map { get; private set; } = MapCatalog.Get("novice_plain");
     public string? SelfId { get; private set; }
     public string? SelectedId { get; set; }
@@ -102,6 +113,8 @@ public sealed class WorldState
         var actor = Upsert(e.EntityId, e.Name, e.Kind, e.X, e.Y, e.Direction, e.Hp, e.MaxHp, isSelf, e.InSafeZone);
         if (!string.IsNullOrWhiteSpace(e.NameColor))
             actor.NameColor = e.NameColor;
+        if (!string.IsNullOrWhiteSpace(e.Gender))
+            actor.Gender = e.Gender;
         return actor;
     }
 
@@ -221,6 +234,11 @@ public sealed class WorldState
         });
     }
 
+    public void AddGround(string mapId, int x, int y, int radius, double seconds)
+    {
+        Grounds.Add(new GroundPatch { MapId = mapId, X = x, Y = y, Radius = Math.Max(1, radius), Life = Math.Max(1, seconds) });
+    }
+
     public void AddCast(double x, double y, string school)
     {
         Effects.Add(new CastFx { GridX = x, GridY = y, School = school });
@@ -312,6 +330,12 @@ public sealed class WorldState
             Effects[i].Age += dt;
             if (Effects[i].Age > 0.45)
                 Effects.RemoveAt(i);
+        }
+        for (int i = Grounds.Count - 1; i >= 0; i--)
+        {
+            Grounds[i].Life -= dt;
+            if (Grounds[i].Life <= 0)
+                Grounds.RemoveAt(i);
         }
     }
 }

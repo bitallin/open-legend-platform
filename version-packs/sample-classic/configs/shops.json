@@ -122,6 +122,11 @@
         "itemId": "item_sealed_ring",
         "priceGold": 40,
         "stock": -1
+      },
+      {
+        "itemId": "item_random_scroll",
+        "priceGold": 30,
+        "stock": -1
       }
     ]
   }

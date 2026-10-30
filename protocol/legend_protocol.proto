@@ -234,6 +234,7 @@ message CreateCharReq {
   string session_token = 1;
   string name = 2;
   string class_id = 3;
+  string gender = 4;
 }
 
 message CreateCharResp {
@@ -292,6 +293,7 @@ message EntitySnapshot {
   int32 pk_kills = 19;
   string name_color = 20;
   string attack_mode = 21;
+  string gender = 22;
 }
 
 message EnterWorldReq {
@@ -686,6 +688,7 @@ message GuildInfoResp {
   string guild_name = 5;
   string leader_character_id = 6;
   repeated GuildMemberInfo members = 7;
+  string notice = 8;
 }
 
 // 14. Chat (MsgId: 2509–2510)
@@ -1735,6 +1738,13 @@ message TradeStateNotify {
   int32 peer_count = 8;
   int32 peer_gold = 9;
   bool peer_locked = 10;
+  repeated TradeStack self_items = 11;
+  repeated TradeStack peer_items = 12;
+}
+
+message TradeStack {
+  string item_id = 1;
+  int32 count = 2;
 }
 
 message TradeLockReq {
@@ -1763,4 +1773,32 @@ message TradeResultNotify {
   string message = 2;
   int32 gold = 3;
   repeated InventoryItem inventory = 4;
+}
+
+message WorldTravelReq {
+  string map_id = 1;
+}
+
+message WorldTravelResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message MineReq {}
+
+message MineResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  repeated InventoryItem inventory = 4;
+}
+
+message GroundEffectNotify {
+  string map_id = 1;
+  int32 x = 2;
+  int32 y = 3;
+  int32 radius = 4;
+  int32 duration_ms = 5;
+  string skill_id = 6;
 }

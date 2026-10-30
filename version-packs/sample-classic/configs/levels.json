@@ -1,20 +1,68 @@
 {
   "maxLevel": 10,
   "entries": [
-    { "level": 1, "expToNext": 50 },
-    { "level": 2, "expToNext": 80 },
-    { "level": 3, "expToNext": 120 },
-    { "level": 4, "expToNext": 180 },
-    { "level": 5, "expToNext": 260 },
-    { "level": 6, "expToNext": 360 },
-    { "level": 7, "expToNext": 480 },
-    { "level": 8, "expToNext": 620 },
-    { "level": 9, "expToNext": 800 },
-    { "level": 10, "expToNext": 0 }
+    {
+      "level": 1,
+      "expToNext": 50
+    },
+    {
+      "level": 2,
+      "expToNext": 80
+    },
+    {
+      "level": 3,
+      "expToNext": 120
+    },
+    {
+      "level": 4,
+      "expToNext": 180
+    },
+    {
+      "level": 5,
+      "expToNext": 260
+    },
+    {
+      "level": 6,
+      "expToNext": 360
+    },
+    {
+      "level": 7,
+      "expToNext": 480
+    },
+    {
+      "level": 8,
+      "expToNext": 620
+    },
+    {
+      "level": 9,
+      "expToNext": 800
+    },
+    {
+      "level": 10,
+      "expToNext": 0
+    }
   ],
   "classGrowth": {
-    "warrior": { "atkPerLevel": 3, "defPerLevel": 1, "hpPerLevel": 20, "mpPerLevel": 5 },
-    "mage": { "atkPerLevel": 4, "defPerLevel": 0, "hpPerLevel": 12, "mpPerLevel": 18 },
-    "taoist": { "atkPerLevel": 2, "defPerLevel": 1, "hpPerLevel": 15, "mpPerLevel": 12 }
-  }
+    "warrior": {
+      "atkPerLevel": 3,
+      "defPerLevel": 1,
+      "hpPerLevel": 20,
+      "mpPerLevel": 5
+    },
+    "mage": {
+      "atkPerLevel": 4,
+      "defPerLevel": 0,
+      "hpPerLevel": 12,
+      "mpPerLevel": 18
+    },
+    "taoist": {
+      "atkPerLevel": 2,
+      "defPerLevel": 1,
+      "hpPerLevel": 15,
+      "mpPerLevel": 12
+    }
+  },
+  "deathGoldPercent": 10,
+  "deathItemChancePercent": 25,
+  "deathMaxItems": 1
 }

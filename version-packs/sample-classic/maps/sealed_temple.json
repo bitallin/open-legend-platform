@@ -1,0 +1,35 @@
+{
+  "mapId": "sealed_temple",
+  "mapName": "封碑神殿（原创，对照封魔）",
+  "width": 36,
+  "height": 28,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 4,
+  "spawnY": 4,
+  "blockedCells": [
+    {
+      "x": 12,
+      "y": 8
+    },
+    {
+      "x": 13,
+      "y": 8
+    },
+    {
+      "x": 14,
+      "y": 8
+    }
+  ],
+  "safeZones": [],
+  "portals": [
+    {
+      "portalId": "back_bone",
+      "x": 3,
+      "y": 6,
+      "targetMapId": "bone_path",
+      "targetX": 28,
+      "targetY": 14
+    }
+  ]
+}

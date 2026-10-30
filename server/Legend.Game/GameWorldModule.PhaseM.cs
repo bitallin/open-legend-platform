@@ -15,12 +15,10 @@ public sealed partial class GameWorldModule
         public required string AId { get; init; }
         public required string BId { get; init; }
         public bool Accepted { get; set; }
-        public string AItem { get; set; } = "";
-        public int ACount { get; set; }
+        public List<TradeStack> AItems { get; } = new();
         public int AGold { get; set; }
         public bool ALock { get; set; }
-        public string BItem { get; set; } = "";
-        public int BCount { get; set; }
+        public List<TradeStack> BItems { get; } = new();
         public int BGold { get; set; }
         public bool BLock { get; set; }
     }
@@ -129,6 +127,9 @@ public sealed partial class GameWorldModule
                 continue;
             if (CombatMath.Chebyshev(cx, cy, other.X, other.Y) > radius)
                 continue;
+            if (string.Equals(skill.AoeShape, "arc", StringComparison.OrdinalIgnoreCase) &&
+                !PhaseNRules.InFacingArc(attacker.X, attacker.Y, attacker.Direction, other.X, other.Y))
+                continue;
             await HitSplashedMonsterAsync(session, attacker, other, skill, dmgMult, ct);
         }
 
@@ -141,6 +142,9 @@ public sealed partial class GameWorldModule
             if (other.InSafeZone || aoi.Map.IsInSafeZone(other.X, other.Y))
                 continue;
             if (CombatMath.Chebyshev(cx, cy, other.X, other.Y) > radius)
+                continue;
+            if (string.Equals(skill.AoeShape, "arc", StringComparison.OrdinalIgnoreCase) &&
+                !PhaseNRules.InFacingArc(attacker.X, attacker.Y, attacker.Direction, other.X, other.Y))
                 continue;
             bool sameParty = !string.IsNullOrEmpty(attacker.PartyId) && attacker.PartyId == other.PartyId;
             bool sameGuild = !string.IsNullOrEmpty(attacker.GuildId) && attacker.GuildId == other.GuildId;
@@ -181,6 +185,7 @@ public sealed partial class GameWorldModule
             return;
         monster.Alive = false;
         monster.RespawnAtUnixMs = now + Math.Max(1000, monster.Template.RespawnMs);
+        await OnStructureDestroyedAsync(monster, ct);
         await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.EntityDespawn,
             new EntityDespawn { EntityId = monster.EntityId, Reason = "Killed", MapId = monster.MapId }, ct);
         await DropLootAsync(monster, attacker, ct);
@@ -535,18 +540,36 @@ public sealed partial class GameWorldModule
         }
         int count = Math.Max(0, req.Count);
         int gold = Math.Max(0, req.Gold);
-        if (count > 0 && !string.IsNullOrWhiteSpace(req.ItemId))
+        var offer = sideA ? trade.AItems : trade.BItems;
+        if (!string.IsNullOrWhiteSpace(req.ItemId))
         {
-            var stack = player.Inventory.FirstOrDefault(s => string.Equals(s.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase));
-            if (stack == null || stack.Count < count)
+            if (count <= 0)
+                offer.RemoveAll(s => string.Equals(s.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase));
+            else
             {
-                await session.SendAsync(MsgId.TradePutResp, frame.Seq, new TradePutResp
+                var stack = player.Inventory.FirstOrDefault(s => string.Equals(s.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase));
+                if (stack == null || stack.Count < count)
                 {
-                    Success = false,
-                    ErrorCode = ProtocolErrorCode.ErrShopDenied,
-                    Message = "物品不足"
-                }, ct);
-                return;
+                    await session.SendAsync(MsgId.TradePutResp, frame.Seq, new TradePutResp
+                    {
+                        Success = false,
+                        ErrorCode = ProtocolErrorCode.ErrShopDenied,
+                        Message = "物品不足"
+                    }, ct);
+                    return;
+                }
+                if (offer.Count >= 6 && offer.All(s => !string.Equals(s.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    await session.SendAsync(MsgId.TradePutResp, frame.Seq, new TradePutResp
+                    {
+                        Success = false,
+                        ErrorCode = ProtocolErrorCode.ErrShopDenied,
+                        Message = "交易格已满"
+                    }, ct);
+                    return;
+                }
+                offer.RemoveAll(s => string.Equals(s.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase));
+                offer.Add(new TradeStack { ItemId = req.ItemId, Count = count });
             }
         }
         if (gold > player.Gold)
@@ -561,16 +584,12 @@ public sealed partial class GameWorldModule
         }
         if (sideA)
         {
-            trade.AItem = count > 0 ? req.ItemId : "";
-            trade.ACount = count;
             trade.AGold = gold;
             trade.ALock = false;
             trade.BLock = false;
         }
         else
         {
-            trade.BItem = count > 0 ? req.ItemId : "";
-            trade.BCount = count;
             trade.BGold = gold;
             trade.ALock = false;
             trade.BLock = false;
@@ -657,19 +676,24 @@ public sealed partial class GameWorldModule
 
     private static TradeStateNotify View(FaceTrade trade, WorldPlayerEntity self, WorldPlayerEntity peer, bool sideA)
     {
-        return new TradeStateNotify
+        var mine = sideA ? trade.AItems : trade.BItems;
+        var theirs = sideA ? trade.BItems : trade.AItems;
+        var view = new TradeStateNotify
         {
             TradeId = trade.Id,
-            SelfItemId = sideA ? trade.AItem : trade.BItem,
-            SelfCount = sideA ? trade.ACount : trade.BCount,
+            SelfItemId = mine.FirstOrDefault()?.ItemId ?? "",
+            SelfCount = mine.FirstOrDefault()?.Count ?? 0,
             SelfGold = sideA ? trade.AGold : trade.BGold,
             SelfLocked = sideA ? trade.ALock : trade.BLock,
             PeerName = peer.Name,
-            PeerItemId = sideA ? trade.BItem : trade.AItem,
-            PeerCount = sideA ? trade.BCount : trade.ACount,
+            PeerItemId = theirs.FirstOrDefault()?.ItemId ?? "",
+            PeerCount = theirs.FirstOrDefault()?.Count ?? 0,
             PeerGold = sideA ? trade.BGold : trade.AGold,
             PeerLocked = sideA ? trade.BLock : trade.ALock
         };
+        view.SelfItems.AddRange(mine);
+        view.PeerItems.AddRange(theirs);
+        return view;
     }
 
     private async Task CompleteTradeAsync(FaceTrade trade, CancellationToken ct)
@@ -681,15 +705,15 @@ public sealed partial class GameWorldModule
             await CloseTradeAsync(trade, "对方已离线", ct);
             return;
         }
-        if (!TakeOffer(a, trade.AItem, trade.ACount, trade.AGold) || !TakeOffer(b, trade.BItem, trade.BCount, trade.BGold))
+        if (!TakeOffers(a, trade.AItems, trade.AGold) || !TakeOffers(b, trade.BItems, trade.BGold))
         {
             await CloseTradeAsync(trade, "物品或金币不足，交易失败", ct);
             return;
         }
-        if (trade.BCount > 0 && !string.IsNullOrEmpty(trade.BItem))
-            InventoryHelper.AddItem(a.Inventory, trade.BItem, trade.BCount);
-        if (trade.ACount > 0 && !string.IsNullOrEmpty(trade.AItem))
-            InventoryHelper.AddItem(b.Inventory, trade.AItem, trade.ACount);
+        foreach (var stack in trade.BItems)
+            InventoryHelper.AddItem(a.Inventory, stack.ItemId, stack.Count);
+        foreach (var stack in trade.AItems)
+            InventoryHelper.AddItem(b.Inventory, stack.ItemId, stack.Count);
         a.Gold += trade.BGold;
         b.Gold += trade.AGold;
         await PersistEconomyAsync(a, ct);
@@ -699,12 +723,21 @@ public sealed partial class GameWorldModule
         ForgetTrade(trade);
     }
 
-    private static bool TakeOffer(WorldPlayerEntity player, string itemId, int count, int gold)
+    private static bool TakeOffers(WorldPlayerEntity player, IReadOnlyList<TradeStack> items, int gold)
     {
         if (gold > player.Gold)
             return false;
-        if (count > 0 && !string.IsNullOrEmpty(itemId) && !InventoryHelper.TryRemoveItem(player.Inventory, itemId, count))
-            return false;
+        foreach (var stack in items)
+        {
+            var have = player.Inventory.FirstOrDefault(s => string.Equals(s.ItemId, stack.ItemId, StringComparison.OrdinalIgnoreCase));
+            if (have == null || have.Count < stack.Count)
+                return false;
+        }
+        foreach (var stack in items)
+        {
+            if (!InventoryHelper.TryRemoveItem(player.Inventory, stack.ItemId, stack.Count))
+                return false;
+        }
         player.Gold -= gold;
         return true;
     }

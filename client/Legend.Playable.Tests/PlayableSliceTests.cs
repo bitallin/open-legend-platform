@@ -226,4 +226,22 @@ public class PlayableSliceTests
         Assert.Equal("沙门关（原创，对照沙巴克城门）", MapCatalog.Get("sand_gate").MapName);
         Assert.True(MapCatalog.Get("sand_gate").IsPortal(18, 15));
     }
+
+    [Fact]
+    public void PhaseN_ArcWindowDeathAndTravel()
+    {
+        Assert.True(PhaseNRules.InFacingArc(0, 0, 0, 0, 2));
+        Assert.False(PhaseNRules.InFacingArc(0, 0, 0, 0, -2));
+        Assert.True(PhaseNRules.InHourWindow(20, 20, 21));
+        Assert.False(PhaseNRules.InHourWindow(21, 20, 21));
+        Assert.False(PhaseNRules.InHourWindow(8, 20, 21));
+        Assert.Equal(10, PhaseNRules.DeathGoldLoss(100, 10));
+        Assert.Equal(0, PhaseNRules.DeathGoldLoss(0, 10));
+        Assert.True(PhaseNRules.CanRepeatQuest("ring", "20260101", "20260101"));
+        Assert.False(PhaseNRules.CanRepeatQuest("daily", "20260101", "20260101"));
+        Assert.True(PhaseNRules.CanRepeatQuest("daily", "20260101", "20260102"));
+        Assert.True(PhaseNRules.WorldLinked("novice_plain", "oath_city"));
+        Assert.False(PhaseNRules.WorldLinked("novice_plain", "sealed_temple"));
+        Assert.Equal("封碑神殿（原创，对照封魔）", MapCatalog.Get("sealed_temple").MapName);
+    }
 }

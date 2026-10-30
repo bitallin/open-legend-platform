@@ -106,6 +106,19 @@ public sealed class WorldCanvas : Control
             DrawActor(context, world, actor, camX, camY, w, h, cell);
         foreach (var fx in world.Effects)
             DrawFx(context, fx, camX, camY, w, h, cell);
+        foreach (var patch in world.Grounds)
+        {
+            if (!string.Equals(patch.MapId, world.Map.MapId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            for (int gy = patch.Y - patch.Radius; gy <= patch.Y + patch.Radius; gy++)
+            for (int gx = patch.X - patch.Radius; gx <= patch.X + patch.Radius; gx++)
+            {
+                var (px, py) = GridMath.GridToScreen(gx, gy, camX, camY, w, h, cell);
+                context.FillRectangle(Brush("#66E07020"), new Rect(px, py, cell, cell * 0.45));
+            }
+        }
+        if (IsNight())
+            context.FillRectangle(Brush("#33203358"), new Rect(0, 0, w, h));
         foreach (var floater in world.Floats)
             DrawFloat(context, floater, camX, camY, w, h, cell);
         DrawMinimap(context, world, w, h);
@@ -138,6 +151,11 @@ public sealed class WorldCanvas : Control
                             : (alt ? "#3C342C" : "#2A241E");
                 var (sx, sy) = GridMath.GridToScreen(x - 0.5, y + 0.5, camX, camY, w, h, cell);
                 context.FillRectangle(Brush(hex), new Rect(sx, sy, cell + 0.5, cell + 0.5));
+                int hash = (x * 17 + y * 31) & 7;
+                if (!world.Map.IsBlocked(x, y) && hash == 0)
+                    context.FillRectangle(Brush("#33000000"), new Rect(sx + 6, sy + cell - 10, 4, 3));
+                if (world.Map.IsBlocked(x, y))
+                    context.DrawLine(new Pen(Brush("#55FFFFFF"), 1), new Point(sx + 2, sy + 4), new Point(sx + cell - 4, sy + 4));
             }
         }
     }
@@ -210,8 +228,10 @@ public sealed class WorldCanvas : Control
         bool attack = frame == 2 && actor.Pose == "attack";
         double reach = attack ? 8 : 0;
         var (fx, fy) = GridMath.FacingVector(actor.Direction);
-        context.FillRectangle(Brush("#3A2A22"), new Rect(sx - 6, sy - 1 + bob, 12, 8));
-        context.DrawEllipse(fill, null, new Point(sx, sy + 6 + bob), 7, 9);
+        bool female = string.Equals(actor.Gender, "f", StringComparison.OrdinalIgnoreCase);
+        double shoulder = female ? 5 : 8;
+        context.FillRectangle(Brush(female ? "#6A3058" : "#3A2A22"), new Rect(sx - shoulder, sy - 1 + bob, shoulder * 2, 8));
+        context.DrawEllipse(fill, null, new Point(sx, sy + 6 + bob), female ? 6 : 7, 9);
         context.DrawEllipse(Brush("#F4E2C4"), null, new Point(sx, sy - 12 + bob), 6, 6);
         context.DrawLine(new Pen(Brush("#E8C872"), 2),
             new Point(sx, sy),
@@ -225,6 +245,12 @@ public sealed class WorldCanvas : Control
         context.FillRectangle(fill, new Rect(sx - w / 2, sy - 10 - frame, w, 18));
         context.FillRectangle(Brush("#2A120E"), new Rect(sx - 4, sy - 16 - frame, 3, 4));
         context.FillRectangle(Brush("#2A120E"), new Rect(sx + 2, sy - 16 - frame, 3, 4));
+    }
+
+    private static bool IsNight()
+    {
+        int hour = DateTime.UtcNow.Hour;
+        return hour < 6 || hour >= 18;
     }
 
     private static string NameHex(string? color) => color switch

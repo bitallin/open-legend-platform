@@ -78,6 +78,21 @@ public sealed partial class PlayableNetClient
         return resp;
     }
 
+    public async Task<WorldTravelResp> WorldTravelAsync(string mapId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.WorldTravelReq, new WorldTravelReq { MapId = mapId }, ct).ConfigureAwait(false);
+        return WorldTravelResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MineResp> MineAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MineReq, new MineReq(), ct).ConfigureAwait(false);
+        var resp = MineResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            ReplaceInventory(resp.Inventory);
+        return resp;
+    }
+
     public async Task<SiegeCaptureResp> SiegeCaptureAsync(CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.SiegeCaptureReq, new SiegeCaptureReq(), ct).ConfigureAwait(false);

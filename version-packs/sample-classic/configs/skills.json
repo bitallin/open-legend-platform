@@ -149,7 +149,8 @@
     "skillId": "half_moon",
     "displayName": "半月弯刀",
     "aoeCenter": "self",
-    "aoeRadius": 1
+    "aoeRadius": 1,
+    "aoeShape": "arc"
   },
   {
     "mpCost": 10,
@@ -230,7 +231,9 @@
     "skillId": "fire_wall",
     "displayName": "火墙",
     "aoeCenter": "target",
-    "aoeRadius": 2
+    "aoeRadius": 2,
+    "groundDurationMs": 8000,
+    "groundTickMs": 1000
   },
   {
     "mpCost": 16,

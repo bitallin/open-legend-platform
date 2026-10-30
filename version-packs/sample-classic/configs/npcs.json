@@ -9,9 +9,24 @@
     "dialogue": "曙光镇的货和仓库都在我这儿。东边沼窟通骨脊小径，史莱姆清完了就去看看骨行者。",
     "questIds": [
       "quest_slime_hunt",
-      "quest_bone_path"
+      "quest_bone_path",
+      "quest_boar_side",
+      "quest_daily_slime",
+      "quest_ring_walk"
     ],
     "canRepair": true,
     "canStore": true
+  },
+  {
+    "npcId": "npc_guild_clerk",
+    "displayName": "行会执事",
+    "mapId": "oath_city",
+    "x": 10,
+    "y": 10,
+    "shopId": "",
+    "dialogue": "我这里办理行会建立、加入和公告。",
+    "questIds": [],
+    "canRepair": false,
+    "canStore": false
   }
 ]
