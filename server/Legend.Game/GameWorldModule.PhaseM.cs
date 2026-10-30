@@ -242,7 +242,8 @@ public sealed partial class GameWorldModule
         }
         bool sameParty = !string.IsNullOrEmpty(attacker.PartyId) && attacker.PartyId == target.PartyId;
         bool sameGuild = !string.IsNullOrEmpty(attacker.GuildId) && attacker.GuildId == target.GuildId;
-        if (!PhaseMRules.AllowsPlayerTarget(attacker.AttackMode, sameParty, sameGuild, target.PkKills, req.Force))
+        bool atWar = GuildsAtWar(attacker.GuildId, target.GuildId);
+        if (!atWar && !PhaseMRules.AllowsPlayerTarget(attacker.AttackMode, sameParty, sameGuild, target.PkKills, req.Force))
             return false;
         if (target.IsDead || target.Hp <= 0)
         {

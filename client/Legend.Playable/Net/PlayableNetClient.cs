@@ -157,6 +157,18 @@ public sealed partial class PlayableNetClient : IDisposable
         return resp.Character;
     }
 
+    public async Task DeleteCharAsync(string characterId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.DeleteCharReq, new DeleteCharReq
+        {
+            SessionToken = SessionToken ?? "",
+            CharacterId = characterId
+        }, ct).ConfigureAwait(false);
+        var resp = DeleteCharResp.Parser.ParseFrom(frame.Payload);
+        if (!resp.Success)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(resp.Message) ? "删除失败" : resp.Message);
+    }
+
     public async Task SelectCharAsync(string characterId, CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.SelectCharReq, new SelectCharReq

@@ -97,7 +97,11 @@
       150,
       300,
       600
-    ]
+    ],
+    "aoeShape": "line",
+    "groundDurationMs": 2500,
+    "groundTickMs": 800,
+    "aoeRadius": 0
   },
   {
     "mpCost": 0,
@@ -340,7 +344,8 @@
     "kind": "attack",
     "castTimeMs": 220,
     "skillId": "fast_beam",
-    "displayName": "疾光电影"
+    "displayName": "疾光电影",
+    "aoeShape": "line"
   },
   {
     "mpCost": 26,
@@ -362,10 +367,12 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "aoe",
     "castTimeMs": 400,
     "skillId": "hell_lightning",
-    "displayName": "地狱雷光"
+    "displayName": "地狱雷光",
+    "aoeCenter": "self",
+    "aoeRadius": 2
   },
   {
     "mpCost": 18,
@@ -387,10 +394,12 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "aoe",
     "castTimeMs": 300,
     "skillId": "burst_flame",
-    "displayName": "爆裂火焰"
+    "displayName": "爆裂火焰",
+    "aoeCenter": "target",
+    "aoeRadius": 1
   },
   {
     "mpCost": 14,
@@ -437,12 +446,16 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "aoe",
     "castTimeMs": 600,
     "skillId": "fire_rain",
     "displayName": "火雨",
     "learnRequiredLevel": 7,
-    "skillBookItemId": "item_skillbook_fire_rain"
+    "skillBookItemId": "item_skillbook_fire_rain",
+    "aoeCenter": "target",
+    "aoeRadius": 2,
+    "groundDurationMs": 5000,
+    "groundTickMs": 1000
   },
   {
     "mpCost": 12,

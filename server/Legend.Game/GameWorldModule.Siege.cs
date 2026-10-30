@@ -317,69 +317,7 @@ public sealed partial class GameWorldModule
 
         if (action is "stop" or "end" or "close")
         {
-            string winnerId;
-            string winnerName;
-            await _siegeLock.WaitAsync(ct);
-            try
-            {
-                _siegeIsActive = false;
-                winnerId = _siegeOwnerGuildId;
-                winnerName = _siegeOwnerGuildName;
-                await PersistSiegeStateLockedAsync(ct);
-            }
-            finally
-            {
-                _siegeLock.Release();
-            }
-
-            if (!string.IsNullOrEmpty(winnerId))
-            {
-                await RefreshOnlineCastleLordBuffsAsync(winnerId, ct);
-                int reward = Math.Max(0, _versionPack.Siege.WinnerRewardGold);
-                if (reward > 0)
-                {
-                    var rewardedOnline = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var aoi in _maps.Values)
-                    {
-                        foreach (var p in aoi.AllPlayers().ToList())
-                        {
-                            if (string.Equals(p.GuildId, winnerId, StringComparison.Ordinal))
-                            {
-                                p.Gold += reward;
-                                await _storage.Characters.SaveGoldAsync(p.CharacterId, p.Gold, ct);
-                                var invNotify = new InventoryNotify { Gold = p.Gold, Reason = "siege_reward" };
-                                foreach (var it in InventoryHelper.ToProto(p.Inventory))
-                                    invNotify.Items.Add(it);
-                                await p.Session.SendAsync(MsgId.InventoryNotify, 0, invNotify, ct);
-                                rewardedOnline.Add(p.CharacterId);
-                            }
-                        }
-                    }
-
-                    // Offline guild members: reward via mail attachment only (mutually exclusive with online instant gold).
-                    var guild = await _storage.Guilds.GetByIdAsync(winnerId, ct);
-                    if (guild != null)
-                    {
-                        foreach (var memberId in guild.MemberCharacterIds.ToList())
-                        {
-                            if (rewardedOnline.Contains(memberId))
-                                continue;
-                            var ch = await _storage.Characters.GetByIdAsync(memberId, ct);
-                            string name = ch?.Name ?? memberId;
-                            await SendMailAsync(
-                                memberId,
-                                name,
-                                MailCfg.SystemSenderName,
-                                "攻城战胜利奖励",
-                                $"行会 [{winnerName}] 占领沙巴克，离线成员奖励 {reward} 金（请领取附件）。",
-                                reward,
-                                null,
-                                ct);
-                        }
-                    }
-                }
-            }
-
+            var (winnerId, winnerName) = await FinishSiegeAsync(ct);
             await session.SendAsync(MsgId.SiegeControlResp, frame.Seq, new SiegeControlResp
             {
                 Success = true,
@@ -391,8 +329,6 @@ public sealed partial class GameWorldModule
                 OwnerGuildId = winnerId,
                 OwnerGuildName = winnerName
             }, ct);
-            await BroadcastSiegeStateNotifyAsync("ended", ct);
-            await _eventBus.PublishAsync(new SiegeEndedEvent(_versionPack.Siege.CastleId, winnerId, winnerName), ct);
             return;
         }
 
@@ -405,6 +341,75 @@ public sealed partial class GameWorldModule
             OwnerGuildId = _siegeOwnerGuildId,
             OwnerGuildName = _siegeOwnerGuildName
         }, ct);
+    }
+
+    private async Task<(string WinnerId, string WinnerName)> FinishSiegeAsync(CancellationToken ct)
+    {
+        string winnerId;
+        string winnerName;
+        await _siegeLock.WaitAsync(ct);
+        try
+        {
+            if (!_siegeIsActive)
+                return (_siegeOwnerGuildId, _siegeOwnerGuildName);
+            _siegeIsActive = false;
+            winnerId = _siegeOwnerGuildId;
+            winnerName = _siegeOwnerGuildName;
+            await PersistSiegeStateLockedAsync(ct);
+        }
+        finally
+        {
+            _siegeLock.Release();
+        }
+
+        if (!string.IsNullOrEmpty(winnerId))
+        {
+            await RefreshOnlineCastleLordBuffsAsync(winnerId, ct);
+            int reward = Math.Max(0, _versionPack.Siege.WinnerRewardGold);
+            if (reward > 0)
+            {
+                var rewardedOnline = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var map in _maps.Values)
+                {
+                    foreach (var p in map.AllPlayers().ToList())
+                    {
+                        if (!string.Equals(p.GuildId, winnerId, StringComparison.Ordinal))
+                            continue;
+                        p.Gold += reward;
+                        await _storage.Characters.SaveGoldAsync(p.CharacterId, p.Gold, ct);
+                        var invNotify = new InventoryNotify { Gold = p.Gold, Reason = "siege_reward" };
+                        foreach (var it in InventoryHelper.ToProto(p.Inventory))
+                            invNotify.Items.Add(it);
+                        await p.Session.SendAsync(MsgId.InventoryNotify, 0, invNotify, ct);
+                        rewardedOnline.Add(p.CharacterId);
+                    }
+                }
+
+                var guild = await _storage.Guilds.GetByIdAsync(winnerId, ct);
+                if (guild != null)
+                {
+                    foreach (var memberId in guild.MemberCharacterIds.ToList())
+                    {
+                        if (rewardedOnline.Contains(memberId))
+                            continue;
+                        var ch = await _storage.Characters.GetByIdAsync(memberId, ct);
+                        await SendMailAsync(
+                            memberId,
+                            ch?.Name ?? memberId,
+                            MailCfg.SystemSenderName,
+                            "攻城战胜利奖励",
+                            $"行会 [{winnerName}] 占领沙巴克，离线成员奖励 {reward} 金（请领取附件）。",
+                            reward,
+                            null,
+                            ct);
+                    }
+                }
+            }
+        }
+
+        await BroadcastSiegeStateNotifyAsync("ended", ct);
+        await _eventBus.PublishAsync(new SiegeEndedEvent(_versionPack.Siege.CastleId, winnerId, winnerName), ct);
+        return (winnerId, winnerName);
     }
 
     private async Task HandleSiegeCaptureAsync(IClientSession session, PacketFrame frame, CancellationToken ct)

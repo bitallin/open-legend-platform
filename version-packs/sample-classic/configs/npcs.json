@@ -28,5 +28,29 @@
     "questIds": [],
     "canRepair": false,
     "canStore": false
+  },
+  {
+    "npcId": "npc_waygate",
+    "displayName": "传送师",
+    "mapId": "novice_plain",
+    "x": 14,
+    "y": 12,
+    "shopId": "",
+    "dialogue": "安全区里我可以送你去相邻地图。",
+    "questIds": [],
+    "canRepair": false,
+    "canStore": false
+  },
+  {
+    "npcId": "npc_warehouse",
+    "displayName": "仓库管理员",
+    "mapId": "oath_city",
+    "x": 12,
+    "y": 9,
+    "shopId": "shop_novice_general",
+    "dialogue": "盟誓城的仓库和修理都在我这儿。",
+    "questIds": [],
+    "canRepair": true,
+    "canStore": true
   }
 ]

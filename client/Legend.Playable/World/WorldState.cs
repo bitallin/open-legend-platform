@@ -113,6 +113,8 @@ public sealed class WorldState
         var actor = Upsert(e.EntityId, e.Name, e.Kind, e.X, e.Y, e.Direction, e.Hp, e.MaxHp, isSelf, e.InSafeZone);
         if (!string.IsNullOrWhiteSpace(e.NameColor))
             actor.NameColor = e.NameColor;
+        if (e.Kind == EntityKind.EntityLoot)
+            actor.Name = Data.ContentCatalog.ItemName(string.IsNullOrEmpty(e.TemplateId) ? e.Name : e.TemplateId);
         if (!string.IsNullOrWhiteSpace(e.Gender))
             actor.Gender = e.Gender;
         return actor;

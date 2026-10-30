@@ -55,5 +55,8 @@
     <EmbeddedResource Include="..\..\version-packs\sample-classic\configs\items.json">
       <LogicalName>configs.items.json</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Assets\atlas.png">
+      <LogicalName>assets.atlas.png</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

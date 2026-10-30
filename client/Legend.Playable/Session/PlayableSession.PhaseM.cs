@@ -109,6 +109,30 @@ public sealed partial class PlayableSession
         return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "宣战失败" : resp.Message);
     }
 
+    public async Task<string?> EnhanceAsync(string slot)
+    {
+        var frame = await _net.EnhanceAsync(slot);
+        if (frame.Success)
+        {
+            SyncInventory();
+            Atk = frame.EffectiveAtk;
+            Def = frame.EffectiveDef;
+            return frame.EnhanceSucceeded ? null : "强化失败，金币已消耗";
+        }
+        return string.IsNullOrWhiteSpace(frame.Message) ? "无法强化" : frame.Message;
+    }
+
+    public async Task<string?> GuildDepositAsync(string itemId)
+    {
+        var resp = await _net.GuildWarehouseDepositAsync(itemId, 1);
+        if (resp.Success)
+        {
+            SyncInventory();
+            return null;
+        }
+        return string.IsNullOrWhiteSpace(resp.Message) ? "存入失败" : resp.Message;
+    }
+
     public async Task<string?> TravelAsync(string mapId)
     {
         var resp = await _net.WorldTravelAsync(mapId);
