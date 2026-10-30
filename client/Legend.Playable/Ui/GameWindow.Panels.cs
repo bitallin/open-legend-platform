@@ -56,6 +56,9 @@ public sealed partial class GameWindow
         systems.Children.Add(Sys("任务", () => ShowPanel("quest")));
         systems.Children.Add(Sys("组队", () => ShowPanel("party")));
         systems.Children.Add(Sys("行会", () => ShowPanel("guild")));
+        systems.Children.Add(Sys("好友", () => ShowPanel("friends")));
+        systems.Children.Add(Sys("摆摊", () => ShowPanel("stall")));
+        systems.Children.Add(Sys("外观", () => ShowPanel("looks")));
         systems.Children.Add(Sys("地图", () => ShowPanel("map")));
         systems.Children.Add(Sys("世界", () => ShowPanel("world")));
         systems.Children.Add(Sys("交易", () => ShowPanel("trade")));
@@ -96,7 +99,7 @@ public sealed partial class GameWindow
             BorderBrush = Brush("#E8C872"),
             BorderThickness = new Avalonia.Thickness(1),
             Padding = new Avalonia.Thickness(10),
-            Child = new ScrollViewer { Content = _panelBody, MaxHeight = 420, Width = 280 },
+            Child = new ScrollViewer { Content = _panelBody, MaxHeight = 460, Width = 320 },
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Avalonia.Thickness(0, 72, 16, 0),
@@ -136,6 +139,12 @@ public sealed partial class GameWindow
             _audio.PlayOpen();
             if (id == "guild")
                 _ = Safe(() => _session.RefreshGuildAsync());
+            else if (id == "friends")
+                _ = Safe(() => _session.RefreshFriendsAsync());
+            else if (id == "stall")
+                _ = Safe(() => _session.RefreshMarketAsync());
+            else if (id == "looks")
+                _ = Safe(() => _session.RefreshLooksAsync());
         }
     }
 
@@ -173,7 +182,7 @@ public sealed partial class GameWindow
         if (!_panelHost.IsVisible)
             return;
         var trade = _session.TradeState;
-        string fp = _openPanel + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote;
+        string fp = _openPanel + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote + "|" + _session.SocialRevision + "|" + _session.Friends.Count + "|" + _session.Market.Count;
         if (fp == _panelFp)
             return;
         _panelFp = fp;
@@ -372,8 +381,24 @@ public sealed partial class GameWindow
                 break;
             case "guild":
                 _panelTitle.Text = "行会";
-                _panelBody.Children.Add(Block(_session.GuildName.Length == 0 ? "尚未加入行会" : $"{_session.GuildName}  {_session.GuildRank}"));
-        _panelBody.Children.Add(Block("经验分享：同图组队击杀有额外经验。行会频道输入「公告 …」或「宣战 行会名」。聊天 /屏蔽 名字，/拜师 名字。"));
+                _panelBody.Children.Add(Block(_session.GuildName.Length == 0 ? "尚未加入行会" : $"{_session.GuildName}  {RankLabel(_session.GuildRank)}"));
+                _panelBody.Children.Add(Block("经验分享：同图组队击杀有额外经验。拜师后徒弟击杀 +10% 经验，在线师父获得 20%。行会频道可发公告或宣战。"));
+                bool leader = string.Equals(_session.GuildRank, "leader", StringComparison.OrdinalIgnoreCase);
+                if (_session.GuildInfo != null)
+                {
+                    foreach (var member in _session.GuildInfo.Members)
+                    {
+                        _panelBody.Children.Add(Block($"{member.Name}  {RankLabel(member.Rank)}"));
+                        if (!leader || string.Equals(member.CharacterId, _session.CharacterId, StringComparison.Ordinal))
+                            continue;
+                        string id = member.CharacterId;
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+                        row.Children.Add(RankButton("副会", id, "vice_leader"));
+                        row.Children.Add(RankButton("仓管", id, "warehouse_admin"));
+                        row.Children.Add(RankButton("成员", id, "member"));
+                        _panelBody.Children.Add(row);
+                    }
+                }
                 var gname = new TextBox { Watermark = "行会名" };
                 var create = new Button { Content = "创建", HorizontalAlignment = HorizontalAlignment.Stretch };
                 create.Click += async (_, _) => Toast(await _session.CreateGuildAsync(gname.Text ?? "") ?? "已创建");
@@ -486,7 +511,108 @@ public sealed partial class GameWindow
                 var mute = new CheckBox { Content = "静音", IsChecked = _audio.Muted, Foreground = Brushes.White };
                 mute.IsCheckedChanged += (_, _) => _audio.Muted = mute.IsChecked == true;
                 _panelBody.Children.Add(mute);
-                _panelBody.Children.Add(Block("WASD 保留。F1–F8 技能，1–6 喝药，Tab 地图，` 切目标，Alt+X 回登录。"));
+                _panelBody.Children.Add(Block("WASD 保留。F1–F8 技能，1–6 喝药，Tab 地图，` 切目标，Alt+X 回选角。聊天会按本地脏词表替换。"));
+                var logout = new Button { Content = "退出到登录", HorizontalAlignment = HorizontalAlignment.Stretch };
+                logout.Click += (_, _) =>
+                {
+                    _session.ReturnToLogin();
+                    _audio.PlayLoginBgm();
+                };
+                _panelBody.Children.Add(logout);
+                break;
+            case "friends":
+                _panelTitle.Text = "好友";
+                var fname = new TextBox { Watermark = "角色名" };
+                var add = new Button { Content = "添加", HorizontalAlignment = HorizontalAlignment.Stretch };
+                add.Click += async (_, _) => Toast(await _session.AddFriendAsync(fname.Text ?? "") ?? "已添加");
+                _panelBody.Children.Add(fname);
+                _panelBody.Children.Add(add);
+                if (_session.Friends.Count == 0)
+                    _panelBody.Children.Add(Block("还没有好友。"));
+                foreach (var friend in _session.Friends)
+                {
+                    string id = friend.CharacterId;
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = $"{friend.Name}  {(friend.Online ? "在线" : "离线")}",
+                        Foreground = Brushes.White,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Width = 180
+                    });
+                    var remove = new Button { Content = "删除" };
+                    remove.Click += async (_, _) => Toast(await _session.RemoveFriendAsync(id) ?? "已删除");
+                    row.Children.Add(remove);
+                    _panelBody.Children.Add(row);
+                }
+                break;
+            case "stall":
+                _panelTitle.Text = "摆摊";
+                _panelBody.Children.Add(Block("只能在安全区上架。单价 1–100000。"));
+                var priceBox = new TextBox { Watermark = "单价", Text = "10" };
+                var countBox = new TextBox { Watermark = "数量", Text = "1" };
+                _panelBody.Children.Add(priceBox);
+                _panelBody.Children.Add(countBox);
+                foreach (var item in _session.Inventory.Items)
+                {
+                    string id = item.ItemId;
+                    var list = new Button
+                    {
+                        Content = "上架 " + ContentCatalog.ItemName(id) + " x" + item.Count,
+                        HorizontalAlignment = HorizontalAlignment.Stretch
+                    };
+                    list.Click += async (_, _) =>
+                    {
+                        int.TryParse(priceBox.Text, out int price);
+                        int.TryParse(countBox.Text, out int count);
+                        Toast(await _session.StallListAsync(id, Math.Max(1, count), Math.Max(1, price)) ?? "已上架");
+                    };
+                    _panelBody.Children.Add(list);
+                }
+                foreach (var listing in _session.Market)
+                {
+                    bool mine = string.Equals(listing.SellerCharacterId, _session.CharacterId, StringComparison.Ordinal);
+                    string line = $"{ContentCatalog.ItemName(listing.ItemId)} x{listing.Count}  {listing.UnitPriceGold}金  {listing.SellerName}";
+                    _panelBody.Children.Add(Block(line));
+                    string listingId = listing.ListingId;
+                    var act = new Button
+                    {
+                        Content = mine ? "下架" : "购买",
+                        HorizontalAlignment = HorizontalAlignment.Stretch
+                    };
+                    act.Click += async (_, _) =>
+                    {
+                        Toast(mine
+                            ? await _session.StallCancelAsync(listingId) ?? "已下架"
+                            : await _session.StallBuyAsync(listingId) ?? "已购买");
+                    };
+                    _panelBody.Children.Add(act);
+                }
+                break;
+            case "looks":
+                _panelTitle.Text = "外观";
+                _panelBody.Children.Add(Block("商店可买缰绳、法袍礼盒和幼狼契约。解锁后在这里召唤或穿上。"));
+                if (_session.Mounts != null)
+                {
+                    foreach (var mount in _session.Mounts.Mounts)
+                        AddLookRow(mount.DisplayName, mount.Owned, mount.Active, mount.MountId, "召唤", "下马",
+                            () => _session.SummonMountAsync(mount.MountId),
+                            () => _session.DismissMountAsync());
+                }
+                if (_session.Fashions != null)
+                {
+                    foreach (var fashion in _session.Fashions.Fashions)
+                        AddLookRow(fashion.DisplayName, fashion.Owned, fashion.Equipped, fashion.FashionId, "穿上", "脱下",
+                            () => _session.EquipFashionAsync(fashion.FashionId),
+                            () => _session.EquipFashionAsync(""));
+                }
+                if (_session.Pets != null)
+                {
+                    foreach (var pet in _session.Pets.Pets)
+                        AddLookRow(pet.DisplayName + $" 助战{pet.AssistDamagePercent}%", pet.Owned, pet.Active, pet.PetId, "召唤", "收回",
+                            () => _session.SummonPetAsync(pet.PetId),
+                            () => _session.DismissPetAsync());
+                }
                 break;
         }
     }
@@ -558,9 +684,15 @@ public sealed partial class GameWindow
         }
         if (e.KeyModifiers.HasFlag(KeyModifiers.Alt) && e.Key == Key.X)
         {
-            _session.ReturnToLogin();
-            _audio.PlayLoginBgm();
-            Toast("已返回登录");
+            _ = Safe(async () =>
+            {
+                await _session.LeaveToCharSelectAsync();
+                _charCount = -1;
+                _bagOpen = false;
+                ClosePhaseLPanels();
+                _audio.PlayLoginBgm();
+                Toast("已返回选角");
+            });
             e.Handled = true;
             return true;
         }
@@ -658,7 +790,8 @@ public sealed partial class GameWindow
             Toast("没有可查看的目标");
             return;
         }
-        Toast($"{actor.Name}  {actor.Kind}  HP {actor.Hp}/{actor.MaxHp}");
+        string title = string.IsNullOrWhiteSpace(actor.Title) ? "" : actor.Title + " ";
+        Toast($"{title}{actor.Name}  {actor.Kind}  HP {actor.Hp}/{actor.MaxHp}");
     }
 
     private void Dig()
@@ -678,6 +811,56 @@ public sealed partial class GameWindow
         }
         var loot = _session.World.Get(nearest)!;
         BeginApproach(nearest, attack: false, GridMath.Chebyshev(self.GridX, self.GridY, loot.GridX, loot.GridY), PlayableTuning.PickupRange);
+    }
+
+    private Button RankButton(string label, string characterId, string rank)
+    {
+        var button = new Button { Content = label, FontSize = 11 };
+        button.Click += async (_, _) => Toast(await _session.SetGuildRankAsync(characterId, rank) ?? "已任命");
+        return button;
+    }
+
+    private static string RankLabel(string? rank) => (rank ?? "") switch
+    {
+        "leader" => "会长",
+        "vice_leader" => "副会长",
+        "warehouse_admin" => "仓管",
+        "member" => "成员",
+        _ => string.IsNullOrWhiteSpace(rank) ? "成员" : rank
+    };
+
+    private void AddLookRow(
+        string label, bool owned, bool active, string appearanceId,
+        string onText, string offText, Func<Task<string?>> on, Func<Task<string?>> off)
+    {
+        string state = active ? "使用中" : owned ? "已拥有" : "未拥有";
+        _panelBody.Children.Add(Block($"{label}  {state}"));
+        if (owned && !active)
+        {
+            var button = new Button { Content = onText, HorizontalAlignment = HorizontalAlignment.Stretch };
+            button.Click += async (_, _) => Toast(await on() ?? "完成");
+            _panelBody.Children.Add(button);
+        }
+        else if (active)
+        {
+            var button = new Button { Content = offText, HorizontalAlignment = HorizontalAlignment.Stretch };
+            button.Click += async (_, _) => Toast(await off() ?? "完成");
+            _panelBody.Children.Add(button);
+        }
+        else
+        {
+            string itemId = ContentCatalog.UnlockItemFor(appearanceId);
+            bool inBag = itemId.Length > 0 && _session.Inventory.Items.Any(i => string.Equals(i.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
+            if (!inBag)
+                return;
+            var unlock = new Button { Content = "解锁 " + ContentCatalog.ItemName(itemId), HorizontalAlignment = HorizontalAlignment.Stretch };
+            unlock.Click += async (_, _) =>
+            {
+                Toast(await _session.UseItemAsync(itemId) ?? "已解锁");
+                await _session.RefreshLooksAsync();
+            };
+            _panelBody.Children.Add(unlock);
+        }
     }
 
     private async Task Safe(Func<Task> work)

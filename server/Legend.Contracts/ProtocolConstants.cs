@@ -205,7 +205,9 @@ public enum MsgId : ushort
     WorldTravelResp = 3962,
     MineReq = 3963,
     MineResp = 3964,
-    GroundEffectNotify = 3967
+    GroundEffectNotify = 3967,
+    LeaveWorldReq = 3971,
+    LeaveWorldResp = 3972
 }
 
 

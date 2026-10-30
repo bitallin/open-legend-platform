@@ -180,9 +180,24 @@ public sealed class WorldCanvas : Control
         var (sx, sy) = GridMath.GridToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h, cell);
         var center = new Point(sx, sy);
         var fill = Brush(ColorFor(actor));
+        double lift = string.IsNullOrEmpty(actor.MountId) ? 0 : 10;
+        if (!string.IsNullOrEmpty(actor.FashionId) && actor.Kind == EntityKind.EntityPlayer)
+        {
+            var cloak = actor.FashionId.Contains("crimson", StringComparison.OrdinalIgnoreCase)
+                ? Brush("#C23B4A")
+                : Brush("#C4A46A");
+            context.FillRectangle(cloak, new Rect(sx - 14, sy - 6 - lift, 28, 20));
+        }
+        if (!string.IsNullOrEmpty(actor.MountId) && actor.Kind == EntityKind.EntityPlayer)
+        {
+            context.DrawEllipse(Brush("#F7F3EA"), null, new Point(sx, sy + 8), 18, 7);
+            context.DrawEllipse(Brush("#E4D2A2"), null, new Point(sx + 16, sy), 5, 5);
+            context.DrawLine(new Pen(Brush("#8A7040"), 2), new Point(sx - 16, sy + 10), new Point(sx - 20, sy + 16));
+            context.DrawLine(new Pen(Brush("#8A7040"), 2), new Point(sx + 8, sy + 10), new Point(sx + 12, sy + 16));
+        }
         if (Atlas != null && actor.Kind is EntityKind.EntityPlayer or EntityKind.EntityMonster)
         {
-            DrawAtlas(context, actor, sx, sy);
+            DrawAtlas(context, actor, sx, sy - lift);
         }
         else
         switch (actor.Kind)
@@ -198,7 +213,7 @@ public sealed class WorldCanvas : Control
                 context.DrawEllipse(fill, null, center, 11, 11);
                 break;
             default:
-                DrawPaperdoll(context, actor, sx, sy, fill);
+                DrawPaperdoll(context, actor, sx, sy - lift, fill);
                 break;
         }
 
@@ -216,6 +231,11 @@ public sealed class WorldCanvas : Control
             context.FillRectangle(Brush(actor.Hp > 0 ? "#E24B4B" : "#666666"), new Rect(bar.X, bar.Y, 28 * ratio, 4));
         }
 
+        if (actor.Kind == EntityKind.EntityPlayer && !string.IsNullOrWhiteSpace(actor.Title))
+        {
+            var title = new FormattedText(actor.Title, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 11, Brush("#E8C872"));
+            context.DrawText(title, new Point(sx - title.Width / 2, sy - 58));
+        }
         string label = string.IsNullOrWhiteSpace(actor.Name) ? actor.Kind.ToString() : actor.Name;
         var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 12, Brush(NameHex(actor.NameColor)));
         context.DrawText(text, new Point(sx - text.Width / 2, sy - 44));

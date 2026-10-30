@@ -82,7 +82,7 @@ dotnet run --project Legend.Launcher.Desktop -c Release
 | F11 | 技能页 |
 | Tab | 大地图；`` ` `` 切换怪物目标 |
 | Ctrl+H | 攻击模式 |
-| Alt+X | 回到登录 |
+| Alt+X | 回到选角 |
 | Space / J | 普攻 |
 | Z / G | 拾取 |
 | Enter | 聊天。`!` 喊话，`!!` 行会，`!~` 组队，`@名字 内容` 私聊 |

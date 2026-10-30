@@ -53,6 +53,10 @@ public sealed class ActorView
     public string NameColor { get; set; } = "white";
     public string Gender { get; set; } = "";
     public string Pose { get; set; } = "idle";
+    public string MountId { get; set; } = "";
+    public string FashionId { get; set; } = "";
+    public string Title { get; set; } = "";
+    public int MoveIntervalMs { get; set; }
 }
 
 public sealed class WorldState
@@ -117,6 +121,12 @@ public sealed class WorldState
             actor.Name = Data.ContentCatalog.ItemName(string.IsNullOrEmpty(e.TemplateId) ? e.Name : e.TemplateId);
         if (!string.IsNullOrWhiteSpace(e.Gender))
             actor.Gender = e.Gender;
+        actor.MountId = e.MountId ?? "";
+        actor.FashionId = e.FashionId ?? "";
+        if (!string.IsNullOrWhiteSpace(e.Title))
+            actor.Title = e.Title;
+        if (e.MoveIntervalMs > 0)
+            actor.MoveIntervalMs = e.MoveIntervalMs;
         return actor;
     }
 

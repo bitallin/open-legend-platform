@@ -4,6 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Legend.ClientCore;
+using Legend.Contracts;
 using Legend.Contracts.Proto;
 using Legend.Playable.Data;
 using Legend.Playable.Audio;
@@ -52,6 +53,12 @@ public sealed partial class GameWindow : Window
     private readonly StackPanel _bagItems;
     private readonly TextBlock _bagGold;
     private readonly TextBlock _reconnectText;
+    private readonly TextBlock _bossText = new() { Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, FontSize = 12 };
+    private readonly ProgressBar _bossHp = new() { Height = 8, Minimum = 0, Maximum = 1 };
+    private readonly Border _bossHost;
+    private readonly ClassPortrait _preview = new() { Width = 88, Height = 112 };
+    private DateTime _nextBossPoll = DateTime.MinValue;
+    private bool _bossBusy;
 
     private bool _bagOpen;
     private bool _moveBusy;
@@ -72,6 +79,7 @@ public sealed partial class GameWindow : Window
     {
         _options = options;
         _session.Configure(options);
+        PhasePRules.EnsureLoaded(typeof(GameWindow).Assembly.GetManifestResourceStream("configs.profanity.txt"));
         Title = "Legend 客户端";
         Width = 1280;
         Height = 760;
@@ -100,6 +108,7 @@ public sealed partial class GameWindow : Window
         _genderBox.SelectedIndex = 0;
         _charStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brush("#F0D8A8") };
         _chars = BuildChars();
+        _bossHost = BuildBossHost();
 
         _hpText = Label("HP");
         _mpText = Label("MP");
@@ -108,7 +117,7 @@ public sealed partial class GameWindow : Window
         _expBar = Bar("#D4A017");
         _vitals = Label("");
         _target = Label("目标：无");
-        _hint = Label("WASD 走 · Shift 跑 · 左键走/打/捡 · 右键跑/看 · F1–F8 技能 · F9 包 · F10 人物 · F11 技能 · Tab 地图 · Ctrl+H 模式");
+        _hint = Label("WASD 走 · Shift 跑 · 左键走/打/捡 · 右键跑/看 · F1–F8 技能 · F9 包 · F10 人物 · F11 技能 · Tab 地图 · Ctrl+H 模式 · Alt+X 选角");
         _hint.Opacity = 0.75;
         _hint.FontSize = 11;
         _chatLog = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.White };
@@ -214,6 +223,7 @@ public sealed partial class GameWindow : Window
         {
             TickMove();
             TrackSafeZone();
+            MaybePollBoss();
         }
         ApplyChrome();
         _canvas.InvalidateVisual();
@@ -285,9 +295,11 @@ public sealed partial class GameWindow : Window
         if (_moveBusy)
             return;
         _moveBusy = true;
-        _nextMove = DateTime.UtcNow.AddSeconds(_mouseRun || _held.Contains(Key.LeftShift) || _held.Contains(Key.RightShift)
-            ? 0.1
-            : 0.22);
+        bool mounted = !string.IsNullOrEmpty(_session.World.Self?.MountId);
+        int mountMs = _session.World.Self?.MoveIntervalMs ?? 0;
+        bool running = _mouseRun || _held.Contains(Key.LeftShift) || _held.Contains(Key.RightShift);
+        double wait = mounted && mountMs > 0 ? mountMs / 1000.0 : running ? 0.1 : 0.22;
+        _nextMove = DateTime.UtcNow.AddSeconds(wait);
         try
         {
             var sync = await _session.MoveAsync(x, y, dir);
@@ -295,7 +307,7 @@ public sealed partial class GameWindow : Window
             {
                 _audio.PlayStep();
                 if (_session.World.Self != null)
-                    _session.World.Self.Pose = _mouseRun || _held.Contains(Key.LeftShift) || _held.Contains(Key.RightShift) ? "run" : "walk";
+                    _session.World.Self.Pose = mounted || running ? "run" : "walk";
             }
             if (sync != null && !sync.Accepted && !fromKeyboard)
             {
@@ -594,6 +606,7 @@ public sealed partial class GameWindow : Window
         if (mode == ClientUiMode.Reconnecting)
             _reconnectText.Text = "与服务器断开。可重新登录后继续。";
 
+        RefreshBossChrome(mode);
         var self = _session.World.Self;
         _death.IsVisible = mode == ClientUiMode.InWorld && (self?.Hp ?? 1) <= 0;
         if (mode != ClientUiMode.InWorld)
@@ -631,6 +644,65 @@ public sealed partial class GameWindow : Window
         RefreshPhaseL();
     }
 
+    private Border BuildBossHost()
+    {
+        var stack = new StackPanel { Spacing = 4, Width = 300 };
+        stack.Children.Add(_bossText);
+        stack.Children.Add(_bossHp);
+        return new Border
+        {
+            Background = Brush("#CC1A140F"),
+            BorderBrush = Brush("#E8C872"),
+            BorderThickness = new Avalonia.Thickness(1),
+            Padding = new Avalonia.Thickness(8),
+            Child = stack,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Avalonia.Thickness(0, 12, 0, 0),
+            IsVisible = false
+        };
+    }
+
+    private void RefreshBossChrome(ClientUiMode mode)
+    {
+        if (mode != ClientUiMode.InWorld)
+        {
+            _bossHost.IsVisible = false;
+            return;
+        }
+        var boss = _session.Bosses.FirstOrDefault(b => b.Alive) ?? _session.Bosses.FirstOrDefault();
+        if (boss == null)
+        {
+            _bossHost.IsVisible = false;
+            return;
+        }
+        _bossHost.IsVisible = true;
+        int max = Math.Max(1, boss.MaxHp);
+        _bossHp.Maximum = max;
+        _bossHp.Value = Math.Clamp(boss.Hp, 0, max);
+        string hate = boss.HateTop.Count == 0
+            ? "暂无仇恨"
+            : string.Join("  ", boss.HateTop.Take(5).Select(h => $"{h.Rank}.{h.Name} {h.Damage}"));
+        string state = boss.Alive ? $"{boss.Hp}/{max}" : "未刷新";
+        _bossText.Text = $"{boss.DisplayName}  {state}\n仇恨 {hate}";
+    }
+
+    private void MaybePollBoss()
+    {
+        if (_bossBusy || DateTime.UtcNow < _nextBossPoll)
+            return;
+        _bossBusy = true;
+        _nextBossPoll = DateTime.UtcNow.AddSeconds(2);
+        _ = PollBoss();
+
+        async Task PollBoss()
+        {
+            try { await _session.RefreshBossesAsync(); }
+            catch { /* status is optional until the socket is ready */ }
+            finally { _bossBusy = false; }
+        }
+    }
+
     private void RebuildChars()
     {
         _charList.Children.Clear();
@@ -643,7 +715,8 @@ public sealed partial class GameWindow : Window
             {
                 Content = $"进入  {character.Name}   Lv{character.Level}  {ClassLabel(character.ClassId)}",
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Left
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Width = 280
             };
             button.Click += async (_, _) =>
             {
@@ -661,7 +734,15 @@ public sealed partial class GameWindow : Window
                 }
                 catch (Exception ex) { _charStatus.Text = ex.Message; }
             };
+            var portrait = new ClassPortrait
+            {
+                Width = 56,
+                Height = 72,
+                ClassId = character.ClassId,
+                Gender = character.Gender
+            };
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            row.Children.Add(portrait);
             row.Children.Add(button);
             row.Children.Add(del);
             _charList.Children.Add(row);
@@ -805,7 +886,12 @@ public sealed partial class GameWindow : Window
 
     private async Task SendChat(ChatChannel channel, string text, string? target = null)
     {
-        try { await _session.SendChatAsync(channel, text, target); }
+        try
+        {
+            bool masked = await _session.SendChatAsync(channel, text, target);
+            if (masked)
+                Toast("已按脏词表替换");
+        }
         catch (Exception ex) { Toast(ex.Message); }
     }
 
@@ -889,19 +975,7 @@ public sealed partial class GameWindow : Window
             Foreground = Brush("#E8C872"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        var sky = new Border
-        {
-            Height = 120,
-            Background = Brush("#243044"),
-            Child = new TextBlock
-            {
-                Text = "城门  ·  原野  ·  灯火",
-                Foreground = Brush("#E8C872"),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 18
-            }
-        };
+        var sky = new TownBackdrop { Height = 168 };
         var sub = new TextBlock
         {
             Text = "自研客户端 · 协议 1.21.0 · 无 Unity",
@@ -918,7 +992,7 @@ public sealed partial class GameWindow : Window
         var panel = new StackPanel
         {
             Spacing = 8,
-            Width = 420,
+            Width = 460,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -960,13 +1034,31 @@ public sealed partial class GameWindow : Window
             catch (Exception ex) { _charStatus.Text = ex.Message; }
             _charCount = -1;
         };
-        var panel = new StackPanel { Spacing = 8, Width = 460, Margin = new Avalonia.Thickness(24) };
+        void SyncPreview()
+        {
+            _preview.ClassId = (_classBox.SelectedItem as ClassChoice)?.Id ?? "warrior";
+            _preview.Gender = _genderBox.SelectedIndex == 1 ? "f" : "m";
+            _preview.InvalidateVisual();
+        }
+        _classBox.SelectionChanged += (_, _) => SyncPreview();
+        _genderBox.SelectionChanged += (_, _) => SyncPreview();
+        SyncPreview();
+        var logout = new Button { Content = "返回登录", HorizontalAlignment = HorizontalAlignment.Stretch };
+        logout.Click += (_, _) =>
+        {
+            _session.ReturnToLogin();
+            _audio.PlayLoginBgm();
+        };
+        var panel = new StackPanel { Spacing = 8, Width = 520, Margin = new Avalonia.Thickness(24) };
         panel.Children.Add(new TextBlock { Text = "选择角色", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
-        panel.Children.Add(new ScrollViewer { Content = _charList, MaxHeight = 240 });
+        panel.Children.Add(new ScrollViewer { Content = _charList, MaxHeight = 280 });
+        panel.Children.Add(new TextBlock { Text = "创角立绘", Foreground = Brush("#E8C872") });
+        panel.Children.Add(_preview);
         panel.Children.Add(_newName);
         panel.Children.Add(_classBox);
         panel.Children.Add(_genderBox);
         panel.Children.Add(create);
+        panel.Children.Add(logout);
         panel.Children.Add(_charStatus);
         var wrap = Card(panel, "#F014100E");
         wrap.HorizontalAlignment = HorizontalAlignment.Center;
@@ -1027,6 +1119,7 @@ public sealed partial class GameWindow : Window
         var grid = new Grid();
         grid.Children.Add(topLeft);
         grid.Children.Add(topRight);
+        grid.Children.Add(_bossHost);
         grid.Children.Add(bottom);
         return grid;
     }

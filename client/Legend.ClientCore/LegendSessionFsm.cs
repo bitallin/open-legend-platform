@@ -55,6 +55,15 @@ namespace Legend.ClientCore
                 Transition(SessionPhase.InWorld, $"In world ({mapId})");
         }
 
+        /// <summary>Leave the world without dropping the login session.</summary>
+        public void ReturnToCharSelect(string message)
+        {
+            if (Phase != SessionPhase.InWorld)
+                return;
+            ErrorMessage = "";
+            Transition(SessionPhase.CharSelect, string.IsNullOrWhiteSpace(message) ? "Select or create character" : message);
+        }
+
         /// <summary>Enter failed or cancelled; stay logged in on the character screen.</summary>
         public void AbortEnterWorld(string message)
         {

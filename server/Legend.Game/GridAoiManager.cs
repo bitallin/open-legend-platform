@@ -93,7 +93,8 @@ public sealed class WorldPlayerEntity
         PkKills = PkKills,
         NameColor = PhaseMRules.NameColor(PkKills),
         AttackMode = string.IsNullOrEmpty(AttackMode) ? "peace" : AttackMode,
-        Gender = Gender ?? ""
+        Gender = Gender ?? "",
+        Title = PhasePRules.Title(Level, GuildRank)
     };
 }
 

@@ -89,7 +89,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.PetStatusReq or MsgId.PetSummonReq or MsgId.PetDismissReq or
         MsgId.GuildWarehouseListReq or MsgId.GuildWarehouseDepositReq or MsgId.GuildWarehouseWithdrawReq or MsgId.GuildWarehouseClearReq or
         MsgId.GuildSetRankReq or MsgId.GuildWarehouseListAuditReq or
-        MsgId.PaymentCreateOrderReq or MsgId.PaymentOrderStatusReq;
+        MsgId.PaymentCreateOrderReq or MsgId.PaymentOrderStatusReq or
+        MsgId.LeaveWorldReq;
 
     private GridAoiManager GetAoi(string mapId)
     {
@@ -388,6 +389,9 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.PaymentOrderStatusReq:
                 await HandlePaymentOrderStatusAsync(session, frame, ct);
+                break;
+            case MsgId.LeaveWorldReq:
+                await HandleLeaveWorldAsync(session, frame, ct);
                 break;
         }
     }
@@ -2401,8 +2405,14 @@ public sealed partial class GameWorldModule : IGameModule
         }
     }
 
-    private async Task ApplyExpGainAsync(WorldPlayerEntity player, int reward, string source, CancellationToken ct)
+    private async Task ApplyExpGainAsync(WorldPlayerEntity player, int reward, string source, CancellationToken ct, bool fromMentor = false)
     {
+        if (reward < 0)
+            reward = 0;
+        int mentorBase = reward;
+        if (!fromMentor && !string.IsNullOrWhiteSpace(player.MentorName))
+            reward += PhasePRules.ApprenticeBonus(mentorBase);
+
         int maxLv = LevelCurve.MaxLevel(_versionPack.Levels);
         if (player.Level >= maxLv)
         {
@@ -2414,6 +2424,7 @@ public sealed partial class GameWorldModule : IGameModule
                 ExpToNext = 0,
                 Source = source
             }, ct);
+            await GrantMentorShareAsync();
             return;
         }
 
@@ -2478,6 +2489,21 @@ public sealed partial class GameWorldModule : IGameModule
             await _eventBus.PublishAsync(new PlayerLeveledUpEvent(
                 player.Session, player.Name, player.CharacterId, oldLevel, player.Level,
                 player.Exp, player.Atk, player.Def, player.MaxHp), ct);
+            await BroadcastPlayerSnapshotAsync(player, ct);
+        }
+
+        await GrantMentorShareAsync();
+
+        async Task GrantMentorShareAsync()
+        {
+            if (fromMentor || string.IsNullOrWhiteSpace(player.MentorName))
+                return;
+            int share = PhasePRules.MentorShare(mentorBase);
+            var mentor = FindOnlineByName(player.MentorName);
+            if (share <= 0 || mentor == null ||
+                string.Equals(mentor.CharacterId, player.CharacterId, StringComparison.Ordinal))
+                return;
+            await ApplyExpGainAsync(mentor, share, "mentor", ct, fromMentor: true);
         }
 
         await _storage.Characters.SaveLevelExpAsync(

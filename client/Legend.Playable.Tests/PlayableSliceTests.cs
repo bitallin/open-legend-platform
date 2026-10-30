@@ -244,4 +244,30 @@ public class PlayableSliceTests
         Assert.False(PhaseNRules.WorldLinked("novice_plain", "sealed_temple"));
         Assert.Equal("封碑神殿（原创，对照封魔）", MapCatalog.Get("sealed_temple").MapName);
     }
+
+    [Fact]
+    public void PhaseP_TitleMentorProfanityAndCharSelect()
+    {
+        Assert.Equal("会长", PhasePRules.Title(1, "leader"));
+        Assert.Equal("副会长", PhasePRules.Title(40, "vice_leader"));
+        Assert.Equal("仓管", PhasePRules.Title(1, "warehouse_admin"));
+        Assert.Equal("勇者", PhasePRules.Title(35, "member"));
+        Assert.Equal("新兵", PhasePRules.Title(15, ""));
+        Assert.Equal("旅人", PhasePRules.Title(1, ""));
+        Assert.Equal(1, PhasePRules.ApprenticeBonus(10));
+        Assert.Equal(2, PhasePRules.MentorShare(10));
+        Assert.Equal(0, PhasePRules.ApprenticeBonus(0));
+        Assert.Contains("**", PhasePRules.MaskProfanity("你这个测试脏话啊"));
+        Assert.Equal("你好", PhasePRules.MaskProfanity("你好"));
+
+        var fsm = new LegendSessionFsm();
+        Assert.True(fsm.BeginConnect("127.0.0.1", 7100));
+        fsm.MarkLoginReady();
+        fsm.MarkAuthenticated();
+        fsm.BeginEnterWorld("旅人");
+        fsm.MarkInWorld("novice_plain");
+        fsm.ReturnToCharSelect("选择角色");
+        Assert.Equal(SessionPhase.CharSelect, fsm.Phase);
+        Assert.Equal("选择角色", fsm.StatusMessage);
+    }
 }

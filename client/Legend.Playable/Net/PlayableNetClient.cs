@@ -875,6 +875,24 @@ public sealed partial class PlayableNetClient : IDisposable
                 _main.Enqueue(() => OnSiege?.Invoke(siege));
                 break;
             }
+            case MsgId.WorldBossHpNotify:
+            {
+                var hp = WorldBossHpNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnBossHp?.Invoke(hp));
+                break;
+            }
+            case MsgId.WorldBossSpawnNotify:
+            {
+                var spawn = WorldBossSpawnNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnBossSpawn?.Invoke(spawn));
+                break;
+            }
+            case MsgId.AppearanceSyncNotify:
+            {
+                var look = AppearanceSyncNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnAppearance?.Invoke(look));
+                break;
+            }
         }
     }
 

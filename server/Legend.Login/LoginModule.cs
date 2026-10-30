@@ -352,7 +352,8 @@ public sealed class LoginModule : IGameModule
         MaxHp = c.MaxHp,
         Mp = c.Mp,
         MaxMp = c.MaxMp,
-        Gold = c.Gold
+        Gold = c.Gold,
+        Gender = AppearanceJson.Parse(c.AppearanceJson).Gender ?? ""
     };
 
     private async Task HandleCharListAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
