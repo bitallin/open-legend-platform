@@ -12,5 +12,6 @@
   },
   "ownerBuffId": "buff_castle_lord",
   "ownerTitle": "沙巴克城主行会",
-  "winnerRewardGold": 100
+  "winnerRewardGold": 100,
+  "scheduleNote": "每日 20:00–21:00（占位）。行会可宣战，管理员或控制报文可开关攻城，皇宫区内占领旗帜。"
 }

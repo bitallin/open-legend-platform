@@ -41,6 +41,8 @@ public sealed class ActorView
     public int MaxHp { get; set; } = 1;
     public bool IsSelf { get; set; }
     public bool InSafeZone { get; set; }
+    public string NameColor { get; set; } = "white";
+    public string Pose { get; set; } = "idle";
 }
 
 public sealed class WorldState
@@ -96,7 +98,18 @@ public sealed class WorldState
     public void ClearGoal() => HasMoveGoal = false;
 
     public ActorView Upsert(EntitySnapshot e, bool isSelf)
-        => Upsert(e.EntityId, e.Name, e.Kind, e.X, e.Y, e.Direction, e.Hp, e.MaxHp, isSelf, e.InSafeZone);
+    {
+        var actor = Upsert(e.EntityId, e.Name, e.Kind, e.X, e.Y, e.Direction, e.Hp, e.MaxHp, isSelf, e.InSafeZone);
+        if (!string.IsNullOrWhiteSpace(e.NameColor))
+            actor.NameColor = e.NameColor;
+        return actor;
+    }
+
+    public void SetNameColor(string entityId, string color)
+    {
+        if (Get(entityId) is { } actor && !string.IsNullOrWhiteSpace(color))
+            actor.NameColor = color;
+    }
 
     public ActorView Upsert(
         string id, string name, EntityKind kind, int x, int y, int dir, int hp, int maxHp, bool isSelf, bool inSafeZone)

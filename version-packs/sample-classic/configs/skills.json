@@ -144,15 +144,17 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "aoe",
     "castTimeMs": 0,
     "skillId": "half_moon",
-    "displayName": "半月弯刀"
+    "displayName": "半月弯刀",
+    "aoeCenter": "self",
+    "aoeRadius": 1
   },
   {
     "mpCost": 10,
     "cooldownMs": 6000,
-    "range": 3,
+    "range": 2,
     "damageMultiplier": 1.45,
     "damageMultiplierPerLevel": 0.08,
     "allowedClasses": [
@@ -169,12 +171,13 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "charge",
     "castTimeMs": 0,
     "skillId": "rush",
     "displayName": "野蛮冲撞",
     "learnRequiredLevel": 4,
-    "skillBookItemId": "item_skillbook_rush"
+    "skillBookItemId": "item_skillbook_rush",
+    "chargeSteps": 3
   },
   {
     "mpCost": 12,
@@ -222,10 +225,12 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "aoe",
     "castTimeMs": 400,
     "skillId": "fire_wall",
-    "displayName": "火墙"
+    "displayName": "火墙",
+    "aoeCenter": "target",
+    "aoeRadius": 2
   },
   {
     "mpCost": 16,
@@ -300,12 +305,14 @@
       200,
       400
     ],
-    "kind": "attack",
+    "kind": "aoe",
     "castTimeMs": 500,
     "skillId": "ice_roar",
     "displayName": "冰咆哮",
     "learnRequiredLevel": 6,
-    "skillBookItemId": "item_skillbook_ice_roar"
+    "skillBookItemId": "item_skillbook_ice_roar",
+    "aoeCenter": "target",
+    "aoeRadius": 2
   },
   {
     "mpCost": 20,

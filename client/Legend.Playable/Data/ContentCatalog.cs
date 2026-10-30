@@ -25,6 +25,16 @@ public static class ContentCatalog
 
     public static IReadOnlyList<SkillDef> Skills => Loaded.Value.Skills;
     public static IReadOnlyDictionary<string, string> ItemNames => Loaded.Value.ItemNames;
+    public static int ItemWeight(string itemId)
+        => Loaded.Value.Weights.TryGetValue(itemId, out int w) ? w : 0;
+
+    public static int BagWeight(IEnumerable<(string ItemId, int Count)> items)
+    {
+        int total = 0;
+        foreach (var (id, count) in items)
+            total += ItemWeight(id) * Math.Max(0, count);
+        return total;
+    }
 
     public static SkillDef? FindSkill(string? id)
         => string.IsNullOrWhiteSpace(id) ? null : Skills.FirstOrDefault(s => string.Equals(s.SkillId, id, StringComparison.OrdinalIgnoreCase));
@@ -52,6 +62,7 @@ public static class ContentCatalog
         var asm = typeof(ContentCatalog).Assembly;
         var skills = new List<SkillDef>();
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var weights = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         Read(asm, "configs.skills.json", json =>
         {
             using var doc = JsonDocument.Parse(json);
@@ -97,9 +108,10 @@ public static class ContentCatalog
                 if (id.Length == 0)
                     continue;
                 names[id] = Str(el, "displayName", id);
+                weights[id] = Int(el, "weight");
             }
         });
-        return new Catalog(skills, names);
+        return new Catalog(skills, names, weights);
     }
 
     private static void Read(System.Reflection.Assembly asm, string name, Action<string> use)
@@ -117,5 +129,8 @@ public static class ContentCatalog
     private static int Int(JsonElement el, string name, int fallback = 0)
         => el.TryGetProperty(name, out var v) && v.TryGetInt32(out int n) ? n : fallback;
 
-    private sealed record Catalog(IReadOnlyList<SkillDef> Skills, IReadOnlyDictionary<string, string> ItemNames);
+    private sealed record Catalog(
+        IReadOnlyList<SkillDef> Skills,
+        IReadOnlyDictionary<string, string> ItemNames,
+        IReadOnlyDictionary<string, int> Weights);
 }

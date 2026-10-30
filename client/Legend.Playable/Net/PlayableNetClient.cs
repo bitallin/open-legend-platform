@@ -10,7 +10,7 @@ namespace Legend.Playable.Net;
 /// Focused TCP client for the playable slice. Same frame codec and MsgIds as CliClient / Unity MVP.
 /// Protocol stays 1.21.0 (<see cref="ProtocolConstants.CurrentVersion"/>).
 /// </summary>
-public sealed class PlayableNetClient : IDisposable
+public sealed partial class PlayableNetClient : IDisposable
 {
     private readonly ConcurrentDictionary<uint, TaskCompletionSource<PacketFrame>> _pending = new();
     private readonly ConcurrentQueue<Action> _main = new();
@@ -62,6 +62,11 @@ public sealed class PlayableNetClient : IDisposable
     public event Action? OnDisconnected;
     public event Action? OnMeta;
     public event Action<PartyInviteNotify>? OnPartyInvite;
+    public event Action<PkSyncNotify>? OnPk;
+    public event Action<TradeInviteNotify>? OnTradeInvite;
+    public event Action<TradeStateNotify>? OnTradeState;
+    public event Action<TradeResultNotify>? OnTradeResult;
+    public event Action<SiegeStateNotify>? OnSiege;
 
     public void Pump()
     {
@@ -221,12 +226,13 @@ public sealed class PlayableNetClient : IDisposable
         return sync;
     }
 
-    public async Task<AttackResp> RequestAttackAsync(string targetEntityId, string skillId, CancellationToken ct = default)
+    public async Task<AttackResp> RequestAttackAsync(string targetEntityId, string skillId, bool force = false, CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.AttackReq, new AttackReq
         {
             TargetEntityId = targetEntityId,
-            SkillId = skillId
+            SkillId = skillId,
+            Force = force
         }, ct).ConfigureAwait(false);
         return AttackResp.Parser.ParseFrom(frame.Payload);
     }
@@ -811,6 +817,42 @@ public sealed class PlayableNetClient : IDisposable
             {
                 var invite = PartyInviteNotify.Parser.ParseFrom(frame.Payload);
                 _main.Enqueue(() => OnPartyInvite?.Invoke(invite));
+                break;
+            }
+            case MsgId.PkSyncNotify:
+            {
+                var pk = PkSyncNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnPk?.Invoke(pk));
+                break;
+            }
+            case MsgId.TradeInviteNotify:
+            {
+                var invite = TradeInviteNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnTradeInvite?.Invoke(invite));
+                break;
+            }
+            case MsgId.TradeStateNotify:
+            {
+                var state = TradeStateNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnTradeState?.Invoke(state));
+                break;
+            }
+            case MsgId.TradeResultNotify:
+            {
+                var result = TradeResultNotify.Parser.ParseFrom(frame.Payload);
+                if (result.Success)
+                {
+                    Gold = result.Gold;
+                    if (result.Inventory.Count > 0)
+                        ReplaceInventory(result.Inventory);
+                }
+                _main.Enqueue(() => OnTradeResult?.Invoke(result));
+                break;
+            }
+            case MsgId.SiegeStateNotify:
+            {
+                var siege = SiegeStateNotify.Parser.ParseFrom(frame.Payload);
+                _main.Enqueue(() => OnSiege?.Invoke(siege));
                 break;
             }
         }

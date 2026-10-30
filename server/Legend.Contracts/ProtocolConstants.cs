@@ -182,7 +182,25 @@ public enum MsgId : ushort
     StorageDepositReq = 3907,
     StorageDepositResp = 3908,
     StorageWithdrawReq = 3909,
-    StorageWithdrawResp = 3910
+    StorageWithdrawResp = 3910,
+    SetAttackModeReq = 3921,
+    SetAttackModeResp = 3922,
+    PkSyncNotify = 3923,
+    IdentifyReq = 3931,
+    IdentifyResp = 3932,
+    TradeStartReq = 3941,
+    TradeStartResp = 3942,
+    TradeInviteNotify = 3943,
+    TradeRespondReq = 3944,
+    TradeRespondResp = 3945,
+    TradePutReq = 3946,
+    TradePutResp = 3947,
+    TradeStateNotify = 3948,
+    TradeLockReq = 3949,
+    TradeLockResp = 3950,
+    TradeCancelReq = 3951,
+    TradeCancelResp = 3952,
+    TradeResultNotify = 3953
 }
 
 

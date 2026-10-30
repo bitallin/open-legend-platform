@@ -1,0 +1,67 @@
+{
+  "mapId": "sand_gate",
+  "mapName": "沙门关（原创，对照沙巴克城门）",
+  "width": 40,
+  "height": 32,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 6,
+  "spawnY": 8,
+  "blockedCells": [
+    {
+      "x": 18,
+      "y": 12
+    },
+    {
+      "x": 18,
+      "y": 13
+    },
+    {
+      "x": 18,
+      "y": 14
+    },
+    {
+      "x": 18,
+      "y": 16
+    },
+    {
+      "x": 18,
+      "y": 17
+    },
+    {
+      "x": 19,
+      "y": 12
+    },
+    {
+      "x": 19,
+      "y": 17
+    }
+  ],
+  "safeZones": [
+    {
+      "name": "城门外",
+      "x1": 3,
+      "y1": 5,
+      "x2": 10,
+      "y2": 12
+    }
+  ],
+  "portals": [
+    {
+      "portalId": "gate",
+      "x": 18,
+      "y": 15,
+      "targetMapId": "dark_forest",
+      "targetX": 18,
+      "targetY": 18
+    },
+    {
+      "portalId": "back_oath",
+      "x": 5,
+      "y": 10,
+      "targetMapId": "oath_city",
+      "targetX": 38,
+      "targetY": 20
+    }
+  ]
+}

@@ -112,6 +112,16 @@
         "itemId": "item_skillbook_hide",
         "priceGold": 70,
         "stock": -1
+      },
+      {
+        "itemId": "item_town_scroll",
+        "priceGold": 20,
+        "stock": -1
+      },
+      {
+        "itemId": "item_sealed_ring",
+        "priceGold": 40,
+        "stock": -1
       }
     ]
   }

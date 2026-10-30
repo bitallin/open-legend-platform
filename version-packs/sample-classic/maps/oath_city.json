@@ -1,0 +1,51 @@
+{
+  "mapId": "oath_city",
+  "mapName": "盟誓城（原创，对照土城）",
+  "width": 48,
+  "height": 40,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 8,
+  "spawnY": 8,
+  "blockedCells": [
+    {
+      "x": 20,
+      "y": 10
+    },
+    {
+      "x": 21,
+      "y": 10
+    },
+    {
+      "x": 22,
+      "y": 10
+    }
+  ],
+  "safeZones": [
+    {
+      "name": "盟誓城",
+      "x1": 4,
+      "y1": 4,
+      "x2": 16,
+      "y2": 16
+    }
+  ],
+  "portals": [
+    {
+      "portalId": "back_plain",
+      "x": 6,
+      "y": 10,
+      "targetMapId": "novice_plain",
+      "targetX": 18,
+      "targetY": 28
+    },
+    {
+      "portalId": "to_sand",
+      "x": 40,
+      "y": 20,
+      "targetMapId": "sand_gate",
+      "targetX": 6,
+      "targetY": 8
+    }
+  ]
+}

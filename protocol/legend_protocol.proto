@@ -288,6 +288,10 @@ message EntitySnapshot {
   int32 move_interval_ms = 17;
   // M16 active pet template id on player snapshot
   string pet_id = 18;
+  // Phase M PK. Additive; old clients ignore.
+  int32 pk_kills = 19;
+  string name_color = 20;
+  string attack_mode = 21;
 }
 
 message EnterWorldReq {
@@ -371,6 +375,7 @@ message MapChangeNotify {
 message AttackReq {
   string target_entity_id = 1;
   string skill_id = 2;
+  bool force = 3;
 }
 
 message AttackResp {
@@ -526,6 +531,9 @@ message EquippedSlot {
   int32 atk_bonus = 4;
   int32 def_bonus = 5;
   int32 max_hp_bonus = 6;
+  int32 durability = 7;
+  int32 max_durability = 8;
+  bool identified = 9;
 }
 
 message EquipReq {
@@ -986,6 +994,7 @@ message SiegeStatusResp {
   string owner_guild_name = 8;
   repeated string declared_guild_ids = 9;
   repeated string declared_guild_names = 10;
+  string schedule_note = 11;
 }
 
 message SiegeStateNotify {
@@ -1638,4 +1647,120 @@ message StorageWithdrawResp {
   string message = 3;
   repeated InventoryItem inventory = 4;
   repeated InventoryItem storage = 5;
+}
+
+// 28. Phase M attack mode, identify, face-to-face trade (version string stays 1.21.0)
+message SetAttackModeReq {
+  string mode = 1;
+}
+
+message SetAttackModeResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string mode = 4;
+  string name_color = 5;
+  int32 pk_kills = 6;
+}
+
+message PkSyncNotify {
+  string entity_id = 1;
+  int32 pk_kills = 2;
+  string name_color = 3;
+  string attack_mode = 4;
+}
+
+message IdentifyReq {
+  string npc_entity_id = 1;
+  string item_id = 2;
+}
+
+message IdentifyResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  int32 gold = 4;
+  repeated EquippedSlot equipment = 5;
+}
+
+message TradeStartReq {
+  string target_name = 1;
+}
+
+message TradeStartResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string trade_id = 4;
+}
+
+message TradeInviteNotify {
+  string trade_id = 1;
+  string from_name = 2;
+}
+
+message TradeRespondReq {
+  string trade_id = 1;
+  bool accept = 2;
+}
+
+message TradeRespondResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+  string trade_id = 4;
+}
+
+message TradePutReq {
+  string trade_id = 1;
+  string item_id = 2;
+  int32 count = 3;
+  int32 gold = 4;
+}
+
+message TradePutResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message TradeStateNotify {
+  string trade_id = 1;
+  string self_item_id = 2;
+  int32 self_count = 3;
+  int32 self_gold = 4;
+  bool self_locked = 5;
+  string peer_name = 6;
+  string peer_item_id = 7;
+  int32 peer_count = 8;
+  int32 peer_gold = 9;
+  bool peer_locked = 10;
+}
+
+message TradeLockReq {
+  string trade_id = 1;
+  bool locked = 2;
+}
+
+message TradeLockResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message TradeCancelReq {
+  string trade_id = 1;
+}
+
+message TradeCancelResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
+}
+
+message TradeResultNotify {
+  bool success = 1;
+  string message = 2;
+  int32 gold = 3;
+  repeated InventoryItem inventory = 4;
 }

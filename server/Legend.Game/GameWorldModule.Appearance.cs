@@ -71,8 +71,10 @@ public sealed partial class GameWorldModule
 
         player.Storage = (state.Storage ?? new())
             .Where(s => !string.IsNullOrWhiteSpace(s.ItemId) && s.Count > 0)
-            .Select(s => new InventorySlot { ItemId = s.ItemId, Count = s.Count })
+            .Select(s => new InventorySlot { ItemId = s.ItemId, Count = s.Count, Identified = s.Identified })
             .ToList();
+        player.PkKills = Math.Max(0, state.PkKills);
+        player.AttackMode = string.IsNullOrWhiteSpace(state.AttackMode) ? "peace" : state.AttackMode;
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
         player.LastMoveUnixMs = 0;
@@ -89,7 +91,9 @@ public sealed partial class GameWorldModule
             EquippedFashionId = player.EquippedFashionId ?? "",
             OwnedPets = player.OwnedPets.ToList(),
             ActivePetId = player.ActivePetId ?? "",
-            Storage = player.Storage ?? new()
+            Storage = player.Storage ?? new(),
+            PkKills = player.PkKills,
+            AttackMode = string.IsNullOrWhiteSpace(player.AttackMode) ? "peace" : player.AttackMode
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);

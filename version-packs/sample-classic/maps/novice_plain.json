@@ -66,6 +66,14 @@
       "targetMapId": "marsh_den",
       "targetX": 4,
       "targetY": 4
+    },
+    {
+      "portalId": "to_oath",
+      "x": 18,
+      "y": 30,
+      "targetMapId": "oath_city",
+      "targetX": 8,
+      "targetY": 8
     }
   ]
 }

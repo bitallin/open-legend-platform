@@ -146,6 +146,8 @@ public static class AppearanceJson
         public List<string> OwnedPets { get; set; } = new();
         public string ActivePetId { get; set; } = "";
         public List<InventorySlot> Storage { get; set; } = new();
+        public int PkKills { get; set; }
+        public string AttackMode { get; set; } = "peace";
     }
 
     public static State Parse(string? json)
@@ -162,6 +164,8 @@ public static class AppearanceJson
             s.EquippedFashionId ??= "";
             s.ActivePetId ??= "";
             s.Storage ??= new();
+            if (string.IsNullOrWhiteSpace(s.AttackMode))
+                s.AttackMode = "peace";
             return s;
         }
         catch
@@ -196,8 +200,10 @@ public static class AppearanceJson
             ActivePetId = state.ActivePetId ?? "",
             Storage = (state.Storage ?? new())
                 .Where(s => !string.IsNullOrWhiteSpace(s.ItemId) && s.Count > 0)
-                .Select(s => new InventorySlot { ItemId = s.ItemId, Count = s.Count })
-                .ToList()
+                .Select(s => new InventorySlot { ItemId = s.ItemId, Count = s.Count, Identified = s.Identified })
+                .ToList(),
+            PkKills = Math.Max(0, state.PkKills),
+            AttackMode = string.IsNullOrWhiteSpace(state.AttackMode) ? "peace" : state.AttackMode
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

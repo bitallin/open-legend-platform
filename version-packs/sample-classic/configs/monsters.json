@@ -83,6 +83,48 @@
       "respawnMs": 12000,
       "ai": "chase",
       "expReward": 70
+    },
+    {
+      "monsterId": "castle_gate",
+      "displayName": "沙门城门",
+      "maxHp": 400,
+      "atk": 0,
+      "def": 8,
+      "aggroRange": 0,
+      "attackRange": 1,
+      "attackCooldownMs": 99999,
+      "lootTableId": "bone_basic",
+      "respawnMs": 20000,
+      "ai": "stationary",
+      "expReward": 40
+    },
+    {
+      "monsterId": "castle_wall",
+      "displayName": "沙门城墙",
+      "maxHp": 600,
+      "atk": 0,
+      "def": 12,
+      "aggroRange": 0,
+      "attackRange": 1,
+      "attackCooldownMs": 99999,
+      "lootTableId": "bone_basic",
+      "respawnMs": 20000,
+      "ai": "stationary",
+      "expReward": 20
+    },
+    {
+      "monsterId": "castle_flag",
+      "displayName": "皇宫旗帜",
+      "maxHp": 250,
+      "atk": 0,
+      "def": 4,
+      "aggroRange": 0,
+      "attackRange": 1,
+      "attackCooldownMs": 99999,
+      "lootTableId": "bone_basic",
+      "respawnMs": 15000,
+      "ai": "stationary",
+      "expReward": 80
     }
   ],
   "spawns": [
@@ -127,6 +169,27 @@
       "x": 18,
       "y": 10,
       "count": 3
+    },
+    {
+      "monsterId": "castle_gate",
+      "mapId": "sand_gate",
+      "x": 17,
+      "y": 15,
+      "count": 1
+    },
+    {
+      "monsterId": "castle_wall",
+      "mapId": "sand_gate",
+      "x": 17,
+      "y": 13,
+      "count": 1
+    },
+    {
+      "monsterId": "castle_flag",
+      "mapId": "dark_forest",
+      "x": 20,
+      "y": 20,
+      "count": 1
     }
   ]
 }

@@ -434,7 +434,7 @@ public sealed partial class GameWindow : Window
             _session.World.AddCast(self.DrawX, self.DrawY, def?.School ?? "warrior");
         try
         {
-            var resp = await _session.AttackAsync(targetId ?? "", skill);
+            var resp = await _session.AttackAsync(targetId ?? "", skill, force);
             if (resp != null && !resp.Success && !string.IsNullOrWhiteSpace(resp.Message))
                 Toast(resp.Message);
         }
