@@ -3,7 +3,7 @@ namespace Legend.Contracts;
 /// <summary>
 /// Project-reference allow list for production layers.
 /// The scanner in Legend.Core fails the build tests when a listed project gains an edge that is not here.
-/// Persistence ports still live in Legend.Storage, so Game and Login may reference that assembly until E2.
+/// Persistence ports live in this assembly. Game and Login must not reference the Storage implementation.
 /// </summary>
 public static class EngineLayerRules
 {
@@ -15,8 +15,8 @@ public static class EngineLayerRules
             ["Legend.Storage"] = Set("Legend.Contracts"),
             ["Legend.Gate"] = Set("Legend.Contracts", "Legend.Core"),
             ["Legend.Script"] = Set("Legend.Contracts", "Legend.Core"),
-            ["Legend.Login"] = Set("Legend.Contracts", "Legend.Core", "Legend.Storage"),
-            ["Legend.Game"] = Set("Legend.Contracts", "Legend.Core", "Legend.Storage"),
+            ["Legend.Login"] = Set("Legend.Contracts", "Legend.Core"),
+            ["Legend.Game"] = Set("Legend.Contracts", "Legend.Core"),
             ["Legend.Host"] = Set(
                 "Legend.Contracts",
                 "Legend.Core",
