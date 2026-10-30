@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "build": {
+    "content": [
+      {
+        "files": ["**/*.md", "**/toc.yml"],
+        "exclude": ["_site/**"]
+      },
+      {
+        "files": [
+          "MIR_PRODUCTION_FEATURE_MATRIX.md",
+          "PROTOCOL_NOTES.md",
+          "DEV_PROGRESS.md",
+          "PLAYABLE_PC.md",
+          "LAUNCHER.md",
+          "VISUAL_PARITY.md",
+          "PAYMENT_SANDBOX.md",
+          "TRIAL_DEPLOY.md",
+          "PUBLIC_DEPLOY_BUDGET.md",
+          "UNITY_CLIENT_MVP.md",
+          "UNITY_CLIENT_UGUI.md",
+          "ANDROID_BUILD.md"
+        ],
+        "src": "..",
+        "dest": "existing"
+      }
+    ],
+    "output": "_site",
+    "globalMetadata": {
+      "_appName": "Open Legend Platform",
+      "_appTitle": "Open Legend Platform 规格",
+      "_enableSearch": true,
+      "_disableContribution": true,
+      "_lang": "zh-CN"
+    }
+  }
+}
