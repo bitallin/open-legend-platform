@@ -134,7 +134,7 @@ public sealed class GridAoiManager
                     bucket.Remove(entity.EntityId);
             }
 
-            entity.InSafeZone = _mapConfig.IsInSafeZone(entity.X, entity.Y);
+            entity.InSafeZone = DefaultMovementRules.Instance.IsInSafeZone(_mapConfig, entity.X, entity.Y);
             _entities[entity.EntityId] = entity;
             var cell = ToCell(entity.X, entity.Y);
             if (!_cellBuckets.TryGetValue(cell, out var newBucket))
@@ -166,7 +166,7 @@ public sealed class GridAoiManager
             entity.X = toX;
             entity.Y = toY;
             entity.Direction = direction;
-            entity.InSafeZone = _mapConfig.IsInSafeZone(toX, toY);
+            entity.InSafeZone = DefaultMovementRules.Instance.IsInSafeZone(_mapConfig, toX, toY);
 
             var newCell = ToCell(toX, toY);
             if (!_cellBuckets.TryGetValue(newCell, out var newBucket))

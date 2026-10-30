@@ -123,27 +123,6 @@ public sealed partial class GameWorldModule
             player.MapId, player.X, player.Y, MsgId.AppearanceSyncNotify, notify, ct);
     }
 
-    private bool TryValidateMoveInterval(WorldPlayerEntity player, out string reason)
-    {
-        reason = "";
-        // M15: authoritative interval only while mounted (foot movement stays unconstrained for
-        // existing walk helpers / combat pathing). Mounted clients must respect MoveIntervalMs.
-        if (string.IsNullOrWhiteSpace(player.ActiveMountId))
-        {
-            player.LastMoveUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            return true;
-        }
-        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        int interval = Math.Max(50, player.MoveIntervalMs);
-        if (player.LastMoveUnixMs > 0 && now - player.LastMoveUnixMs < interval - 15)
-        {
-            reason = $"Move too fast (interval={interval}ms).";
-            return false;
-        }
-        player.LastMoveUnixMs = now;
-        return true;
-    }
-
     private async Task HandleMountStatusAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
         if (!TryGetPlayer(session, out var player, out _) || player is null)
