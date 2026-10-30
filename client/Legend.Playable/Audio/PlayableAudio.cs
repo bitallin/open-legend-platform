@@ -42,7 +42,9 @@ public sealed class PlayableAudio : IDisposable
             ["open"] = ProceduralWav.Tone(new[] { 440f, 660f }, 0.07f, 0.22f),
             ["close"] = ProceduralWav.Tone(new[] { 330f, 220f }, 0.07f, 0.2f),
             ["monster"] = ProceduralWav.Tone(new[] { 110f, 80f }, 0.2f, 0.3f),
-            ["ambient"] = ProceduralWav.Tone(new[] { 70f, 90f }, 1.2f, 0.08f)
+            ["ambient"] = ProceduralWav.Tone(new[] { 70f, 90f }, 1.2f, 0.08f),
+            ["portal"] = ProceduralWav.Tone(new[] { 520f, 740f, 420f, 880f }, 0.22f, 0.24f),
+            ["swing"] = ProceduralWav.Tone(new[] { 180f, 90f, 240f }, 0.08f, 0.4f)
         };
     }
 
@@ -71,7 +73,8 @@ public sealed class PlayableAudio : IDisposable
     public void PlayUiClick() => OneShot("ui", ui: true);
     public void PlayOpen() => OneShot("open", ui: true);
     public void PlayClose() => OneShot("close", ui: true);
-    public void PlayAttack() => OneShot("attack");
+    public void PlayAttack() => OneShot("swing");
+    public void PlayPortal() => OneShot("portal");
     public void PlayHit() => OneShot("hit");
     public void PlayPickup() => OneShot("pickup");
     public void PlayStep() => OneShot("step");

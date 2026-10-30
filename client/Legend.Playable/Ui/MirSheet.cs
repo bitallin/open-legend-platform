@@ -129,9 +129,13 @@ public sealed class MirSheet
     {
         int count = action switch
         {
-            "idle" => 4,
-            "hit" => 3,
-            "death" => 4,
+            "idle" => 8,
+            "walk" => 10,
+            "run" => 8,
+            "attack" => 10,
+            "cast" => 8,
+            "hit" => 4,
+            "death" => 8,
             _ => 6
         };
         if (action is "attack" or "cast" or "hit" or "death")

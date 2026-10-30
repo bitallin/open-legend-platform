@@ -36,6 +36,7 @@
     {
       "itemId": "item_wooden_blade",
       "displayName": "新手木刀",
+      "paperdoll": "wep_blade",
       "kind": "equipment",
       "slot": "weapon",
       "atkBonus": 5,
@@ -50,6 +51,7 @@
     {
       "itemId": "item_wooden_sword",
       "displayName": "铁皮木剑",
+      "paperdoll": "wep_sword",
       "kind": "equipment",
       "slot": "weapon",
       "atkBonus": 10,
@@ -64,6 +66,7 @@
     {
       "itemId": "item_iron_sword",
       "displayName": "精铁长剑",
+      "paperdoll": "wep_iron",
       "kind": "equipment",
       "slot": "weapon",
       "atkBonus": 15,
@@ -79,6 +82,7 @@
     {
       "itemId": "item_cloth_armor",
       "displayName": "粗布战衣",
+      "paperdoll": "arm_cloth",
       "kind": "equipment",
       "slot": "armor",
       "atkBonus": 0,
@@ -159,6 +163,7 @@
     {
       "itemId": "item_cloth_helmet",
       "displayName": "布盔",
+      "paperdoll": "helm_cloth",
       "kind": "equipment",
       "slot": "helmet",
       "defBonus": 2,

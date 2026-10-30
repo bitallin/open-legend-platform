@@ -22,9 +22,12 @@ public sealed class WorldCanvas : Control
     public double AnimTime { get; set; }
     public event Action<Point, bool, bool, bool, bool, int>? WorldPressed;
 
-    private const double TileW = 48;
-    private const double TileH = 32;
     private static readonly MirSheet? Sheet = MirSheet.TryLoad(typeof(WorldCanvas).Assembly);
+
+    public string WeaponLayer { get; set; } = "";
+    public string ArmorLayer { get; set; } = "";
+    public string HelmetLayer { get; set; } = "";
+    public bool FashionOn { get; set; }
 
     public WorldCanvas()
     {
@@ -39,7 +42,7 @@ public sealed class WorldCanvas : Control
         var self = world?.Self;
         if (world == null || self == null)
             return false;
-        (gx, gy) = ScreenToGrid(screen.X, screen.Y, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
+        (gx, gy) = IsoProjection.ToCell(screen.X, screen.Y, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
         return world.Map.InBounds(gx, gy);
     }
 
@@ -53,7 +56,7 @@ public sealed class WorldCanvas : Control
         double bestD = 22;
         foreach (var actor in world.Actors.Values)
         {
-            var (sx, sy) = GridToScreen(actor.DrawX, actor.DrawY, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
+            var (sx, sy) = IsoProjection.ToScreen(actor.DrawX, actor.DrawY, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
             double dx = sx - screen.X;
             double dy = (sy - 12) - screen.Y;
             double d = Math.Sqrt(dx * dx + dy * dy);
@@ -112,7 +115,7 @@ public sealed class WorldCanvas : Control
             for (int gx = patch.X - patch.Radius; gx <= patch.X + patch.Radius; gx++)
                 DrawFxAt(context, "fire", (int)(world.Time * 8) % 4, gx, gy, camX, camY, w, h, 40);
         }
-        foreach (var actor in world.Actors.Values.OrderByDescending(a => a.DrawY).ThenBy(a => a.DrawX))
+        foreach (var actor in world.Actors.Values.OrderByDescending(a => a.DrawX + a.DrawY))
             DrawActor(context, world, actor, camX, camY, w, h);
         foreach (var fx in world.Effects)
             DrawFx(context, fx, camX, camY, w, h);
@@ -127,31 +130,62 @@ public sealed class WorldCanvas : Control
 
     private void DrawTiles(DrawingContext context, WorldState world, double camX, double camY, double w, double h)
     {
-        int minX = (int)Math.Floor(camX - (w / 2) / TileW) - 1;
-        int maxX = (int)Math.Ceiling(camX + (w / 2) / TileW) + 1;
-        int minY = (int)Math.Floor(camY - (h / 2) / TileH) - 1;
-        int maxY = (int)Math.Ceiling(camY + (h / 2) / TileH) + 1;
+        int minX = world.Map.Width, maxX = 0, minY = world.Map.Height, maxY = 0;
+        void Grow(double sx, double sy)
+        {
+            var (gx, gy) = IsoProjection.ToGrid(sx, sy, camX, camY, w, h);
+            minX = Math.Min(minX, (int)Math.Floor(gx) - 2);
+            maxX = Math.Max(maxX, (int)Math.Ceiling(gx) + 2);
+            minY = Math.Min(minY, (int)Math.Floor(gy) - 2);
+            maxY = Math.Max(maxY, (int)Math.Ceiling(gy) + 2);
+        }
+        Grow(0, 0);
+        Grow(w, 0);
+        Grow(0, h);
+        Grow(w, h);
         minX = Math.Max(0, minX);
         minY = Math.Max(0, minY);
         maxX = Math.Min(world.Map.Width - 1, maxX);
         maxY = Math.Min(world.Map.Height - 1, maxY);
-        for (int y = maxY; y >= minY; y--)
+        var cells = new List<(int x, int y)>();
+        for (int y = minY; y <= maxY; y++)
+        for (int x = minX; x <= maxX; x++)
+            cells.Add((x, y));
+        cells.Sort((a, b) => (b.x + b.y).CompareTo(a.x + a.y));
+        foreach (var (x, y) in cells)
         {
-            for (int x = minX; x <= maxX; x++)
-            {
-                string name = TileName(world, x, y);
-                var (sx, sy) = GridToScreen(x - 0.5, y + 0.5, camX, camY, w, h);
-                var dest = new Rect(sx, sy, TileW + 0.5, TileH + 0.5);
-                if (Sheet != null && Sheet.TryTile(name == "tree" || name == "wall" ? "dirt" : name, out var src))
-                    context.DrawImage(Sheet.Bitmap, src, dest);
-                else
-                    context.FillRectangle(Brush("#3C342C"), dest);
-                if ((name == "tree" || name == "wall") && Sheet != null && Sheet.TryTile(name, out var obj))
-                    context.DrawImage(Sheet.Bitmap, obj, new Rect(sx + 4, sy - 20, TileW - 8, TileH + 18));
-                if (name == "portal")
-                    DrawFxAt(context, "portal", (int)(AnimTime * 6) % 4, x, y, camX, camY, w, h, 28);
-            }
+            string name = TileName(world, x, y);
+            var (sx, sy) = IsoProjection.ToScreen(x, y, camX, camY, w, h);
+            string ground = name is "tree" or "wall" ? "dirt" : name;
+            DrawDiamond(context, sx, sy, ground);
+            if (name is "tree" or "wall" && Sheet != null && Sheet.TryTile(name, out var obj))
+                context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - 18, sy - 36, 36, 40));
+            if (name == "portal")
+                DrawFxAt(context, "portal", (int)(AnimTime * 8) % Math.Max(1, Sheet?.FxFrames ?? 4), x, y, camX, camY, w, h, 36);
         }
+    }
+
+    private void DrawDiamond(DrawingContext context, double sx, double sy, string tile)
+    {
+        double hw = IsoProjection.TileW / 2;
+        double hh = IsoProjection.TileH / 2;
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(new Point(sx, sy - hh), true);
+            g.LineTo(new Point(sx + hw, sy));
+            g.LineTo(new Point(sx, sy + hh));
+            g.LineTo(new Point(sx - hw, sy));
+            g.EndFigure(true);
+        }
+        if (Sheet != null && Sheet.TryTile(tile, out var src))
+        {
+            using (context.PushGeometryClip(geo))
+                context.DrawImage(Sheet.Bitmap, src, new Rect(sx - hw, sy - hh, IsoProjection.TileW, IsoProjection.TileH));
+        }
+        else
+            context.DrawGeometry(Brush("#3C342C"), null, geo);
+        context.DrawGeometry(null, new Pen(Brush("#22000000"), 1), geo);
     }
 
     private static string TileName(WorldState world, int x, int y)
@@ -170,16 +204,19 @@ public sealed class WorldCanvas : Control
 
     private void DrawMarker(DrawingContext context, int gx, int gy, double camX, double camY, double w, double h)
     {
-        var (sx, sy) = GridToScreen(gx, gy, camX, camY, w, h);
-        double pulse = 4 + (AnimTime * 6 % 1) * 6;
+        var (sx, sy) = IsoProjection.ToScreen(gx, gy, camX, camY, w, h);
+        double hw = IsoProjection.TileW / 2 - 4;
+        double hh = IsoProjection.TileH / 2 - 3;
         var pen = new Pen(Brush("#D8FFB0"), 2);
-        context.DrawLine(pen, new Point(sx - pulse, sy), new Point(sx + pulse, sy));
-        context.DrawLine(pen, new Point(sx, sy - pulse * 0.6), new Point(sx, sy + pulse * 0.6));
+        context.DrawLine(pen, new Point(sx, sy - hh), new Point(sx + hw, sy));
+        context.DrawLine(pen, new Point(sx + hw, sy), new Point(sx, sy + hh));
+        context.DrawLine(pen, new Point(sx, sy + hh), new Point(sx - hw, sy));
+        context.DrawLine(pen, new Point(sx - hw, sy), new Point(sx, sy - hh));
     }
 
     private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h)
     {
-        var (sx, sy) = GridToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h);
+        var (sx, sy) = IsoProjection.ToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h);
         if (actor.Kind == EntityKind.EntityLoot)
         {
             DrawLoot(context, sx, sy);
@@ -193,8 +230,12 @@ public sealed class WorldCanvas : Control
         double lift = mounted ? 16 : 0;
         string sprite = MirSheet.ActorId(actor);
         string action = string.IsNullOrEmpty(actor.Pose) ? "idle" : actor.Pose;
-        if (!DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 64 : 48, actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 72 : 64))
+        double dw = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 64 : 48;
+        double dh = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 72 : 64;
+        if (!DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh))
             context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
+        if (actor.IsSelf && actor.Kind == EntityKind.EntityPlayer)
+            DrawGear(context, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
 
         if (world.SelectedId == actor.EntityId)
             context.DrawEllipse(null, new Pen(Brush("#F0D060"), 2), new Point(sx, sy + 8), 16, 7);
@@ -228,6 +269,20 @@ public sealed class WorldCanvas : Control
         using (context.PushTransform(Matrix.CreateScale(-1, 1)))
             context.DrawImage(Sheet.Bitmap, src, new Rect(-(sx + destW / 2), dest.Y, destW, destH));
         return true;
+    }
+
+    private void DrawGear(DrawingContext context, string action, int direction, double phase, double poseLock, double sx, double sy, double dw, double dh)
+    {
+        string armor = FashionOn ? "arm_fashion" : ArmorLayer;
+        if (!string.IsNullOrEmpty(armor))
+            DrawSprite(context, armor, action, direction, phase, poseLock, sx, sy, dw, dh);
+        if (!FashionOn && !string.IsNullOrEmpty(HelmetLayer))
+            DrawSprite(context, HelmetLayer, action, direction, phase, poseLock, sx, sy, dw, dh);
+        string weapon = WeaponLayer;
+        if (string.IsNullOrEmpty(weapon))
+            weapon = "";
+        if (!string.IsNullOrEmpty(weapon))
+            DrawSprite(context, weapon, action, direction, phase, poseLock, sx, sy, dw, dh);
     }
 
     private void DrawLoot(DrawingContext context, double sx, double sy)
@@ -268,13 +323,14 @@ public sealed class WorldCanvas : Control
 
     private void DrawFx(DrawingContext context, CastFx fx, double camX, double camY, double w, double h)
     {
-        int frame = Math.Clamp((int)(fx.Age * 8), 0, 3);
+        int frames = Math.Max(1, Sheet?.FxFrames ?? 4);
+        int frame = Math.Clamp((int)(fx.Age * 12), 0, frames - 1);
         DrawFxAt(context, string.IsNullOrEmpty(fx.Kind) ? "slash" : fx.Kind, frame, fx.GridX, fx.GridY, camX, camY, w, h, 56);
     }
 
     private void DrawFxAt(DrawingContext context, string name, int frame, double gx, double gy, double camX, double camY, double w, double h, double size)
     {
-        var (sx, sy) = GridToScreen(gx, gy, camX, camY, w, h);
+        var (sx, sy) = IsoProjection.ToScreen(gx, gy, camX, camY, w, h);
         if (Sheet != null && Sheet.TryFx(name, frame, out var src))
         {
             context.DrawImage(Sheet.Bitmap, src, new Rect(sx - size / 2, sy - size / 2, size, size));
@@ -285,7 +341,7 @@ public sealed class WorldCanvas : Control
 
     private static void DrawFloat(DrawingContext context, FloatText floater, double camX, double camY, double w, double h)
     {
-        var (sx, sy) = GridToScreen(floater.GridX, floater.GridY, camX, camY, w, h);
+        var (sx, sy) = IsoProjection.ToScreen(floater.GridX, floater.GridY, camX, camY, w, h);
         string hex = floater.Kind switch
         {
             FloatKind.Miss => "#C8C8C8",
@@ -305,8 +361,13 @@ public sealed class WorldCanvas : Control
         const double size = 132;
         double x0 = w - size - 14;
         double y0 = 28;
-        context.FillRectangle(Brush("#E8C872"), new Rect(x0 - 4, y0 - 18, size + 8, size + 22));
-        context.FillRectangle(Brush("#1A120C"), new Rect(x0 - 2, y0 - 16, size + 4, size + 18));
+        if (MirChrome.MapFrame != null)
+            context.FillRectangle(MirChrome.MapFrame, new Rect(x0 - 8, y0 - 22, size + 16, size + 36));
+        else
+        {
+            context.FillRectangle(Brush("#E8C872"), new Rect(x0 - 4, y0 - 18, size + 8, size + 22));
+            context.FillRectangle(Brush("#1A120C"), new Rect(x0 - 2, y0 - 16, size + 4, size + 18));
+        }
         var caption = new FormattedText("小地图", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 11, Brush("#E8C872"));
         context.DrawText(caption, new Point(x0, y0 - 16));
         double scale = size / Math.Max(world.Map.Width, world.Map.Height);
@@ -349,20 +410,6 @@ public sealed class WorldCanvas : Control
             EntityKind.EntityPet => "#8BD17C",
             _ => "#7EB6FF"
         };
-    }
-
-    private static (double sx, double sy) GridToScreen(double gx, double gy, double camX, double camY, double viewW, double viewH)
-    {
-        double sx = viewW / 2 + (gx - camX) * TileW;
-        double sy = viewH / 2 - (gy - camY) * TileH;
-        return (sx, sy);
-    }
-
-    private static (int gx, int gy) ScreenToGrid(double sx, double sy, double camX, double camY, double viewW, double viewH)
-    {
-        double gx = camX + (sx - viewW / 2) / TileW;
-        double gy = camY - (sy - viewH / 2) / TileH;
-        return ((int)Math.Round(gx), (int)Math.Round(gy));
     }
 
     private static readonly Dictionary<string, IBrush> Cache = new(StringComparer.Ordinal);

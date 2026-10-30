@@ -59,6 +59,7 @@ public sealed partial class GameWindow : Window
     private readonly ClassPortrait _preview = new() { Width = 88, Height = 112 };
     private DateTime _nextBossPoll = DateTime.MinValue;
     private bool _bossBusy;
+    private string _heardMap = "";
 
     private bool _bagOpen;
     private bool _moveBusy;
@@ -115,6 +116,10 @@ public sealed partial class GameWindow : Window
         _hpBar = Bar("#E01818");
         _mpBar = Bar("#1C6FE0");
         _expBar = Bar("#E0B030");
+        if (MirChrome.HpTrack != null)
+            _hpBar.Background = MirChrome.HpTrack;
+        if (MirChrome.MpTrack != null)
+            _mpBar.Background = MirChrome.MpTrack;
         _vitals = Label("");
         _target = Label("目标：无");
         _hint = Label("WASD 走 · Shift 跑 · 左键走/打/捡 · 右键跑/看 · F1–F8 技能 · F9 包 · F10 人物 · F11 技能 · Tab 地图 · Ctrl+H 模式 · Alt+X 选角");
@@ -230,6 +235,11 @@ public sealed partial class GameWindow : Window
             TickMove();
             TrackSafeZone();
             MaybePollBoss();
+            SyncGear();
+            string mapId = _session.World.Map.MapId;
+            if (_heardMap.Length > 0 && _heardMap != mapId)
+                _audio.PlayPortal();
+            _heardMap = mapId;
         }
         ApplyChrome();
         _canvas.InvalidateVisual();
@@ -709,6 +719,40 @@ public sealed partial class GameWindow : Window
         _bossText.Text = $"{boss.DisplayName}  {state}\n仇恨 {hate}";
     }
 
+    private void SyncGear()
+    {
+        string weapon = "";
+        string armor = "";
+        string helmet = "";
+        foreach (var eq in _session.Equipment)
+        {
+            if (string.IsNullOrEmpty(eq.ItemId))
+                continue;
+            string layer = ContentCatalog.Paperdoll(eq.ItemId);
+            if (layer.Length == 0)
+                continue;
+            if (eq.Slot.Contains("weapon", StringComparison.OrdinalIgnoreCase))
+                weapon = layer;
+            else if (string.Equals(eq.Slot, "armor", StringComparison.OrdinalIgnoreCase))
+                armor = layer;
+            else if (string.Equals(eq.Slot, "helmet", StringComparison.OrdinalIgnoreCase))
+                helmet = layer;
+        }
+        if (weapon.Length == 0)
+        {
+            weapon = (_session.ClassId ?? "").ToLowerInvariant() switch
+            {
+                "mage" => "wep_staff",
+                "taoist" => "wep_blade",
+                _ => "wep_sword"
+            };
+        }
+        _canvas.WeaponLayer = weapon;
+        _canvas.ArmorLayer = armor;
+        _canvas.HelmetLayer = helmet;
+        _canvas.FashionOn = !string.IsNullOrEmpty(_session.World.Self?.FashionId);
+    }
+
     private void MaybePollBoss()
     {
         if (_bossBusy || DateTime.UtcNow < _nextBossPoll)
@@ -1154,9 +1198,8 @@ public sealed partial class GameWindow : Window
         stack.Children.Add(new ScrollViewer { Content = _bagItems, MaxHeight = 320 });
         var border = new Border
         {
-            Background = Brush("#EE1C1612"),
-            BorderBrush = Brush("#E8C872"),
-            BorderThickness = new Avalonia.Thickness(1),
+            Background = MirChrome.BagFrame ?? Brush("#EE1C1612"),
+            BorderThickness = new Avalonia.Thickness(0),
             Padding = new Avalonia.Thickness(10),
             Child = stack,
             HorizontalAlignment = HorizontalAlignment.Right,

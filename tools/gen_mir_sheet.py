@@ -10,18 +10,21 @@ FRAME_H = 48
 LOGICAL_W = 16
 LOGICAL_H = 24
 DIRS = 5
-SLOTS = 6
+SLOTS = 10
 ACTIONS = ["idle", "walk", "run", "attack", "cast", "hit", "death"]
-ACTION_FRAMES = {"idle": 4, "walk": 6, "run": 6, "attack": 6, "cast": 6, "hit": 3, "death": 4}
+ACTION_FRAMES = {"idle": 8, "walk": 10, "run": 8, "attack": 10, "cast": 8, "hit": 4, "death": 8}
 ACTORS = [
     "war_m", "war_f", "mage_m", "mage_f", "tao_m", "tao_f",
     "fashion_m", "fashion_f", "npc",
     "slime", "boar", "bone", "crawler", "wraith", "dragon",
     "gate", "wall", "flag", "horse", "wolf",
+    "arm_cloth", "arm_leather", "arm_plate", "arm_fashion",
+    "helm_cloth", "helm_iron",
+    "wep_blade", "wep_sword", "wep_iron", "wep_staff",
 ]
 TILES = ["grass", "grass_b", "dirt", "path", "stone", "safe", "water", "wall", "tree", "portal"]
 FX = ["slash", "fire", "lightning", "heal", "level", "portal", "buff"]
-FX_FRAMES = 4
+FX_FRAMES = 6
 TILE = 32
 
 OUT = (18, 10, 8, 255)
@@ -95,20 +98,48 @@ def facing_name(d: int) -> str:
     return ["back", "ne", "side", "se", "front"][d]
 
 
+def motion(action: str, frame: int) -> tuple[int, int]:
+    import math
+    count = ACTION_FRAMES.get(action, 6)
+    if action not in ("walk", "run"):
+        return 0, 0
+    phase = frame / max(1, count) * math.tau
+    amp = 3 if action == "run" else 2
+    bob = 1 if math.sin(phase * 2) > 0 else 0
+    if action == "run":
+        bob += 1
+    stride = int(round(math.sin(phase) * amp))
+    return bob, stride
+
+
+def layer_kind(actor: str) -> str:
+    if actor.startswith("arm_"):
+        return "armor"
+    if actor.startswith("helm_"):
+        return "helm"
+    if actor.startswith("wep_"):
+        return "weapon"
+    return "body"
+
+
 def draw_human(img, ox, oy, facing, action, frame, actor) -> None:
     pal = palette(actor)
+    part = layer_kind(actor)
+    if actor.startswith("arm_cloth"):
+        pal = {**pal, "cloth": (176, 148, 96, 255), "dark": (120, 92, 54, 255), "metal": GOLD}
+    elif actor.startswith("arm_leather"):
+        pal = {**pal, "cloth": (112, 68, 36, 255), "dark": (70, 40, 22, 255), "metal": (160, 120, 60, 255)}
+    elif actor.startswith("arm_plate"):
+        pal = {**pal, "cloth": STEEL, "dark": STEEL_D, "metal": GOLD}
+    elif actor.startswith("arm_fashion"):
+        pal = {**pal, "cloth": FASH, "dark": FASH_D, "metal": GOLD}
     pen = Pen(img, ox, oy)
-    if action == "death":
-        draw_corpse(pen, frame, pal)
+    if action == "death" and part == "body":
+        draw_corpse(pen, min(frame, 3), pal)
         return
-    bob = 0
-    stride = 0
-    if action in ("walk", "run"):
-        bob = [0, 1, 0, 0, 1, 0][frame % 6]
-        stride = [0, 2, 3, 1, -2, -3][frame % 6]
-        if action == "run":
-            bob += 1
-            stride = int(stride * 1.5)
+    if action == "death" and part != "body":
+        return
+    bob, stride = motion(action, frame)
     flinch = 1 if action == "hit" and frame == 0 else 0
     y0 = 1 + bob
     side = facing in ("side", "se", "ne")
@@ -118,7 +149,20 @@ def draw_human(img, ox, oy, facing, action, frame, actor) -> None:
     shift += flinch if facing == "side" else 0
 
     for lx in range(5, 11):
-        pen.pix(lx, 22, SHADOW)
+        if part == "body":
+            pen.pix(lx, 22, SHADOW)
+
+    if part in ("helm", "weapon"):
+        draw_weapon(pen, actor, facing, action, frame, shift, y0, pal) if part == "weapon" else draw_helmet(pen, actor, shift, y0, pal)
+        return
+
+    if part == "armor":
+        shoulder = 4
+        pen.block(shoulder + shift, 8 + y0, 9, 8, pal["cloth"])
+        pen.block(6 + shift, 14 + y0, 4, 2, pal["metal"])
+        pen.block(3 + shift, 8 + y0, 3, 3, pal["dark"])
+        pen.block(11 + shift, 8 + y0, 3, 3, pal["dark"])
+        return
 
     # legs
     if side:
@@ -141,7 +185,7 @@ def draw_human(img, ox, oy, facing, action, frame, actor) -> None:
     # cape on back / 3/4
     if back or actor.startswith("war") or actor.startswith("fashion"):
         cape = CAPE if not actor.startswith("fashion") else FASH_D
-        sway = [0, 1, 0, -1, 0, 1][frame % 6] if action in ("walk", "run") else 0
+        sway = int(round(stride / 3)) if action in ("walk", "run") else 0
         pen.block(4 + shift + sway, 9 + y0, 2, 8, cape)
 
     # head
@@ -168,30 +212,39 @@ def draw_human(img, ox, oy, facing, action, frame, actor) -> None:
         pen.block(5 + shift, 1 + y0, 6, 2, (92, 48, 28, 255))
         pen.block(4 + shift, 3 + y0, 8, 2, (70, 36, 20, 255))
     else:
-        pen.block(5 + shift, 2 + y0, 6, 2, and_helmet(pal))
-        pen.pix(7 + shift, 2 + y0, GOLD)
+        pen.block(5 + shift, 2 + y0, 6, 2, pal["hair"])
         if pal["female"]:
-            pen.block(4 + shift, 4 + y0, 2, 5, pal["hair"])
-
-    draw_weapon(pen, actor, facing, action, frame, shift, y0, pal)
+            pen.block(4 + shift, 4 + y0, 2, 6, pal["hair"])
 
 
 def and_helmet(pal):
     return pal["dark"]
 
 
+def draw_helmet(pen, actor, shift, y0, pal) -> None:
+    if "iron" in actor:
+        pen.block(5 + shift, 2 + y0, 6, 3, STEEL)
+        pen.pix(7 + shift, 1 + y0, GOLD)
+        pen.pix(8 + shift, 1 + y0, GOLD)
+    else:
+        pen.block(5 + shift, 2 + y0, 6, 2, (150, 92, 48, 255))
+        pen.pix(7 + shift, 2 + y0, GOLD)
+
+
 def draw_weapon(pen, actor, facing, action, frame, shift, y0, pal) -> None:
-    metal = pal["metal"]
-    # attack arc: 6 frames from raised to extended
-    swing = [(-2, -6), (-1, -8), (2, -7), (5, -3), (6, 1), (4, 3)]
+    count = max(1, ACTION_FRAMES.get(action, 6))
+    t = frame / count
     if action == "attack":
-        dx, dy = swing[frame % 6]
+        arc = [(-2, -6), (-1, -8), (0, -8), (2, -7), (4, -4), (5, -2), (6, 0), (6, 2), (4, 3), (2, 2)]
+        dx, dy = arc[min(frame, len(arc) - 1)]
     elif action == "cast":
-        dx, dy = (3, -4)
+        dx, dy = (3, -5 + int(t * 3))
     else:
         dx, dy = (4, 0)
+    length = 5 if "blade" in actor else 9 if "iron" in actor else 7
+    color = (150, 96, 48, 255) if "blade" in actor else (230, 232, 236, 255)
     hx, hy = 11 + shift + dx, 10 + y0 + dy
-    if actor.startswith("mage") or actor == "npc":
+    if "staff" in actor or actor.startswith("mage") or actor == "npc":
         pen.block(hx, hy, 1, 8, (92, 64, 40, 255))
         pen.pix(hx, hy - 1, GOLD if action != "cast" else (255, 220, 120, 255))
         if action == "cast":
@@ -203,7 +256,7 @@ def draw_weapon(pen, actor, facing, action, frame, shift, y0, pal) -> None:
         else:
             pen.block(hx, hy, 1, 6, (70, 90, 70, 255))
     else:
-        pen.block(hx, hy, 1, 7, (210, 214, 220, 255))
+        pen.block(hx, hy, 1, length, color)
         pen.pix(hx, hy, GOLD)
         pen.pix(hx - 1, hy, GOLD)
         if action == "attack" and frame in (2, 3, 4):
@@ -545,6 +598,46 @@ def paint_fx(img, name, index, frame) -> None:
             dot(cx, cy - 4 + i, col)
 
 
+def fill(im, x, y, w, h, color) -> None:
+    for yy in range(h):
+        for xx in range(w):
+            im.putpixel((x + xx, y + yy), color)
+
+
+def frame_box(im, x, y, w, h, fill_c, edge) -> None:
+    fill(im, x, y, w, h, fill_c)
+    for i in range(w):
+        im.putpixel((x + i, y), edge)
+        im.putpixel((x + i, y + h - 1), edge)
+        if h > 3:
+            im.putpixel((x + i, y + 1), (90, 62, 28, 255))
+            im.putpixel((x + i, y + h - 2), (40, 24, 12, 255))
+    for i in range(h):
+        im.putpixel((x, y + i), edge)
+        im.putpixel((x + w - 1, y + i), edge)
+
+
+def paint_ui(path: Path) -> None:
+    im = Image.new("RGBA", (512, 360), (0, 0, 0, 0))
+    wood = (62, 38, 22, 255)
+    wood_d = (36, 22, 14, 255)
+    edge = (214, 168, 64, 255)
+    frame_box(im, 0, 0, 80, 44, wood, edge)
+    frame_box(im, 8, 8, 64, 28, wood_d, (120, 86, 40, 255))
+    frame_box(im, 0, 48, 180, 18, (42, 12, 12, 255), edge)
+    frame_box(im, 0, 70, 180, 18, (12, 18, 48, 255), edge)
+    frame_box(im, 0, 96, 512, 110, wood, edge)
+    for x in range(16, 500, 36):
+        im.putpixel((x, 104), edge)
+        im.putpixel((x + 1, 104), edge)
+    frame_box(im, 200, 0, 150, 150, wood, edge)
+    frame_box(im, 208, 16, 134, 126, (18, 16, 14, 255), (120, 86, 40, 255))
+    frame_box(im, 360, 160, 148, 190, wood, edge)
+    frame_box(im, 368, 176, 132, 166, wood_d, (120, 86, 40, 255))
+    im.save(path, optimize=True)
+    print(f"wrote {path} bytes={path.stat().st_size}")
+
+
 def main() -> None:
     img, char_h = new_canvas()
     for ai, actor in enumerate(ACTORS):
@@ -598,6 +691,7 @@ def main() -> None:
     }
     out_json.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {out_png} {img.size} bytes={out_png.stat().st_size}")
+    paint_ui(root / "client/Legend.Playable/Assets/ui_chrome.png")
 
 
 if __name__ == "__main__":
