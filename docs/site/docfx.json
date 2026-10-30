@@ -19,7 +19,9 @@
           "PUBLIC_DEPLOY_BUDGET.md",
           "UNITY_CLIENT_MVP.md",
           "UNITY_CLIENT_UGUI.md",
-          "ANDROID_BUILD.md"
+          "ANDROID_BUILD.md",
+          "ENGINE_REFACTOR_PLAN.md",
+          "ENGINE_LAYER_CONTRACTS.md"
         ],
         "src": "..",
         "dest": "existing"

@@ -121,4 +121,4 @@ manifest 引用地图、职业、技能、怪物、掉落、NPC、商店、任�
 2. **只读查询**。若脚本需要读等级，增加 `legend_api.get_level()` 这类明确方法，返回值拷贝。不把角色对象整个塞进 Lua。
 3. **客户端布局数据**。JSON 描述面板，见 [19](19-client-ui-controls.md)。这不是元变量系统。
 4. **更多发奖 API**。在 `grant_starter_item` 之外增加 `grant_item(characterId, itemId, count)` 前，先定权限与审计日志。
-5. **配置校验器**。`tools/Legend.MapValidate` 已覆盖地图。物品、技能、任务的交叉引用（掉落 id、NPC id）应同样在加载期失败，而不是进世界才空指针。
+5. **配置校验器**。E0 起，地图与物品在 `VersionPackLoader` 里按 JSON Schema 子集校验，Host 启动失败即停，热更失败回滚。计划见仓库 `docs/ENGINE_REFACTOR_PLAN.md`。`tools/Legend.MapValidate` 仍做地图语义检查。技能、任务、掉落 id、NPC id 的交叉引用在后续里程碑补齐，不在进世界后才暴露空引用。
