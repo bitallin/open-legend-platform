@@ -172,7 +172,17 @@ public enum MsgId : ushort
     PaymentCreateOrderResp = 3802,
     PaymentOrderStatusReq = 3803,
     PaymentOrderStatusResp = 3804,
-    PaymentFulfilledNotify = 3805
+    PaymentFulfilledNotify = 3805,
+    ShopSellReq = 3901,
+    ShopSellResp = 3902,
+    RepairReq = 3903,
+    RepairResp = 3904,
+    StorageListReq = 3905,
+    StorageListResp = 3906,
+    StorageDepositReq = 3907,
+    StorageDepositResp = 3908,
+    StorageWithdrawReq = 3909,
+    StorageWithdrawResp = 3910
 }
 
 

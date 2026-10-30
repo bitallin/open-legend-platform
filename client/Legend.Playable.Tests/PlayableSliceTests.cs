@@ -3,6 +3,8 @@ using Legend.Contracts;
 using Legend.Contracts.Proto;
 using Legend.Playable;
 using Legend.Playable.Audio;
+using Legend.Playable.Data;
+using Legend.Playable.Input;
 using Legend.Playable.World;
 
 namespace Legend.Playable.Tests;
@@ -60,7 +62,7 @@ public class PlayableSliceTests
     {
         var map = MapCatalog.Get("novice_plain");
         Assert.Equal(64, map.Width);
-        Assert.Equal("曙光平原（原创）", map.MapName);
+        Assert.Equal("曙光镇外（原创，对照新手主城）", map.MapName);
         Assert.True(map.IsSafe(10, 10));
         Assert.True(map.IsSafe(5, 5));
         Assert.False(map.IsSafe(30, 30));
@@ -137,5 +139,63 @@ public class PlayableSliceTests
     public void SmokeCheck_ExitsZero()
     {
         Assert.Equal(0, SmokeCheck.Run());
+    }
+
+    [Fact]
+    public void ClassicChat_Prefixes()
+    {
+        var shout = ClassicChat.Parse("!你好", ChatChannel.ChatNearby, "");
+        Assert.Equal(ChatChannel.ChatWorld, shout.Channel);
+        Assert.Equal("你好", shout.Content);
+        var guild = ClassicChat.Parse("!!集合", ChatChannel.ChatNearby, "");
+        Assert.Equal(ChatChannel.ChatGuild, guild.Channel);
+        var party = ClassicChat.Parse("!~跟上", ChatChannel.ChatNearby, "");
+        Assert.Equal(ChatChannel.ChatParty, party.Channel);
+        var whisper = ClassicChat.Parse("@阿福 在吗", ChatChannel.ChatNearby, "");
+        Assert.Equal(ChatChannel.ChatWhisper, whisper.Channel);
+        Assert.Equal("阿福", whisper.TargetName);
+        Assert.Equal("在吗", whisper.Content);
+    }
+
+    [Fact]
+    public void ClassicPointer_AndAttackMode()
+    {
+        Assert.Equal(ClickAction.Run, ClassicPointer.Resolve(right: true, shift: false, ctrl: false, alt: false, kind: null, doubleClick: false));
+        Assert.Equal(ClickAction.Examine, ClassicPointer.Resolve(true, false, false, false, "monster", false));
+        Assert.Equal(ClickAction.ForceAttack, ClassicPointer.Resolve(false, true, false, false, "monster", false));
+        Assert.Equal(ClickAction.Dig, ClassicPointer.Resolve(false, false, false, true, null, false));
+        Assert.Equal(AttackMode.GoodEvil, AttackModes.Next(AttackMode.Peace));
+        Assert.False(AttackModes.CanAttack(AttackMode.Peace, isMonster: false, false, false, force: false));
+        Assert.True(AttackModes.CanAttack(AttackMode.Peace, isMonster: true, false, false, force: false));
+        Assert.True(AttackModes.CanAttack(AttackMode.Peace, isMonster: false, false, false, force: true));
+    }
+
+    [Fact]
+    public void Catalog_HasClassSkills_AndSellRepairRules()
+    {
+        Assert.Contains(ContentCatalog.Skills, s => s.SkillId == "heal" && s.Kind == "heal");
+        Assert.Contains(ContentCatalog.Skills, s => s.SkillId == "blink" && s.Kind == "teleport");
+        Assert.Equal("基本剑术", ContentCatalog.FindSkill("basic_slash")!.DisplayName);
+        Assert.Equal(8, ContentCatalog.DefaultBar("taoist").Count);
+        var item = new ItemTemplate { ItemId = "item_hp_potion", SellPriceGold = 4 };
+        Assert.Equal(4, PhaseLRules.SellUnitPrice(item, null));
+        Assert.Equal(14, PhaseLRules.RepairCost(new[]
+        {
+            new EquippedItemState { Slot = "weapon", EnhanceLevel = 1 }
+        }, ""));
+        var quest = new QuestTemplate { PrerequisiteQuestId = "quest_slime_hunt" };
+        Assert.False(PhaseLRules.PrerequisiteMet(quest, new[] { new QuestProgressState { QuestId = "quest_slime_hunt", Status = "active" } }));
+        Assert.True(PhaseLRules.PrerequisiteMet(quest, new[] { new QuestProgressState { QuestId = "quest_slime_hunt", Status = "completed" } }));
+    }
+
+    [Fact]
+    public void StarterRouteMaps_Load()
+    {
+        var marsh = MapCatalog.Get("marsh_den");
+        var bone = MapCatalog.Get("bone_path");
+        Assert.Equal("沼窟外廊（原创，对照兽穴入口）", marsh.MapName);
+        Assert.True(marsh.IsPortal(34, 16));
+        Assert.Equal("骨脊小径（原创，对照骨洞路径）", bone.MapName);
+        Assert.Equal("骨片", ContentCatalog.ItemName("item_bone_chip"));
     }
 }

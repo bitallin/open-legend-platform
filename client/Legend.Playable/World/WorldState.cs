@@ -10,6 +10,14 @@ public enum FloatKind
     Kill
 }
 
+public sealed class CastFx
+{
+    public double GridX { get; init; }
+    public double GridY { get; init; }
+    public string School { get; init; } = "warrior";
+    public double Age { get; set; }
+}
+
 public sealed class FloatText
 {
     public double GridX { get; init; }
@@ -41,6 +49,7 @@ public sealed class WorldState
 
     public IReadOnlyDictionary<string, ActorView> Actors => _actors;
     public List<FloatText> Floats { get; } = new();
+    public List<CastFx> Effects { get; } = new();
     public MapLayout Map { get; private set; } = MapCatalog.Get("novice_plain");
     public string? SelfId { get; private set; }
     public string? SelectedId { get; set; }
@@ -199,6 +208,11 @@ public sealed class WorldState
         });
     }
 
+    public void AddCast(double x, double y, string school)
+    {
+        Effects.Add(new CastFx { GridX = x, GridY = y, School = school });
+    }
+
     public bool TryNextStep(out int toX, out int toY, out int dir)
     {
         toX = 0;
@@ -279,6 +293,12 @@ public sealed class WorldState
             Floats[i].Age += dt;
             if (Floats[i].Age > 0.9)
                 Floats.RemoveAt(i);
+        }
+        for (int i = Effects.Count - 1; i >= 0; i--)
+        {
+            Effects[i].Age += dt;
+            if (Effects[i].Age > 0.45)
+                Effects.RemoveAt(i);
         }
     }
 }

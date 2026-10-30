@@ -5,13 +5,15 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Legend.ClientCore;
 using Legend.Contracts.Proto;
+using Legend.Playable.Data;
 using Legend.Playable.Audio;
+using Legend.Playable.Input;
 using Legend.Playable.Session;
 using Legend.Playable.World;
 
 namespace Legend.Playable.Ui;
 
-public sealed class GameWindow : Window
+public sealed partial class GameWindow : Window
 {
     private readonly PlayableSession _session = new();
     private readonly PlayableAudio _audio = new();
@@ -49,7 +51,6 @@ public sealed class GameWindow : Window
     private readonly TextBlock _reconnectText;
 
     private bool _bagOpen;
-    private bool _chatNearby;
     private bool _moveBusy;
     private bool _pendingAttack;
     private bool _pendingPickup;
@@ -99,13 +100,14 @@ public sealed class GameWindow : Window
         _mpBar = Bar("#3D6FBF");
         _vitals = Label("");
         _target = Label("目标：无");
-        _hint = Label("WASD 移动 · 左键点地/选中 · 右键/Space/J 攻击 · Tab 目标 · B 背包 · Enter 聊天 · Z 拾取");
+        _hint = Label("WASD 走 · Shift 跑 · 左键走/打/捡 · 右键跑/看 · F1–F8 技能 · F9 包 · F10 人物 · F11 技能 · Tab 地图 · Ctrl+H 模式");
         _hint.Opacity = 0.75;
         _hint.FontSize = 11;
         _chatLog = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Brushes.White };
         _chatScroll = new ScrollViewer { Content = _chatLog, Height = 92 };
         _chatInput = Field("", "说点什么…");
         _hud = BuildHud();
+        AttachPhaseL(_hud);
 
         _bagItems = new StackPanel { Spacing = 4 };
         _bagGold = Label("");
@@ -115,10 +117,10 @@ public sealed class GameWindow : Window
         _reconnect = BuildReconnect();
 
         _canvas.World = _session.World;
-        _canvas.WorldPressed += (point, right) =>
+        _canvas.WorldPressed += (point, right, shift, ctrl, alt, clicks) =>
         {
             _canvas.Focus();
-            OnWorld(point, right);
+            OnWorld(point, right, shift, ctrl, alt, clicks);
         };
 
         var root = new Grid();
@@ -130,7 +132,9 @@ public sealed class GameWindow : Window
         root.Children.Add(_reconnect);
         Content = root;
 
-        _session.EnteredWorld += () => _audio.PlayWorldBgm();
+        _session.EnteredWorld += () => _audio.PlayForMap(_session.World.Map.MapId, _session.World.Self?.InSafeZone == true);
+        _session.LeveledUp += () => _audio.PlayLevel();
+        _session.MetaChanged += () => { };
         _session.PickedUp += () => _audio.PlayPickup();
         _session.CombatSeen += OnCombat;
         _session.Disconnected += () =>
@@ -177,6 +181,7 @@ public sealed class GameWindow : Window
         _lastTick = now;
         _session.Pump();
         _session.World.Tick(dt);
+        _canvas.AnimTime += dt;
         _canvas.ToastAge += dt;
         if (_session.Fsm.Phase == SessionPhase.InWorld)
         {
@@ -253,10 +258,14 @@ public sealed class GameWindow : Window
         if (_moveBusy)
             return;
         _moveBusy = true;
-        _nextMove = DateTime.UtcNow.AddSeconds(PlayableTuning.MoveCooldownSec);
+        _nextMove = DateTime.UtcNow.AddSeconds(_mouseRun || _held.Contains(Key.LeftShift) || _held.Contains(Key.RightShift)
+            ? 0.1
+            : 0.22);
         try
         {
             var sync = await _session.MoveAsync(x, y, dir);
+            if (sync != null && sync.Accepted)
+                _audio.PlayStep();
             if (sync != null && !sync.Accepted && !fromKeyboard)
             {
                 _session.World.ClearGoal();
@@ -275,7 +284,7 @@ public sealed class GameWindow : Window
         }
     }
 
-    private void OnWorld(Avalonia.Point point, bool right)
+    private void OnWorld(Avalonia.Point point, bool right, bool shift, bool ctrl, bool alt, int clicks)
     {
         if (_session.Fsm.Phase != SessionPhase.InWorld)
             return;
@@ -283,51 +292,82 @@ public sealed class GameWindow : Window
         if (self == null)
             return;
         string? hit = _canvas.HitTest(point);
-        if (right)
+        var actor = hit == null ? null : _session.World.Get(hit);
+        string? kind = actor == null ? null : actor.Kind switch
         {
-            if (hit != null)
-                _session.World.SelectedId = hit;
-            _ = Attack(SelectedMonsterOrNearest());
-            return;
-        }
-
+            EntityKind.EntityMonster => "monster",
+            EntityKind.EntityLoot => "loot",
+            EntityKind.EntityNpc => "npc",
+            EntityKind.EntityPlayer => "player",
+            _ => "other"
+        };
+        var action = ClassicPointer.Resolve(right, shift, ctrl, alt, kind, clicks >= 2);
         if (hit != null)
-        {
-            var actor = _session.World.Get(hit);
             _session.World.SelectedId = hit;
-            if (actor == null || actor.IsSelf)
+        switch (action)
+        {
+            case ClickAction.Examine:
+                Examine(actor);
                 return;
-            int dist = GridMath.Chebyshev(self.GridX, self.GridY, actor.GridX, actor.GridY);
-            if (actor.Kind == EntityKind.EntityLoot)
-            {
-                BeginApproach(hit, attack: false, dist, PlayableTuning.PickupRange);
+            case ClickAction.Dig:
+                Dig();
                 return;
-            }
-            if (actor.Kind == EntityKind.EntityMonster)
-            {
-                BeginApproach(hit, attack: true, dist, PlayableTuning.AttackRange);
+            case ClickAction.Run:
+                _mouseRun = true;
+                if (actor != null && kind is "monster" or "player")
+                {
+                    _session.World.SetGoal(actor.GridX, actor.GridY);
+                    return;
+                }
+                if (_canvas.TryScreenToGrid(point, out int rx, out int ry))
+                {
+                    ClearApproach();
+                    _session.World.SetGoal(rx, ry);
+                }
                 return;
-            }
-            if (actor.Kind == EntityKind.EntityNpc)
-            {
-                if (dist <= PlayableTuning.TalkRange)
-                    _ = Talk(hit);
+            case ClickAction.ForceAttack:
+                _mouseRun = false;
+                if (actor != null && kind is "monster" or "player")
+                    BeginAttack(actor, force: true);
+                else
+                    _ = Attack(SelectedMonsterOrNearest(), PlayableTuning.BasicSkillId, force: true);
+                return;
+            case ClickAction.Pickup:
+                _mouseRun = false;
+                if (actor != null)
+                    BeginApproach(actor.EntityId, attack: false,
+                        GridMath.Chebyshev(self.GridX, self.GridY, actor.GridX, actor.GridY),
+                        PlayableTuning.PickupRange);
+                return;
+            case ClickAction.Talk:
+                _mouseRun = false;
+                if (actor == null)
+                    return;
+                int talkDist = GridMath.Chebyshev(self.GridX, self.GridY, actor.GridX, actor.GridY);
+                if (talkDist <= PlayableTuning.TalkRange)
+                    _ = Talk(actor.EntityId);
                 else
                 {
                     ClearApproach();
                     _pendingTalk = true;
-                    _pendingId = hit;
+                    _pendingId = actor.EntityId;
                     _session.World.SetGoal(actor.GridX, actor.GridY);
                     Toast("靠近 " + actor.Name);
                 }
-            }
-            return;
-        }
-
-        if (_canvas.TryScreenToGrid(point, out int gx, out int gy))
-        {
-            ClearApproach();
-            _session.World.SetGoal(gx, gy);
+                return;
+            case ClickAction.Attack:
+                _mouseRun = false;
+                if (actor != null)
+                    BeginAttack(actor, force: false);
+                return;
+            default:
+                _mouseRun = false;
+                if (_canvas.TryScreenToGrid(point, out int gx, out int gy))
+                {
+                    ClearApproach();
+                    _session.World.SetGoal(gx, gy);
+                }
+                return;
         }
     }
 
@@ -358,26 +398,43 @@ public sealed class GameWindow : Window
         Toast(attack ? "正在接近目标" : "正在靠近掉落");
     }
 
-    private async Task Attack(string? targetId)
+    private async Task Attack(string? targetId, string? skillId = null, bool force = false)
     {
-        if (string.IsNullOrEmpty(targetId))
+        string skill = string.IsNullOrWhiteSpace(skillId) ? PlayableTuning.BasicSkillId : skillId;
+        var def = ContentCatalog.FindSkill(skill);
+        bool support = def != null && def.Kind is "heal" or "buff" or "summon" or "teleport";
+        if (!support && string.IsNullOrEmpty(targetId))
         {
             Toast("附近没有可攻击目标");
             return;
         }
         var self = _session.World.Self;
-        if (self != null && self.InSafeZone)
+        if (!support && self != null && self.InSafeZone)
         {
             Toast("安全区内无法攻击");
             return;
         }
+        var target = string.IsNullOrEmpty(targetId) ? null : _session.World.Get(targetId);
+        if (!support && target != null && target.Kind == EntityKind.EntityPlayer &&
+            !AttackModes.CanAttack(_attackMode, false, sameParty: false, sameGuild: false, force))
+        {
+            Toast($"{AttackModes.Label(_attackMode)}模式不能攻击玩家");
+            return;
+        }
+        if (support)
+            targetId = self?.EntityId ?? targetId;
         if (DateTime.UtcNow < _nextAttack)
             return;
-        _nextAttack = DateTime.UtcNow.AddSeconds(PlayableTuning.AttackCooldownSec);
-        _audio.PlayAttack();
+        _nextAttack = DateTime.UtcNow.AddSeconds(Math.Max(0.2, (def?.CooldownMs ?? 600) / 1000.0));
+        if (support)
+            _audio.PlayCast(def?.School);
+        else
+            _audio.PlayAttack();
+        if (self != null)
+            _session.World.AddCast(self.DrawX, self.DrawY, def?.School ?? "warrior");
         try
         {
-            var resp = await _session.AttackAsync(targetId);
+            var resp = await _session.AttackAsync(targetId ?? "", skill);
             if (resp != null && !resp.Success && !string.IsNullOrWhiteSpace(resp.Message))
                 Toast(resp.Message);
         }
@@ -408,8 +465,12 @@ public sealed class GameWindow : Window
         try
         {
             var resp = await _session.TalkAsync(id);
-            if (resp != null && resp.Success && !string.IsNullOrWhiteSpace(resp.Dialogue))
-                Toast(resp.Dialogue);
+            if (resp != null && resp.Success)
+            {
+                if (!string.IsNullOrWhiteSpace(resp.Dialogue))
+                    Toast(resp.Dialogue);
+                OpenNpcPanel(resp);
+            }
             else if (resp != null && !resp.Success)
                 Toast(resp.Message);
         }
@@ -439,7 +500,12 @@ public sealed class GameWindow : Window
         if (cs.Result is not CombatResultKind.CombatMiss and not CombatResultKind.CombatHeal)
             _audio.PlayHit();
         if (_session.World.Self != null && cs.TargetEntityId == _session.World.Self.EntityId && cs.TargetDied)
-            Toast("你已死亡（服务器将复活到出生点）");
+        {
+            _audio.PlayDeath();
+            Toast("你已死亡，服务器会把你复活到出生点");
+        }
+        else if (cs.TargetDied)
+            _audio.PlayMonster();
     }
 
     private void TrackSafeZone()
@@ -449,6 +515,7 @@ public sealed class GameWindow : Window
             return;
         _lastSafe = safe;
         Toast(safe ? "进入安全区" : "离开安全区");
+        _audio.PlayForMap(_session.World.Map.MapId, safe);
     }
 
     private void ApplyChrome()
@@ -517,6 +584,7 @@ public sealed class GameWindow : Window
             _bagFp = fp;
             RebuildBag();
         }
+        RefreshPhaseL();
     }
 
     private void RebuildChars()
@@ -590,6 +658,7 @@ public sealed class GameWindow : Window
         if (e.Key == Key.Escape)
         {
             _bagOpen = false;
+            ClosePhaseLPanels();
             _canvas.Focus();
             e.Handled = true;
             return;
@@ -603,20 +672,24 @@ public sealed class GameWindow : Window
             return;
         if (_session.Fsm.Phase != SessionPhase.InWorld)
             return;
+        if (TryPhaseLKey(e))
+            return;
         switch (e.Key)
         {
             case Key.Space:
             case Key.J:
-                _ = Attack(SelectedMonsterOrNearest());
+                _ = Attack(SelectedMonsterOrNearest(), PlayableTuning.BasicSkillId);
                 e.Handled = true;
                 break;
-            case Key.Tab:
+            case Key.Oem3:
+            {
                 var next = _session.World.CycleMonster(_session.World.SelectedId);
                 _session.World.SelectedId = next;
                 if (next != null)
                     Toast("目标 " + (_session.World.Get(next)?.Name ?? next));
                 e.Handled = true;
                 break;
+            }
             case Key.B:
                 _bagOpen = !_bagOpen;
                 _audio.PlayUiClick();
@@ -662,13 +735,20 @@ public sealed class GameWindow : Window
             return;
         }
         _chatInput.Text = "";
-        var channel = _chatNearby ? ChatChannel.ChatNearby : ChatChannel.ChatWorld;
-        _ = SendChat(channel, text);
+        var route = ClassicChat.Parse(text, _chatChannel, _whisperName.Text ?? "");
+        if (route.Error != null)
+        {
+            Toast(route.Error);
+            return;
+        }
+        if (route.Content.Length == 0)
+            return;
+        _ = SendChat(route.Channel, route.Content, route.TargetName);
     }
 
-    private async Task SendChat(ChatChannel channel, string text)
+    private async Task SendChat(ChatChannel channel, string text, string? target = null)
     {
-        try { await _session.SendChatAsync(channel, text); }
+        try { await _session.SendChatAsync(channel, text, target); }
         catch (Exception ex) { Toast(ex.Message); }
     }
 
@@ -850,8 +930,8 @@ public sealed class GameWindow : Window
         };
         var worldBtn = Small("世界");
         var nearBtn = Small("附近");
-        worldBtn.Click += (_, _) => { _chatNearby = false; _audio.PlayUiClick(); worldBtn.FontWeight = FontWeight.Bold; nearBtn.FontWeight = FontWeight.Normal; };
-        nearBtn.Click += (_, _) => { _chatNearby = true; _audio.PlayUiClick(); nearBtn.FontWeight = FontWeight.Bold; worldBtn.FontWeight = FontWeight.Normal; };
+        worldBtn.Click += (_, _) => { _chatChannel = ChatChannel.ChatWorld; _audio.PlayUiClick(); worldBtn.FontWeight = FontWeight.Bold; nearBtn.FontWeight = FontWeight.Normal; };
+        nearBtn.Click += (_, _) => { _chatChannel = ChatChannel.ChatNearby; _audio.PlayUiClick(); nearBtn.FontWeight = FontWeight.Bold; worldBtn.FontWeight = FontWeight.Normal; };
         worldBtn.FontWeight = FontWeight.Bold;
         var channel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         channel.Children.Add(worldBtn);
@@ -924,9 +1004,9 @@ public sealed class GameWindow : Window
 
     private static readonly ClassChoice[] ClassChoices =
     {
-        new("warrior", "武者"),
-        new("mage", "术士"),
-        new("taoist", "灵师")
+        new("warrior", "武者 · 战"),
+        new("mage", "术士 · 法"),
+        new("taoist", "灵师 · 道")
     };
 
     private static string ClassLabel(string id)

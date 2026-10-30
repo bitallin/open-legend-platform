@@ -46,6 +46,14 @@
       "targetMapId": "novice_plain",
       "targetX": 28,
       "targetY": 10
+    },
+    {
+      "portalId": "to_bone",
+      "x": 30,
+      "y": 20,
+      "targetMapId": "bone_path",
+      "targetX": 6,
+      "targetY": 6
     }
   ]
 }

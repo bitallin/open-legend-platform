@@ -1,0 +1,43 @@
+{
+  "mapId": "bone_path",
+  "mapName": "骨脊小径（原创，对照骨洞路径）",
+  "width": 36,
+  "height": 28,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 5,
+  "spawnY": 8,
+  "blockedCells": [
+    {
+      "x": 12,
+      "y": 6
+    },
+    {
+      "x": 13,
+      "y": 6
+    },
+    {
+      "x": 12,
+      "y": 7
+    }
+  ],
+  "safeZones": [],
+  "portals": [
+    {
+      "portalId": "back_marsh",
+      "x": 4,
+      "y": 10,
+      "targetMapId": "marsh_den",
+      "targetX": 32,
+      "targetY": 16
+    },
+    {
+      "portalId": "back_forest",
+      "x": 30,
+      "y": 8,
+      "targetMapId": "dark_forest",
+      "targetX": 28,
+      "targetY": 20
+    }
+  ]
+}

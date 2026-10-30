@@ -43,5 +43,39 @@
         "chance": 1.0
       }
     ]
+  },
+  {
+    "lootTableId": "marsh_basic",
+    "entries": [
+      {
+        "itemId": "item_marsh_hide",
+        "countMin": 1,
+        "countMax": 1,
+        "chance": 1.0
+      },
+      {
+        "itemId": "item_hp_potion",
+        "countMin": 1,
+        "countMax": 1,
+        "chance": 0.35
+      }
+    ]
+  },
+  {
+    "lootTableId": "bone_basic",
+    "entries": [
+      {
+        "itemId": "item_bone_chip",
+        "countMin": 1,
+        "countMax": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "item_copper_coin",
+        "countMin": 2,
+        "countMax": 6,
+        "chance": 0.8
+      }
+    ]
   }
 ]

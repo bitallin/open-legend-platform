@@ -67,7 +67,9 @@ public sealed partial class GameWorldModule : IGameModule
 
     public bool CanHandle(MsgId msgId) => msgId is
         MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq or
-        MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
+        MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.ShopSellReq or MsgId.RepairReq or
+        MsgId.StorageListReq or MsgId.StorageDepositReq or MsgId.StorageWithdrawReq or
+        MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
         MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq or
         MsgId.GuildCreateReq or MsgId.GuildJoinReq or MsgId.GuildLeaveReq or MsgId.GuildInfoReq or
         MsgId.ChatReq or
@@ -179,6 +181,21 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.ShopBuyReq:
                 await HandleShopBuyAsync(session, frame, ct);
+                break;
+            case MsgId.ShopSellReq:
+                await HandleShopSellAsync(session, frame, ct);
+                break;
+            case MsgId.RepairReq:
+                await HandleRepairAsync(session, frame, ct);
+                break;
+            case MsgId.StorageListReq:
+                await HandleStorageListAsync(session, frame, ct);
+                break;
+            case MsgId.StorageDepositReq:
+                await HandleStorageDepositAsync(session, frame, ct);
+                break;
+            case MsgId.StorageWithdrawReq:
+                await HandleStorageWithdrawAsync(session, frame, ct);
                 break;
             case MsgId.QuestAcceptReq:
                 await HandleQuestAcceptAsync(session, frame, ct);
@@ -788,6 +805,8 @@ public sealed partial class GameWorldModule : IGameModule
         int skillLevel = Math.Max(1, learned.Level);
         double dmgMult = SkillHelper.EffectiveMultiplier(skill, skillLevel);
         int cooldownMs = SkillHelper.EffectiveCooldownMs(skill, skillLevel);
+        if (skill.CastTimeMs > 0)
+            cooldownMs = Math.Max(cooldownMs, skill.CastTimeMs);
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (attacker.SkillReadyAtUnixMs.TryGetValue(skill.SkillId, out long readyAt) && now < readyAt)
@@ -812,6 +831,12 @@ public sealed partial class GameWorldModule : IGameModule
                 Message = "MP 不足",
                 RemainingMp = attacker.Mp
             }, ct);
+            return;
+        }
+
+        if (PhaseLRules.IsSupportSkill(skill.Kind))
+        {
+            await ResolveSupportSkillAsync(session, frame, attacker, aoi, skill, skillLevel, cooldownMs, now, ct);
             return;
         }
 
@@ -1648,6 +1673,16 @@ public sealed partial class GameWorldModule : IGameModule
                 Success = false,
                 ErrorCode = ProtocolErrorCode.ErrQuestDenied,
                 Message = "Unknown quest"
+            }, ct);
+            return;
+        }
+        if (!PhaseLRules.PrerequisiteMet(tmpl, player.Quests))
+        {
+            await session.SendAsync(MsgId.QuestAcceptResp, frame.Seq, new QuestAcceptResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrQuestDenied,
+                Message = "先完成前置任务"
             }, ct);
             return;
         }

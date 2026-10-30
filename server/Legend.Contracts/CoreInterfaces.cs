@@ -213,6 +213,13 @@ public sealed class SkillConfigItem
     public List<int> ExpToNextLevel { get; set; } = new();
     public string ApplyBuffOnCast { get; set; } = string.Empty;
     public string ApplyDebuffOnHit { get; set; } = string.Empty;
+    /// <summary>attack (default) | heal | buff | summon | teleport</summary>
+    public string Kind { get; set; } = "attack";
+    public int HealAmount { get; set; }
+    public int HealAmountPerLevel { get; set; }
+    public string SummonPetId { get; set; } = string.Empty;
+    /// <summary>Folded into cooldown when greater than the skill cooldown.</summary>
+    public int CastTimeMs { get; set; }
 }
 
 public sealed class BuffConfigItem
@@ -293,6 +300,8 @@ public sealed class NpcTemplate
     public string ShopId { get; set; } = string.Empty;
     public string Dialogue { get; set; } = string.Empty;
     public List<string> QuestIds { get; set; } = new();
+    public bool CanRepair { get; set; }
+    public bool CanStore { get; set; }
 }
 
 public sealed class ShopOfferConfig
@@ -329,6 +338,8 @@ public sealed class QuestTemplate
     public int TargetCount { get; set; } = 1;
     public int RewardGold { get; set; }
     public List<QuestRewardItem> RewardItems { get; set; } = new();
+    /// <summary>Empty = no prerequisite. Otherwise that quest must be completed.</summary>
+    public string PrerequisiteQuestId { get; set; } = string.Empty;
 }
 
 public sealed class QuestProgressState
@@ -369,6 +380,8 @@ public sealed class ItemTemplate
     public string UnlockFashionId { get; set; } = string.Empty;
     /// <summary>M16: pet unlock item → petId.</summary>
     public string UnlockPetId { get; set; } = string.Empty;
+    /// <summary>NPC recycle price. 0 = derive from shop buy price.</summary>
+    public int SellPriceGold { get; set; }
 }
 
 public sealed class LevelEntryConfig

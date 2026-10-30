@@ -216,7 +216,15 @@ public static class EquipmentHelper
     {
         "weapon",
         "armor",
-        "ring"
+        "helmet",
+        "necklace",
+        "bracelet",
+        "bracelet2",
+        "ring",
+        "ring2",
+        "boots",
+        "belt",
+        "torch"
     };
 
     private static readonly JsonSerializerOptions JsonOpts = new()

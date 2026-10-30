@@ -1,7 +1,7 @@
 [
   {
     "skillId": "basic_slash",
-    "displayName": "基础挥砍",
+    "displayName": "基本剑术",
     "mpCost": 0,
     "cooldownMs": 600,
     "range": 2,
@@ -26,7 +26,7 @@
   },
   {
     "skillId": "power_strike",
-    "displayName": "强击",
+    "displayName": "攻杀剑术",
     "mpCost": 12,
     "cooldownMs": 2500,
     "range": 2,
@@ -50,7 +50,7 @@
   },
   {
     "skillId": "arcane_bolt",
-    "displayName": "奥术飞弹",
+    "displayName": "火球术",
     "mpCost": 15,
     "cooldownMs": 1200,
     "range": 5,
@@ -70,11 +70,12 @@
       250,
       500
     ],
-    "applyDebuffOnHit": "debuff_poison"
+    "applyDebuffOnHit": "debuff_poison",
+    "castTimeMs": 250
   },
   {
     "skillId": "fatal_strike",
-    "displayName": "致命一击",
+    "displayName": "烈火剑法",
     "mpCost": 0,
     "cooldownMs": 800,
     "range": 2,
@@ -97,5 +98,607 @@
       300,
       600
     ]
+  },
+  {
+    "mpCost": 0,
+    "cooldownMs": 700,
+    "range": 2,
+    "damageMultiplier": 1.35,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "warrior"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 0,
+    "skillId": "thrust_slash",
+    "displayName": "刺杀剑术"
+  },
+  {
+    "mpCost": 8,
+    "cooldownMs": 2200,
+    "range": 2,
+    "damageMultiplier": 1.15,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "warrior"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 0,
+    "skillId": "half_moon",
+    "displayName": "半月弯刀"
+  },
+  {
+    "mpCost": 10,
+    "cooldownMs": 6000,
+    "range": 3,
+    "damageMultiplier": 1.45,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "warrior"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 0,
+    "skillId": "rush",
+    "displayName": "野蛮冲撞",
+    "learnRequiredLevel": 4,
+    "skillBookItemId": "item_skillbook_rush"
+  },
+  {
+    "mpCost": 12,
+    "cooldownMs": 4000,
+    "range": 1,
+    "damageMultiplier": 0.7,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 200,
+    "skillId": "repulse_ring",
+    "displayName": "抗拒火环",
+    "applyDebuffOnHit": "debuff_poison"
+  },
+  {
+    "mpCost": 18,
+    "cooldownMs": 6000,
+    "range": 3,
+    "damageMultiplier": 1.1,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 400,
+    "skillId": "fire_wall",
+    "displayName": "火墙"
+  },
+  {
+    "mpCost": 16,
+    "cooldownMs": 1400,
+    "range": 6,
+    "damageMultiplier": 1.65,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 280,
+    "skillId": "lightning",
+    "displayName": "雷电术"
+  },
+  {
+    "mpCost": 22,
+    "cooldownMs": 18000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "buff",
+    "castTimeMs": 300,
+    "skillId": "mana_shield",
+    "displayName": "魔法盾",
+    "applyBuffOnCast": "buff_mana_shield",
+    "learnRequiredLevel": 3,
+    "skillBookItemId": "item_skillbook_mana_shield"
+  },
+  {
+    "mpCost": 28,
+    "cooldownMs": 8000,
+    "range": 3,
+    "damageMultiplier": 1.7,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 500,
+    "skillId": "ice_roar",
+    "displayName": "冰咆哮",
+    "learnRequiredLevel": 6,
+    "skillBookItemId": "item_skillbook_ice_roar"
+  },
+  {
+    "mpCost": 20,
+    "cooldownMs": 3500,
+    "range": 6,
+    "damageMultiplier": 1.8,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 220,
+    "skillId": "fast_beam",
+    "displayName": "疾光电影"
+  },
+  {
+    "mpCost": 26,
+    "cooldownMs": 7000,
+    "range": 3,
+    "damageMultiplier": 1.35,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 400,
+    "skillId": "hell_lightning",
+    "displayName": "地狱雷光"
+  },
+  {
+    "mpCost": 18,
+    "cooldownMs": 4500,
+    "range": 2,
+    "damageMultiplier": 1.85,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 300,
+    "skillId": "burst_flame",
+    "displayName": "爆裂火焰"
+  },
+  {
+    "mpCost": 14,
+    "cooldownMs": 12000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "teleport",
+    "castTimeMs": 200,
+    "skillId": "blink",
+    "displayName": "瞬息移动"
+  },
+  {
+    "mpCost": 32,
+    "cooldownMs": 10000,
+    "range": 4,
+    "damageMultiplier": 1.4,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "mage"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 600,
+    "skillId": "fire_rain",
+    "displayName": "火雨",
+    "learnRequiredLevel": 7,
+    "skillBookItemId": "item_skillbook_fire_rain"
+  },
+  {
+    "mpCost": 12,
+    "cooldownMs": 1400,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "heal",
+    "castTimeMs": 0,
+    "skillId": "heal",
+    "displayName": "治愈术",
+    "healAmount": 28,
+    "healAmountPerLevel": 8
+  },
+  {
+    "mpCost": 0,
+    "cooldownMs": 650,
+    "range": 2,
+    "damageMultiplier": 1.15,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 0,
+    "skillId": "spirit_hit",
+    "displayName": "精神力战法"
+  },
+  {
+    "mpCost": 10,
+    "cooldownMs": 2800,
+    "range": 5,
+    "damageMultiplier": 0.85,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 200,
+    "skillId": "poison_charm",
+    "displayName": "施毒术",
+    "applyDebuffOnHit": "debuff_poison"
+  },
+  {
+    "mpCost": 8,
+    "cooldownMs": 900,
+    "range": 5,
+    "damageMultiplier": 1.3,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "attack",
+    "castTimeMs": 180,
+    "skillId": "soul_charm",
+    "displayName": "灵魂火符"
+  },
+  {
+    "mpCost": 12,
+    "cooldownMs": 15000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "buff",
+    "castTimeMs": 0,
+    "skillId": "hide",
+    "displayName": "隐身术",
+    "applyBuffOnCast": "buff_hide",
+    "learnRequiredLevel": 3,
+    "skillBookItemId": "item_skillbook_hide"
+  },
+  {
+    "mpCost": 20,
+    "cooldownMs": 8000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "summon",
+    "castTimeMs": 0,
+    "skillId": "summon_bone",
+    "displayName": "召唤骷髅",
+    "summonPetId": "pet_bone_servant",
+    "learnRequiredLevel": 4,
+    "skillBookItemId": "item_skillbook_summon_bone"
+  },
+  {
+    "mpCost": 30,
+    "cooldownMs": 12000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "summon",
+    "castTimeMs": 0,
+    "skillId": "summon_beast",
+    "displayName": "召唤神兽",
+    "summonPetId": "pet_spirit_beast",
+    "learnRequiredLevel": 7,
+    "skillBookItemId": "item_skillbook_summon_beast"
+  },
+  {
+    "mpCost": 16,
+    "cooldownMs": 16000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "buff",
+    "castTimeMs": 0,
+    "skillId": "holy_armor",
+    "displayName": "神圣战甲术",
+    "applyBuffOnCast": "buff_holy_armor"
+  },
+  {
+    "mpCost": 16,
+    "cooldownMs": 16000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "buff",
+    "castTimeMs": 0,
+    "skillId": "ghost_shield",
+    "displayName": "幽灵盾",
+    "applyBuffOnCast": "buff_ghost_shield"
+  },
+  {
+    "mpCost": 24,
+    "cooldownMs": 20000,
+    "range": 1,
+    "damageMultiplier": 0,
+    "damageMultiplierPerLevel": 0.08,
+    "allowedClasses": [
+      "taoist"
+    ],
+    "requiresLearn": true,
+    "maxLevel": 5,
+    "skillExpPerCast": 10,
+    "skillExpPerKill": 20,
+    "expToNextLevel": [
+      0,
+      40,
+      100,
+      200,
+      400
+    ],
+    "kind": "buff",
+    "castTimeMs": 0,
+    "skillId": "group_hide",
+    "displayName": "集体隐身术",
+    "applyBuffOnCast": "buff_hide",
+    "learnRequiredLevel": 6,
+    "skillBookItemId": "item_skillbook_group_hide"
   }
 ]

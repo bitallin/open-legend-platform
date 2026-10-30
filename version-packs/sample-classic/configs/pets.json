@@ -8,6 +8,24 @@
       "assistDamagePercent": 25,
       "assistCooldownMs": 1200,
       "assistRange": 3
+    },
+    {
+      "petId": "pet_bone_servant",
+      "displayName": "骨仆",
+      "itemId": "item_pet_bone_servant",
+      "followDistance": 2,
+      "assistDamagePercent": 30,
+      "assistCooldownMs": 1400,
+      "assistRange": 2
+    },
+    {
+      "petId": "pet_spirit_beast",
+      "displayName": "灵兽",
+      "itemId": "item_pet_spirit_beast",
+      "followDistance": 2,
+      "assistDamagePercent": 45,
+      "assistCooldownMs": 1600,
+      "assistRange": 3
     }
   ]
 }

@@ -1,0 +1,51 @@
+{
+  "mapId": "marsh_den",
+  "mapName": "沼窟外廊（原创，对照兽穴入口）",
+  "width": 40,
+  "height": 32,
+  "aoiCellSize": 8,
+  "aoiRadiusCells": 1,
+  "spawnX": 4,
+  "spawnY": 4,
+  "blockedCells": [
+    {
+      "x": 10,
+      "y": 8
+    },
+    {
+      "x": 10,
+      "y": 9
+    },
+    {
+      "x": 11,
+      "y": 8
+    }
+  ],
+  "safeZones": [
+    {
+      "name": "窟口",
+      "x1": 2,
+      "y1": 2,
+      "x2": 7,
+      "y2": 7
+    }
+  ],
+  "portals": [
+    {
+      "portalId": "back_plain",
+      "x": 3,
+      "y": 6,
+      "targetMapId": "novice_plain",
+      "targetX": 38,
+      "targetY": 18
+    },
+    {
+      "portalId": "to_bone",
+      "x": 34,
+      "y": 16,
+      "targetMapId": "bone_path",
+      "targetX": 5,
+      "targetY": 8
+    }
+  ]
+}
