@@ -95,6 +95,8 @@ public sealed class LegendServerEngine : IAsyncDisposable
         CancellationToken ct = default)
     {
         var opts = storageOptions ?? StorageFactory.FromEnvironment();
+        // Reject a bad map or items file before opening Sqlite or Postgres.
+        _ = new VersionPackLoader().LoadFromManifest(manifestPath);
         var storage = await StorageFactory.CreateAsync(opts, ct);
         StructuredLogger.Info("Legend.Host", $"Storage backend: {storage.BackendName}");
         var engine = new LegendServerEngine(manifestPath, port, bindAddress, storage, realmCatalog, localRealm, paymentSecret, paymentProvider);

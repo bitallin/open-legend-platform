@@ -63,6 +63,8 @@
 
 Host 启动示例见仓库 `README.md`：`--manifest`、`--storage`、`--realm-id`、`--admin-token`。
 
+后续重构不改本节的玩家可见行为。层边界、依赖方向、协议与错误码策略、配置 Schema，以及 E0–E8 里程碑写在 [引擎重构计划](../ENGINE_REFACTOR_PLAN.md) 和 [层契约](../ENGINE_LAYER_CONTRACTS.md)。E0 只给地图和物品加启动期校验。矩阵已完成的路径保持原样。多货币、生肖、英雄合击、内挂、天赋仍在各篇扩展路线，不在 E0。
+
 ## 客户端表现
 
 两条路径，协议相同：

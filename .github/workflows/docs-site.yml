@@ -17,6 +17,8 @@ on:
       - "docs/UNITY_CLIENT_MVP.md"
       - "docs/UNITY_CLIENT_UGUI.md"
       - "docs/ANDROID_BUILD.md"
+      - "docs/ENGINE_REFACTOR_PLAN.md"
+      - "docs/ENGINE_LAYER_CONTRACTS.md"
       - "scripts/build-docs-site.sh"
       - ".github/workflows/docs-site.yml"
   push:

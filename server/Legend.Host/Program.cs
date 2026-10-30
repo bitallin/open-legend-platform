@@ -1,4 +1,5 @@
 using System.Net;
+using Legend.Contracts;
 using Legend.Core;
 using Legend.Host;
 using Legend.Storage;
@@ -113,25 +114,37 @@ Console.CancelKeyPress += (_, e) =>
 };
 AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
 
-await using var engine = await LegendServerEngine.CreateAsync(
-    manifestPath, port, IPAddress.Parse(bindIp), storageOverride, catalog, localRealm, paymentSecret, paymentProvider, cts.Token);
-await engine.StartAsync(cts.Token);
-
-if (adminPortOpt is int adminPort)
-{
-    await engine.StartAdminAsync(adminPort, adminToken, adminBind, cts.Token);
-}
-
-StructuredLogger.Info("Legend.Host",
-    $"Legend.Host ready on {bindIp}:{engine.BoundPort} (Realm={localRealm?.RealmId ?? engine.VersionPack.Manifest.RealmId}, VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash}, Storage={engine.Storage.BackendName}" +
-    (engine.AdminBoundPort > 0 ? $", Admin={adminBind}:{engine.AdminBoundPort}" : "") +
-    $", Payment={engine.PaymentProviderId}, CatalogRealms={engine.RealmCatalog.Count})");
-
+LegendServerEngine engine;
 try
 {
-    await Task.Delay(Timeout.Infinite, cts.Token);
+    engine = await LegendServerEngine.CreateAsync(
+        manifestPath, port, IPAddress.Parse(bindIp), storageOverride, catalog, localRealm, paymentSecret, paymentProvider, cts.Token);
 }
-catch (OperationCanceledException)
+catch (Exception ex) when (ex is ConfigSchemaException or InvalidDataException or FileNotFoundException)
 {
-    StructuredLogger.Info("Legend.Host", "Shutting down Legend.Host gracefully...");
+    StructuredLogger.Error("Legend.Host", $"Startup aborted: {ex.Message}");
+    Environment.ExitCode = 1;
+    return;
+}
+
+await using (engine)
+{
+    await engine.StartAsync(cts.Token);
+
+    if (adminPortOpt is int adminPort)
+        await engine.StartAdminAsync(adminPort, adminToken, adminBind, cts.Token);
+
+    StructuredLogger.Info("Legend.Host",
+        $"Legend.Host ready on {bindIp}:{engine.BoundPort} (Realm={localRealm?.RealmId ?? engine.VersionPack.Manifest.RealmId}, VersionPack={engine.VersionPack.Manifest.VersionId}, PackHash={engine.VersionPack.PackHash}, Storage={engine.Storage.BackendName}" +
+        (engine.AdminBoundPort > 0 ? $", Admin={adminBind}:{engine.AdminBoundPort}" : "") +
+        $", Payment={engine.PaymentProviderId}, CatalogRealms={engine.RealmCatalog.Count})");
+
+    try
+    {
+        await Task.Delay(Timeout.Infinite, cts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        StructuredLogger.Info("Legend.Host", "Shutting down Legend.Host gracefully...");
+    }
 }

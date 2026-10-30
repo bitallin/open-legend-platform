@@ -48,6 +48,8 @@
 
 服务端文本若在调研材料里分成 Setup、String、Command、Exp、Envir、`cfg_*` 等文件，本仓库对应的是 JSON / Lua，见 [18 · 脚本、配置与热更](18-script-config-hotreload.md) 的概念对照表。对照表只说明「哪类数据放哪」，不描述第三方文件格式，也不提供可粘贴的第三方表。
 
+地图与物品 JSON 在加载期对照 `server/Legend.Core/Schemas/` 里的 JSON Schema 子集。失败则 Host 不起服，热更回滚。Schema 范围和后续里程碑见 [引擎重构计划](../ENGINE_REFACTOR_PLAN.md)。
+
 ## 资源
 
 画面与声音只使用原创、CC0 或程序生成。禁止提交 WIL、WZL、WMX、官方 WAV，以及从闭源客户端拆出的地图或界面。图集生成入口是 `tools/gen_mir_sheet.py`，产物在 `client/Legend.Playable/Assets/`。
