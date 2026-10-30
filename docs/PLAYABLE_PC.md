@@ -1,6 +1,6 @@
 # 可玩 PC 客户端（非 Unity 为验收路径）
 
-协议仍为 **1.21.0**（本阶段未改游戏协议版本字符串）。画面是程序绘制的格子与色块，声音是程序生成的 WAV，**禁止**导入官方传奇 / 996 闭源资源包。
+协议仍为 **1.21.0**（本阶段未改游戏协议版本字符串）。画面是原创八方向像素图集（`tools/gen_mir_sheet.py`），声音是程序生成的 WAV，**禁止**导入官方传奇 / 996 闭源资源包。观感对照见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
 生产是否做完，不看这份「能玩一局」说明，而看 [MIR_PRODUCTION_FEATURE_MATRIX.md](MIR_PRODUCTION_FEATURE_MATRIX.md)。当前百分比与下一批任务见 [DEV_PROGRESS.md](DEV_PROGRESS.md)。协议若加报文，先写 [PROTOCOL_NOTES.md](PROTOCOL_NOTES.md)。
 
@@ -92,10 +92,10 @@ dotnet run --project Legend.Launcher.Desktop -c Release
 
 ### 画面
 
-- 地面：棋盘格。安全区偏绿，野外偏暗，阻挡格接近黑色，传送点青色
-- 角色 / 怪物 / NPC / 掉落：色块 + 朝向线 + 名字 + HP 条 + 选中环
-- 飘字：伤害 / MISS / 治疗
-- HUD：HP、MP（进世界时用角色 MP 与 `EffectiveMaxMp` 占位，攻击回包与升级会改当前 MP）、等级金币坐标、小地图、聊天、背包
+- 地面：48×32 宽砖。草地、土路、石板、安全区铺地、树和墙、传送门光
+- 角色 / 怪物 / NPC：八方向站立、走、跑、攻击、施法、受击、死亡。名字带阴影，选中怪才出红血条
+- 飘字：伤害 / MISS / 治疗。技能有斩击、火焰、雷电、治疗光效
+- HUD：红血、蓝魔法、金边技能栏、右上小地图、聊天、背包
 
 ### 声音
 
@@ -131,7 +131,7 @@ dotnet run --project client/Legend.Playable -c Release -- --probe --host 150.158
 |------|------|------|
 | 不装 Unity 打出 Windows exe | ✅ 已有 | `dotnet publish -r win-x64` |
 | 登录 / 注册 / 选角 / 创角 | ✅ 已有 | 协议 1.21.0 |
-| 进图 / 格子画面 / 名字血条 | ✅ 已有 | 程序色块，不是精灵图 |
+| 进图 / 格子画面 / 名字血条 | ✅ 已有 | 原创八方向图集，不是官方 WIL |
 | 移动同步 / 点地 | ✅ 已有 | |
 | 打怪 / 飘血 / 安全区禁攻 | ✅ 已有 | 技能 `basic_slash` |
 | 掉落 / 拾取 | ✅ 已有 | |

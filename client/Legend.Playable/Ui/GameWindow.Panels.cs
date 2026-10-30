@@ -35,7 +35,16 @@ public sealed partial class GameWindow
         for (int i = 0; i < 8; i++)
         {
             int slot = i;
-            var button = new Button { Width = 72, Height = 36, FontSize = 11 };
+            var button = new Button
+            {
+                Width = 72,
+                Height = 40,
+                FontSize = 11,
+                Background = Brush("#1A120C"),
+                Foreground = Brush("#F6E6C0"),
+                BorderBrush = Brush("#C6A15A"),
+                BorderThickness = new Avalonia.Thickness(1)
+            };
             button.Click += (_, _) => CastSlot(slot);
             _skillButtons[i] = button;
             skills.Children.Add(button);
@@ -72,7 +81,9 @@ public sealed partial class GameWindow
         dock.Children.Add(_expLabel);
         var bar = new Border
         {
-            Background = Brush("#CC16110E"),
+            Background = Brush("#F016100C"),
+            BorderBrush = Brush("#C6A15A"),
+            BorderThickness = new Avalonia.Thickness(1),
             Padding = new Avalonia.Thickness(8),
             Margin = new Avalonia.Thickness(0, 0, 12, 12),
             Child = dock,

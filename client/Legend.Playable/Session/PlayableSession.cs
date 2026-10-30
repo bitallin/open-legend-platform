@@ -531,6 +531,7 @@ public sealed partial class PlayableSession : IDisposable
                 }
                 foreach (var other in change.NearbyEntities)
                     World.Upsert(other, isSelf: false);
+                World.AddCast(change.ToX, change.ToY, "mage", "portal");
                 Chat.Add($"[系统] 传送到 {World.Map.MapName} ({change.ToX},{change.ToY})");
             }
             else if (World.Get(change.EntityId) is { } actor)

@@ -24,6 +24,7 @@ public sealed class CastFx
     public double GridX { get; init; }
     public double GridY { get; init; }
     public string School { get; init; } = "warrior";
+    public string Kind { get; init; } = "slash";
     public double Age { get; set; }
 }
 
@@ -53,6 +54,18 @@ public sealed class ActorView
     public string NameColor { get; set; } = "white";
     public string Gender { get; set; } = "";
     public string Pose { get; set; } = "idle";
+    public string ClassId { get; set; } = "";
+    public string TemplateId { get; set; } = "";
+    public double PoseLock { get; set; }
+    public double AnimPhase { get; set; }
+    public double BuffUntil { get; set; }
+
+    public void PlayPose(string pose, double lockSeconds)
+    {
+        Pose = pose;
+        PoseLock = lockSeconds;
+        AnimPhase = 0;
+    }
     public string MountId { get; set; } = "";
     public string FashionId { get; set; } = "";
     public string Title { get; set; } = "";
@@ -67,6 +80,7 @@ public sealed class WorldState
     public List<FloatText> Floats { get; } = new();
     public List<CastFx> Effects { get; } = new();
     public List<GroundPatch> Grounds { get; } = new();
+    public double Time { get; private set; }
     public MapLayout Map { get; private set; } = MapCatalog.Get("novice_plain");
     public string? SelfId { get; private set; }
     public string? SelectedId { get; set; }
@@ -121,6 +135,10 @@ public sealed class WorldState
             actor.Name = Data.ContentCatalog.ItemName(string.IsNullOrEmpty(e.TemplateId) ? e.Name : e.TemplateId);
         if (!string.IsNullOrWhiteSpace(e.Gender))
             actor.Gender = e.Gender;
+        if (!string.IsNullOrWhiteSpace(e.ClassId))
+            actor.ClassId = e.ClassId;
+        if (!string.IsNullOrWhiteSpace(e.TemplateId))
+            actor.TemplateId = e.TemplateId;
         actor.MountId = e.MountId ?? "";
         actor.FashionId = e.FashionId ?? "";
         if (!string.IsNullOrWhiteSpace(e.Title))
@@ -230,11 +248,14 @@ public sealed class WorldState
             kind = FloatKind.Kill;
             text = "-" + cs.Damage;
             actor.Hp = 0;
+            actor.PlayPose("death", 1.2);
         }
         else
         {
             kind = FloatKind.Damage;
             text = "-" + cs.Damage;
+            if (actor.PoseLock < 0.2)
+                actor.PlayPose("hit", 0.22);
         }
 
         Floats.Add(new FloatText
@@ -251,9 +272,15 @@ public sealed class WorldState
         Grounds.Add(new GroundPatch { MapId = mapId, X = x, Y = y, Radius = Math.Max(1, radius), Life = Math.Max(1, seconds) });
     }
 
-    public void AddCast(double x, double y, string school)
+    public void AddCast(double x, double y, string school, string? kind = null)
     {
-        Effects.Add(new CastFx { GridX = x, GridY = y, School = school });
+        string fx = kind ?? school switch
+        {
+            "mage" => "fire",
+            "taoist" => "heal",
+            _ => "slash"
+        };
+        Effects.Add(new CastFx { GridX = x, GridY = y, School = school, Kind = fx });
     }
 
     public bool TryNextStep(out int toX, out int toY, out int dir)
@@ -324,11 +351,30 @@ public sealed class WorldState
 
     public void Tick(double dt)
     {
+        Time += dt;
         double k = Math.Min(1, dt * 12);
         foreach (var actor in _actors.Values)
         {
-            actor.DrawX += (actor.GridX - actor.DrawX) * k;
-            actor.DrawY += (actor.GridY - actor.DrawY) * k;
+            double dx = actor.GridX - actor.DrawX;
+            double dy = actor.GridY - actor.DrawY;
+            double step = Math.Sqrt(dx * dx + dy * dy);
+            actor.AnimPhase += dt;
+            if (actor.Hp <= 0)
+            {
+                if (actor.Pose != "death")
+                    actor.PlayPose("death", 1.2);
+            }
+            else if (actor.PoseLock > 0)
+            {
+                actor.PoseLock -= dt;
+            }
+            else if (step < 0.04 && actor.Pose is "walk" or "run")
+            {
+                actor.Pose = "idle";
+                actor.AnimPhase = 0;
+            }
+            actor.DrawX += dx * k;
+            actor.DrawY += dy * k;
         }
 
         for (int i = Floats.Count - 1; i >= 0; i--)
@@ -340,7 +386,7 @@ public sealed class WorldState
         for (int i = Effects.Count - 1; i >= 0; i--)
         {
             Effects[i].Age += dt;
-            if (Effects[i].Age > 0.45)
+            if (Effects[i].Age > 0.62)
                 Effects.RemoveAt(i);
         }
         for (int i = Grounds.Count - 1; i >= 0; i--)

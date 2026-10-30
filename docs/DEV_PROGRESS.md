@@ -5,7 +5,7 @@
 | 项 | 值 |
 |----|----|
 | 最后更新 | 2026-10-30 |
-| 阶段 | Phase P：清掉剩余 Partial |
+| 阶段 | Phase Q：画面、动作、特效对齐热血传奇观感。功能清单仍是 100% |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
 | 总体 | **100%**（217 / 217） |
@@ -38,6 +38,8 @@
 
 Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
+画面对照另见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。占位几何图形已换成原创八方向图集。镜头仍是俯视宽砖，不是官方斜视角地图。
+
 ## 下一批（5）
 
 清单叶子条目已经全部是 Done。没有下一批 Partial。
@@ -54,3 +56,4 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-30：Phase L 总体 64.7%。Phase M 总体 71.7%。Phase N 总体 82.3%，NotStarted 清零。
 - 2026-10-30：Phase O 直线技能、烈火地面、抗拒击退、施毒跳伤、隐身脱仇恨、集体隐身、城墙缺口、日程停战发金币、原创图集、背包拖拽。总体 96.8%（210/217）。Done 203，Partial 14，NotStarted 0。未满 100%。
 - 2026-10-30：Phase P 离开世界回选角、世界 BOSS 血条与仇恨、行会任命、好友列表、师徒经验、摆摊窗口、脏词表、坐骑时装宠物面板、登录城市场景、选角立绘、称号。总体 100%（217/217）。Done 217，Partial 0，NotStarted 0。MATRIX_COMPLETE=true。
+- 2026-10-30：Phase Q 用原创图集换掉占位渲染。八方向走跑攻施法受击死亡、地砖、怪物、HUD 金边、技能光效和飘字。功能清单仍是 100%。细节见 VISUAL_PARITY.md。
