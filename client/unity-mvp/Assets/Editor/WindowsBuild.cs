@@ -89,6 +89,21 @@ namespace Legend.Build
             Debug.Log($"Legend Windows PlayerSettings: product={product} 1280x720 windowed");
         }
 
+
+        static void EnsureBootScene()
+        {
+            const string boot = "Assets/LegendClient/Scenes/Boot.unity";
+            if (File.Exists(boot))
+            {
+                var scenes = EditorBuildSettings.scenes;
+                if (scenes == null || scenes.Length == 0 || scenes.All(s => s.path != boot))
+                    EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(boot, true) };
+                return;
+            }
+            Debug.Log("Legend Windows build: creating Boot.unity via LegendMvpSceneBuilder");
+            LegendMvpSceneBuilder.CreateBootScene();
+        }
+
         static string[] ResolveScenes()
         {
             var enabled = EditorBuildSettings.scenes
