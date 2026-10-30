@@ -2,6 +2,17 @@
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
+## 可玩 PC 客户端（验收路径，无需 Unity）
+
+协议 **1.21.0**。Windows 玩家包用 `dotnet publish` 生成，不依赖 Unity Editor。登录器选区后启动 `LegendClient.exe`，连上公网试玩服即可移动、打怪、拾取、聊天。
+
+```bat
+scripts\publish-playable-windows.bat
+dist\windows-player\LegendClient.exe --host 150.158.164.90 --port 7100 --realm-id realm-classic-01
+```
+
+操作：WASD / 方向键移动，鼠标左键点地或选中，右键或 Space / J 攻击，Tab 切目标，B 背包，Enter 聊天，Z / G 拾取。说明见 [docs/PLAYABLE_PC.md](docs/PLAYABLE_PC.md)。
+
 ## 当前里程碑：Phase J（Android 导出/打包流水线骨架）
 
 协议仍 **1.21.0**。Unity MVP 增加 Android IL2CPP/ARM64 批处理入口与签名模板；本环境无 Editor，验收靠骨架脚本。

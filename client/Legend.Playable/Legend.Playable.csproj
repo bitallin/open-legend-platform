@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Legend.Playable</RootNamespace>
+    <AssemblyName>LegendClient</AssemblyName>
+    <ApplicationTitle>Legend Client</ApplicationTitle>
+    <Description>Non-Unity playable Legend PC client (Avalonia). Protocol 1.21.0.</Description>
+    <Version>1.21.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Legend.ClientCore\Legend.ClientCore.csproj" />
+    <ProjectReference Include="..\..\server\Legend.Contracts\Legend.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\novice_plain.json">
+      <LogicalName>maps.novice_plain.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\dark_forest.json">
+      <LogicalName>maps.dark_forest.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\version-packs\sample-classic\maps\dungeon_slime_cave.json">
+      <LogicalName>maps.dungeon_slime_cave.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

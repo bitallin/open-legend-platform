@@ -20,7 +20,7 @@ public partial class MainViewModel : ViewModelBase
         StatusText = "就绪。请刷新区服列表。";
         ClientPath = facade.Settings.ClientExecutable;
         if (string.IsNullOrWhiteSpace(ClientPath))
-            ClientPath = "(未配置 — 启动前请指定 stub / Unity 客户端)";
+            ClientPath = "(未配置 — 请把 clientExecutable 指到 dist/windows-player/LegendClient.exe)";
     }
 
     public ObservableCollection<RealmItemViewModel> Realms { get; } = new();

@@ -1,4 +1,5 @@
 {
+  "_comment": "Non-Unity playable client. Publish with scripts/publish-playable-windows.sh (or .bat), then copy this file to launcher.json. See docs/PLAYABLE_PC.md. Public trial: 150.158.164.90:7100.",
   "realmsPath": "config/realms.public.example.json",
   "realmListUrl": null,
   "versionPath": "config/version.json",
