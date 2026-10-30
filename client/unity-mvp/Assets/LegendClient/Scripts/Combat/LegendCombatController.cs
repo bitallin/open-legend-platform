@@ -1,4 +1,5 @@
 #if UNITY_2019_1_OR_NEWER
+using Legend.Client.Audio;
 using Legend.Client.Config;
 using Legend.Client.Session;
 using Legend.Client.UI;
@@ -9,13 +10,14 @@ using UnityEngine;
 
 namespace Legend.Client.Combat
 {
-    /// <summary>Click-to-select + attack (Space / RMB / Attack button) with damage popups.</summary>
+    /// <summary>Click-to-select + attack (Space / RMB / Attack button) with damage popups + SFX.</summary>
     public sealed class LegendCombatController : MonoBehaviour
     {
         private LegendSessionService _session = null!;
         private LegendWorldPresenter _world = null!;
         private LegendClientConfig _config = null!;
         private LegendHudController? _hud;
+        private LegendAudioService? _audio;
 
         public void Bind(LegendSessionService session, LegendWorldPresenter world, LegendClientConfig config)
         {
@@ -25,6 +27,7 @@ namespace Legend.Client.Combat
         }
 
         public void BindHud(LegendHudController hud) => _hud = hud;
+        public void BindAudio(LegendAudioService audio) => _audio = audio;
 
         public void WireNetwork()
         {
@@ -49,7 +52,10 @@ namespace Legend.Client.Combat
             if (view == null || view.IsSelf) return;
             _world.Select(view.EntityId);
             if (view.Kind == EntityKind.EntityLoot)
+            {
+                _audio?.PlayPickup();
                 _ = _session.PickupAsync(view.EntityId);
+            }
         }
 
         public void TryAttackSelectedOrNearest()
@@ -88,7 +94,10 @@ namespace Legend.Client.Combat
             else if (cs.Result == CombatResultKind.CombatHeal)
                 LegendDamagePopup.Spawn(pos, "+" + cs.Heal, Color.cyan);
             else
-                LegendDamagePopup.Spawn(pos, "-" + cs.Damage, cs.TargetDied ? Color.magenta : Color.yellow);
+            {
+                LegendDamagePopup.Spawn(pos, "-" + cs.Damage, cs.TargetDied ? Color.magenta : new Color(1f, 0.92f, 0.2f));
+                _audio?.PlayHit();
+            }
 
             if (cs.TargetDied && view != null && view.Kind == EntityKind.EntityMonster)
             {
@@ -98,7 +107,7 @@ namespace Legend.Client.Combat
 
             var selfId = _session.Client?.SelfEntity?.EntityId;
             if (!string.IsNullOrEmpty(selfId) && cs.TargetEntityId == selfId && cs.TargetDied)
-                _hud?.ShowToast("你已死亡", new Color(0.45f, 0.08f, 0.08f, 0.95f), 3.5f);
+                _hud?.ShowToast("你已死亡（服务器将复活到出生点）", new Color(0.45f, 0.08f, 0.08f, 0.95f), 3.5f);
         }
     }
 }

@@ -1,5 +1,6 @@
 #if UNITY_2019_1_OR_NEWER
 using System.Collections.Generic;
+using Legend.Client.Audio;
 using System.Text;
 using Legend.Client.Combat;
 using Legend.Client.Config;
@@ -15,7 +16,7 @@ using UnityEngine.UI;
 namespace Legend.Client.UI
 {
     /// <summary>
-    /// Phase G uGUI shell: Login / CharSelect / HUD / Bag / Chat / Joystick / Attack / Reconnect.
+    /// Phase G+K uGUI shell: Login / CharSelect / HUD (HP/MP/minimap) / Bag / Chat / Joystick(mobile) / Attack / Reconnect + PC hotkeys.
     /// Built entirely at runtime (no Canvas prefabs).
     /// </summary>
     public sealed class LegendHudController : MonoBehaviour
@@ -27,6 +28,7 @@ namespace Legend.Client.UI
         private LegendMvpInput _input = null!;
         private LegendToastOverlay _toast = null!;
         private LegendVirtualJoystickUi _joystick = null!;
+        private LegendAudioService? _audio;
 
         private Canvas _canvas = null!;
         private GameObject _loginRoot = null!;
@@ -48,6 +50,10 @@ namespace Legend.Client.UI
 
         private Text _hpText = null!;
         private Image _hpFill = null!;
+        private Image _mpFill = null!;
+        private Text _mpText = null!;
+        private Text _minimapText = null!;
+        private Text _pcHint = null!;
         private Text _vitalsText = null!;
         private Text _targetText = null!;
         private Text _safeBadge = null!;
@@ -75,13 +81,15 @@ namespace Legend.Client.UI
             LegendClientConfig config,
             LegendCombatController combat,
             LegendWorldPresenter world,
-            LegendMvpInput input)
+            LegendMvpInput input,
+            LegendAudioService? audio = null)
         {
             _session = session;
             _config = config;
             _combat = combat;
             _world = world;
             _input = input;
+            _audio = audio;
             BuildUi();
             _session.StateChanged += RefreshFromSession;
             RefreshFromSession();
@@ -116,13 +124,49 @@ namespace Legend.Client.UI
             }
 
             if (mode == ClientUiMode.InWorld)
+            {
                 TickInWorldHud();
+                HandlePcHotkeys();
+            }
 
-            // Feed uGUI stick into shared input
+            // Feed uGUI stick into shared input (mobile only — hidden on PC)
             if (_joystick != null && _joystick.Active)
                 _input.SetExternalStick(_joystick.AxisX, _joystick.AxisY);
             else
                 _input.ClearExternalStick();
+        }
+
+        private void HandlePcHotkeys()
+        {
+            if (_input.ToggleBagPressed)
+            {
+                _bagOpen = !_bagOpen;
+                if (_bagPanel != null) _bagPanel.SetActive(_bagOpen);
+                _audio?.PlayUiClick();
+            }
+            if (_input.EscapePressed)
+            {
+                if (_bagOpen)
+                {
+                    _bagOpen = false;
+                    if (_bagPanel != null) _bagPanel.SetActive(false);
+                    _audio?.PlayUiClick();
+                }
+                else if (_chatInput != null && _chatInput.isFocused)
+                {
+                    _chatInput.DeactivateInputField();
+                }
+            }
+            if (_input.ChatFocusPressed && _chatInput != null)
+            {
+                if (_chatInput.isFocused)
+                    SendChat();
+                else
+                {
+                    _chatInput.ActivateInputField();
+                    _chatInput.Select();
+                }
+            }
         }
 
         private void BuildUi()
@@ -150,12 +194,22 @@ namespace Legend.Client.UI
 
         private void BuildLogin()
         {
-            var panel = LegendUiBuilder.Panel(_canvas.transform, "LoginPanel",
+            // Full-screen dim backdrop (classic launcher feel)
+            var backdrop = LegendUiBuilder.Panel(_canvas.transform, "LoginBackdrop",
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Color(0.04f, 0.05f, 0.08f, 0.92f));
+            var banner = LegendUiBuilder.Text(backdrop, "Banner", "LEGEND · 自研传奇试玩", 28,
+                TextAnchor.UpperCenter, new Color(0.95f, 0.82f, 0.35f), true);
+            var bannerRt = banner.GetComponent<RectTransform>();
+            LegendUiBuilder.SetAnchored(bannerRt, new Vector2(0.5f, 1), new Vector2(0.5f, 1),
+                new Vector2(0, -48), new Vector2(640, 40));
+
+            var panel = LegendUiBuilder.Panel(backdrop, "LoginPanel",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero,
-                new Color(0.07f, 0.08f, 0.11f, 0.94f));
+                new Color(0.09f, 0.10f, 0.14f, 0.96f));
             LegendUiBuilder.SetAnchored(panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(420, 360));
-            _loginRoot = panel.gameObject;
+                Vector2.zero, new Vector2(440, 380));
+            _loginRoot = backdrop.gameObject;
 
             LegendUiBuilder.Text(panel, "Title", "登录 / 注册", 26, TextAnchor.UpperCenter, Color.white, true)
                 .GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -18);
@@ -173,6 +227,7 @@ namespace Legend.Client.UI
                 new Color(0.15f, 0.55f, 0.35f, 0.95f));
             loginBtn.onClick.AddListener(() =>
             {
+                _audio?.PlayUiClick();
                 ApplyHostPortFromFields();
                 _ = _session.LoginOrRegisterAsync(_userField.text, _passField.text);
             });
@@ -227,19 +282,19 @@ namespace Legend.Client.UI
             _hudRoot.transform.SetParent(_canvas.transform, false);
             LegendUiBuilder.Stretch(_hudRoot.GetComponent<RectTransform>());
 
-            // Vitals card
+            // Vitals card (HP + MP + level)
             var vitals = LegendUiBuilder.Panel(_hudRoot.transform, "Vitals",
                 new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero,
-                new Color(0.06f, 0.07f, 0.1f, 0.88f));
+                new Color(0.06f, 0.07f, 0.1f, 0.9f));
             LegendUiBuilder.SetAnchored(vitals, new Vector2(0, 1), new Vector2(0, 1),
-                new Vector2(170, -90), new Vector2(320, 110));
+                new Vector2(175, -108), new Vector2(330, 150));
 
             var hpBg = LegendUiBuilder.Panel(vitals, "HpBg",
                 new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero,
                 new Color(0.15f, 0.15f, 0.18f, 1f));
             LegendUiBuilder.SetAnchored(hpBg, new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(0, -28), new Vector2(-20, 18));
-            hpBg.offsetMin = new Vector2(10, -36);
+                new Vector2(0, -28), new Vector2(-20, 16));
+            hpBg.offsetMin = new Vector2(10, -34);
             hpBg.offsetMax = new Vector2(-10, -18);
             _hpFill = LegendUiBuilder.Image(hpBg, "HpFill", new Color(0.25f, 0.85f, 0.35f, 1f));
             var fillRt = _hpFill.GetComponent<RectTransform>();
@@ -248,15 +303,49 @@ namespace Legend.Client.UI
             fillRt.pivot = new Vector2(0, 0.5f);
             fillRt.offsetMin = Vector2.zero;
             fillRt.offsetMax = Vector2.zero;
-            _hpText = LegendUiBuilder.Text(hpBg, "HpText", "HP 0/0", 14, TextAnchor.MiddleCenter, Color.white);
+            _hpText = LegendUiBuilder.Text(hpBg, "HpText", "HP 0/0", 13, TextAnchor.MiddleCenter, Color.white);
 
-            _vitalsText = LegendUiBuilder.Text(vitals, "VitalsText", "Lv 1  Gold 0", 15,
+            var mpBg = LegendUiBuilder.Panel(vitals, "MpBg",
+                new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero,
+                new Color(0.12f, 0.14f, 0.22f, 1f));
+            LegendUiBuilder.SetAnchored(mpBg, new Vector2(0, 1), new Vector2(1, 1),
+                new Vector2(0, -50), new Vector2(-20, 14));
+            mpBg.offsetMin = new Vector2(10, -56);
+            mpBg.offsetMax = new Vector2(-10, -40);
+            _mpFill = LegendUiBuilder.Image(mpBg, "MpFill", new Color(0.25f, 0.45f, 0.95f, 1f));
+            var mpFillRt = _mpFill.GetComponent<RectTransform>();
+            mpFillRt.anchorMin = new Vector2(0, 0);
+            mpFillRt.anchorMax = new Vector2(1, 1);
+            mpFillRt.pivot = new Vector2(0, 0.5f);
+            mpFillRt.offsetMin = Vector2.zero;
+            mpFillRt.offsetMax = Vector2.zero;
+            _mpText = LegendUiBuilder.Text(mpBg, "MpText", "MP —", 12, TextAnchor.MiddleCenter, Color.white);
+
+            _vitalsText = LegendUiBuilder.Text(vitals, "VitalsText", "Lv 1  Gold 0", 14,
                 TextAnchor.UpperLeft, new Color(0.9f, 0.92f, 0.95f));
             var vt = _vitalsText.GetComponent<RectTransform>();
             LegendUiBuilder.SetAnchored(vt, new Vector2(0, 0), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
             vt.offsetMin = new Vector2(12, 8);
-            vt.offsetMax = new Vector2(-12, -42);
+            vt.offsetMax = new Vector2(-12, -62);
+
+            // Minimap placeholder (top-right)
+            var mini = LegendUiBuilder.Panel(_hudRoot.transform, "Minimap",
+                new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero,
+                new Color(0.05f, 0.08f, 0.06f, 0.88f));
+            LegendUiBuilder.SetAnchored(mini, new Vector2(1, 1), new Vector2(1, 1),
+                new Vector2(-95, -95), new Vector2(150, 150));
+            LegendUiBuilder.Text(mini, "MiniTitle", "小地图", 12, TextAnchor.UpperCenter,
+                new Color(0.75f, 0.85f, 0.7f), true);
+            _minimapText = LegendUiBuilder.Text(mini, "MiniBody", "(x,y)", 16, TextAnchor.MiddleCenter,
+                new Color(0.55f, 0.95f, 0.55f), true);
+
+            _pcHint = LegendUiBuilder.Text(_hudRoot.transform, "PcHint",
+                "WASD移动 · 左键点地/选怪 · 右键/空格/J攻击 · Tab切目标 · B背包 · Enter聊天 · Z拾取",
+                12, TextAnchor.LowerCenter, new Color(0.75f, 0.78f, 0.82f));
+            var ph = _pcHint.GetComponent<RectTransform>();
+            LegendUiBuilder.SetAnchored(ph, new Vector2(0.5f, 0), new Vector2(0.5f, 0),
+                new Vector2(0, 14), new Vector2(900, 22));
 
             _targetText = LegendUiBuilder.Text(vitals, "Target", "Target: (none)", 13,
                 TextAnchor.LowerLeft, new Color(1f, 0.85f, 0.4f));
@@ -274,11 +363,12 @@ namespace Legend.Client.UI
             var bagBtnWrap = LegendUiBuilder.Panel(_hudRoot.transform, "BagBtnWrap",
                 new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
             LegendUiBuilder.SetAnchored(bagBtnWrap, new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-70, -50), new Vector2(100, 36));
+                new Vector2(-200, -50), new Vector2(100, 36));
             var bagBtn = LegendUiBuilder.Button(bagBtnWrap, "BagBtn", "背包",
                 new Color(0.25f, 0.28f, 0.35f, 0.95f));
             bagBtn.onClick.AddListener(() =>
             {
+                _audio?.PlayUiClick();
                 _bagOpen = !_bagOpen;
                 if (_bagPanel != null) _bagPanel.SetActive(_bagOpen);
             });
@@ -287,7 +377,7 @@ namespace Legend.Client.UI
                 new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero,
                 new Color(0.06f, 0.07f, 0.1f, 0.92f));
             LegendUiBuilder.SetAnchored(bag, new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-130, -200), new Vector2(240, 220));
+                new Vector2(-280, -220), new Vector2(240, 220));
             _bagPanel = bag.gameObject;
             LegendUiBuilder.Text(bag, "BagTitle", "背包", 18, TextAnchor.UpperCenter, Color.white, true);
             _bagText = LegendUiBuilder.Text(bag, "BagBody", "(empty)", 14, TextAnchor.UpperLeft,
@@ -359,6 +449,9 @@ namespace Legend.Client.UI
 
             _joystick = _hudRoot.AddComponent<LegendVirtualJoystickUi>();
             _joystick.Build(_hudRoot.GetComponent<RectTransform>());
+            // Phase K: hide large virtual stick on PC Standalone
+            if (LegendMvpInput.IsPcStandalone)
+                _joystick.SetVisible(false);
 
             SetChatChannel(0);
         }
@@ -431,7 +524,7 @@ namespace Legend.Client.UI
                 var err = string.IsNullOrEmpty(_session.Fsm.ErrorMessage)
                     ? ""
                     : "  |  " + _session.Fsm.ErrorMessage;
-                _statusBar.text = $"Legend uGUI  |  {_session.Fsm.Phase}  |  {_session.Fsm.StatusMessage}{err}";
+                _statusBar.text = $"Legend 可玩PC  |  {_session.Fsm.Phase}  |  {_session.Fsm.StatusMessage}{err}";
             }
             if (_loginStatus != null)
             {
@@ -465,12 +558,21 @@ namespace Legend.Client.UI
             }
             if (_hpText != null) _hpText.text = $"HP {hp}/{maxHp}";
 
+            // MP: EntitySnapshot has no mp; show placeholder bar full until protocol HUD expands
+            // EntitySnapshot has no Mp; show full blue bar as mana frame until client exposes EffectiveMaxMp
+            int maxMpEst = Mathf.Max(50, (client?.EffectiveMaxHp ?? 100) / 2);
+            if (_mpFill != null)
+                _mpFill.rectTransform.anchorMax = new Vector2(1f, 1f);
+            if (_mpText != null) _mpText.text = $"MP ?/{maxMpEst}";
+
             int lv = client?.Level ?? 1;
             int gold = client?.Gold ?? _session.Inventory.Gold;
             string map = self?.MapId ?? "?";
             string pos = self != null ? $"({self.X},{self.Y})" : "";
             if (_vitalsText != null)
-                _vitalsText.text = $"Lv {lv}   Gold {gold}\nMap {map} {pos}   ATK {client?.EffectiveAtk ?? 0}  DEF {client?.EffectiveDef ?? 0}";
+                _vitalsText.text = $"Lv {lv}   Gold {gold}\nMap {map} {pos}\nATK {client?.EffectiveAtk ?? 0}  DEF {client?.EffectiveDef ?? 0}";
+            if (_minimapText != null)
+                _minimapText.text = self != null ? $"{self.X}\n{self.Y}" : "?";
 
             var sel = _world.SelectedEntityId;
             if (_targetText != null)
@@ -584,9 +686,11 @@ namespace Legend.Client.UI
         private void SendChat()
         {
             if (_chatInput == null || string.IsNullOrWhiteSpace(_chatInput.text)) return;
+            _audio?.PlayUiClick();
             var channel = _chatChannel == 0 ? ChatChannel.ChatWorld : ChatChannel.ChatNearby;
             _ = _session.SendChatAsync(channel, _chatInput.text);
             _chatInput.text = "";
+            _chatInput.DeactivateInputField();
         }
 
         private void ApplyHostPortFromFields()

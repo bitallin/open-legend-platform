@@ -5,7 +5,10 @@ using UnityEngine.EventSystems;
 
 namespace Legend.Client.Input
 {
-    /// <summary>PC WASD + left-side virtual stick (touch / mouse / uGUI stick).</summary>
+    /// <summary>
+    /// PC: WASD + left-click ground move / select + RMB/Space/J attack.
+    /// Mobile: left virtual stick. Standalone disables mouse-stick fallback so LMB is click-to-move.
+    /// </summary>
     public sealed class LegendMvpInput
     {
         private readonly KeyboardWasdInput _kb = new KeyboardWasdInput();
@@ -25,6 +28,13 @@ namespace Legend.Client.Input
             _kb.D = () => UnityEngine.Input.GetKey(KeyCode.D) || UnityEngine.Input.GetKey(KeyCode.RightArrow);
         }
 
+        public static bool IsPcStandalone =>
+#if UNITY_STANDALONE || UNITY_EDITOR
+            !Application.isMobilePlatform;
+#else
+            false;
+#endif
+
         public void SetExternalStick(float axisX, float axisY)
         {
             _externalStick = true;
@@ -38,7 +48,9 @@ namespace Legend.Client.Input
         {
             if (_externalStick) return;
             UpdateTouchStick();
-            UpdateMouseStickFallback();
+            // PC: do NOT steal left mouse for stick — reserved for click-to-move / select
+            if (!IsPcStandalone)
+                UpdateMouseStickFallback();
         }
 
         public void GetMoveIntent(out int dx, out int dy)
@@ -65,7 +77,20 @@ namespace Legend.Client.Input
             UnityEngine.Input.GetKeyDown(KeyCode.J) ||
             UnityEngine.Input.GetMouseButtonDown(1);
 
-        public bool WantSelectClick
+        public bool PickupPressed =>
+            UnityEngine.Input.GetKeyDown(KeyCode.Z) ||
+            UnityEngine.Input.GetKeyDown(KeyCode.G);
+
+        public bool TabCyclePressed => UnityEngine.Input.GetKeyDown(KeyCode.Tab);
+
+        public bool ToggleBagPressed => UnityEngine.Input.GetKeyDown(KeyCode.B);
+
+        public bool EscapePressed => UnityEngine.Input.GetKeyDown(KeyCode.Escape);
+
+        public bool ChatFocusPressed => UnityEngine.Input.GetKeyDown(KeyCode.Return) ||
+                                        UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter);
+
+        public bool WantWorldClick
         {
             get
             {
@@ -75,6 +100,9 @@ namespace Legend.Client.Input
                 return true;
             }
         }
+
+        /// <summary>Legacy alias.</summary>
+        public bool WantSelectClick => WantWorldClick;
 
         public Vector2 StickCenterScreen => _stickCenter;
         public bool StickActive => _stickActive || _externalStick;
@@ -118,7 +146,6 @@ namespace Legend.Client.Input
         private void UpdateMouseStickFallback()
         {
             if (UnityEngine.Input.touchCount > 0) return;
-            // Legacy left-half mouse stick kept as fallback when uGUI stick is idle.
             if (UnityEngine.Input.GetMouseButtonDown(0) && UnityEngine.Input.mousePosition.x < Screen.width * 0.28f
                 && UnityEngine.Input.mousePosition.y < Screen.height * 0.45f
                 && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))

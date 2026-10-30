@@ -22,6 +22,11 @@ namespace Legend.Client.Config
         public float CameraDistance = 12f;
         public int GroundSize = 64;
         public string BasicAttackSkillId = "basic";
+        // Visual safe-zone overlay (matches sample-classic novice_plain by default)
+        public int SafeZoneX1 = 5;
+        public int SafeZoneY1 = 5;
+        public int SafeZoneX2 = 18;
+        public int SafeZoneY2 = 18;
     }
 }
 #endif

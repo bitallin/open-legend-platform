@@ -5,17 +5,18 @@ using UnityEngine.UI;
 
 namespace Legend.Client.UI
 {
-    /// <summary>Fixed bottom-left uGUI stick; drives AxisX/AxisY in [-1,1].</summary>
+    /// <summary>Fixed bottom-left uGUI stick; hidden on PC Standalone (Phase K).</summary>
     public sealed class LegendVirtualJoystickUi : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
         private RectTransform _root = null!;
         private RectTransform _knob = null!;
         private float _radius = 70f;
         private int _pointerId = int.MinValue;
+        private bool _visible = true;
 
         public float AxisX { get; private set; }
         public float AxisY { get; private set; }
-        public bool Active => _pointerId != int.MinValue;
+        public bool Active => _visible && _pointerId != int.MinValue;
 
         public void Build(RectTransform parent)
         {
@@ -36,8 +37,23 @@ namespace Legend.Client.UI
             _radius = 56f;
         }
 
+        public void SetVisible(bool visible)
+        {
+            _visible = visible;
+            if (_root != null)
+                _root.gameObject.SetActive(visible);
+            if (!visible)
+            {
+                _pointerId = int.MinValue;
+                AxisX = 0f;
+                AxisY = 0f;
+                if (_knob != null) _knob.anchoredPosition = Vector2.zero;
+            }
+        }
+
         public void OnPointerDown(PointerEventData eventData)
         {
+            if (!_visible) return;
             if (_pointerId != int.MinValue) return;
             _pointerId = eventData.pointerId;
             OnDrag(eventData);
@@ -45,6 +61,7 @@ namespace Legend.Client.UI
 
         public void OnDrag(PointerEventData eventData)
         {
+            if (!_visible) return;
             if (eventData.pointerId != _pointerId) return;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _root, eventData.position, eventData.pressEventCamera, out var local);

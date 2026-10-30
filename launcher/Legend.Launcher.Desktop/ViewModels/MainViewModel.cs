@@ -200,10 +200,10 @@ public partial class MainViewModel : ViewModelBase
         StatusText = $"正在启动 {realm.RealmName} ({realm.Host}:{realm.Port})…";
         try
         {
-            // GUI: wait in background so window stays responsive; stub exits quickly.
-            var result = await _facade.LaunchAsync(realm, waitForExit: true);
+            // Phase K: fire-and-forget so Avalonia stays usable while Unity player runs.
+            var result = await _facade.LaunchAsync(realm, waitForExit: false);
             StatusText = result.Ok
-                ? $"启动成功。{result.Message}"
+                ? $"已启动游戏。{result.Message}"
                 : $"启动失败：{result.Message}";
         }
         catch (Exception ex)

@@ -109,3 +109,7 @@ Details: [`docs/ANDROID_BUILD.md`](../../docs/ANDROID_BUILD.md) · helpers under
 - This agent environment has **no Unity Editor** — Play Mode was not executed here.
 - Runtime uGUI (Arial + white sprites); no art atlas / animations / SFX.
 - Payment APIs exist on SDK but no mall UI.
+
+## Playable PC (Phase K)
+
+See [`docs/PLAYABLE_PC.md`](../../docs/PLAYABLE_PC.md) for Windows player build + launcher wiring.

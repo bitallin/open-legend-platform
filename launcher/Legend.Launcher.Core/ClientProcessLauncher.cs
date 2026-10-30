@@ -70,21 +70,28 @@ public sealed class ClientProcessLauncher
                 args = arguments;
             }
 
+            bool isGuiExe = fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                || fileName.EndsWith(".app", StringComparison.OrdinalIgnoreCase);
+
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
                 Arguments = args,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
+                // GUI players (Unity .exe): shell execute, show window, no stdout redirect
+                UseShellExecute = isGuiExe,
+                RedirectStandardOutput = !isGuiExe,
+                RedirectStandardError = !isGuiExe,
+                CreateNoWindow = !isGuiExe
             };
 
             var proc = new Process { StartInfo = psi };
             var stdout = new StringBuilder();
             var stderr = new StringBuilder();
-            proc.OutputDataReceived += (_, e) => { if (e.Data is not null) stdout.AppendLine(e.Data); };
-            proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderr.AppendLine(e.Data); };
+            if (!isGuiExe)
+            {
+                proc.OutputDataReceived += (_, e) => { if (e.Data is not null) stdout.AppendLine(e.Data); };
+                proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderr.AppendLine(e.Data); };
+            }
 
             if (!proc.Start())
             {
@@ -97,8 +104,11 @@ public sealed class ClientProcessLauncher
                 };
             }
 
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
+            if (!isGuiExe)
+            {
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+            }
 
             if (!waitForExit)
             {
@@ -112,6 +122,7 @@ public sealed class ClientProcessLauncher
                 };
             }
 
+            // For Unity GUI, waiting blocks launcher — still supported for tests
             await proc.WaitForExitAsync(ct);
             string combined = (stdout.ToString() + stderr).Trim();
             bool ok = proc.ExitCode == 0;

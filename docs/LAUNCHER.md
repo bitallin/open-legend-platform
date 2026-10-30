@@ -93,3 +93,7 @@ dotnet run --project Legend.Launcher -c Release --no-build -- \
 ## 与 Unity
 
 把 `clientExecutable` 指到 Unity 播放器或打包后的 Linux/Windows 可执行文件，参数模板保持 `--host/--port/--realm-id`。
+
+## Phase K — Unity 玩家包
+
+可玩 PC 竖切与 `LegendClient.exe` 接线见 [`PLAYABLE_PC.md`](PLAYABLE_PC.md)。示例配置：`launcher/config/launcher.playable.example.json`。
