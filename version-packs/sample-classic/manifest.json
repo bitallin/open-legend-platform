@@ -10,7 +10,9 @@
     "maps/dark_forest.json",
     "maps/dungeon_slime_cave.json",
     "maps/marsh_den.json",
-    "maps/bone_path.json"
+    "maps/bone_path.json",
+    "maps/oath_city.json",
+    "maps/sand_gate.json"
   ],
   "classesConfigFile": "configs/classes.json",
   "skillsConfigFile": "configs/skills.json",

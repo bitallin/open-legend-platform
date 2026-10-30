@@ -69,6 +69,8 @@ public sealed partial class GameWorldModule : IGameModule
         MsgId.EnterWorldReq or MsgId.MoveReq or MsgId.AttackReq or MsgId.PickupReq or
         MsgId.TalkReq or MsgId.ShopBuyReq or MsgId.ShopSellReq or MsgId.RepairReq or
         MsgId.StorageListReq or MsgId.StorageDepositReq or MsgId.StorageWithdrawReq or
+        MsgId.SetAttackModeReq or MsgId.IdentifyReq or
+        MsgId.TradeStartReq or MsgId.TradeRespondReq or MsgId.TradePutReq or MsgId.TradeLockReq or MsgId.TradeCancelReq or
         MsgId.QuestAcceptReq or MsgId.QuestTurnInReq or
         MsgId.EquipReq or MsgId.UnequipReq or MsgId.EnhanceEquipReq or MsgId.UseItemReq or
         MsgId.GuildCreateReq or MsgId.GuildJoinReq or MsgId.GuildLeaveReq or MsgId.GuildInfoReq or
@@ -196,6 +198,27 @@ public sealed partial class GameWorldModule : IGameModule
                 break;
             case MsgId.StorageWithdrawReq:
                 await HandleStorageWithdrawAsync(session, frame, ct);
+                break;
+            case MsgId.SetAttackModeReq:
+                await HandleSetAttackModeAsync(session, frame, ct);
+                break;
+            case MsgId.IdentifyReq:
+                await HandleIdentifyAsync(session, frame, ct);
+                break;
+            case MsgId.TradeStartReq:
+                await HandleTradeStartAsync(session, frame, ct);
+                break;
+            case MsgId.TradeRespondReq:
+                await HandleTradeRespondAsync(session, frame, ct);
+                break;
+            case MsgId.TradePutReq:
+                await HandleTradePutAsync(session, frame, ct);
+                break;
+            case MsgId.TradeLockReq:
+                await HandleTradeLockAsync(session, frame, ct);
+                break;
+            case MsgId.TradeCancelReq:
+                await HandleTradeCancelAsync(session, frame, ct);
                 break;
             case MsgId.QuestAcceptReq:
                 await HandleQuestAcceptAsync(session, frame, ct);
@@ -845,8 +868,10 @@ public sealed partial class GameWorldModule : IGameModule
         {
             if (await TryHandleSiegePvpAttackAsync(session, frame, attacker, aoi, req, skill, dmgMult, cooldownMs, now, ct))
                 return;
+            if (await TryHandleOpenPvpAsync(session, frame, attacker, aoi, req, skill, dmgMult, cooldownMs, now, ct))
+                return;
 
-            // PvP disabled outside siege zone: reject player targets and unknown
+            // Peace mode and unknown targets still use the M2 monster-only message.
             await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
             {
                 Success = false,
@@ -855,6 +880,9 @@ public sealed partial class GameWorldModule : IGameModule
             }, ct);
             return;
         }
+
+        if (string.Equals(skill.Kind, "charge", StringComparison.OrdinalIgnoreCase))
+            await StepChargeAsync(attacker, monster.X, monster.Y, skill.ChargeSteps, ct);
 
         int dist = CombatMath.Chebyshev(attacker.X, attacker.Y, monster.X, monster.Y);
         if (dist > skill.Range)
@@ -902,6 +930,9 @@ public sealed partial class GameWorldModule : IGameModule
         await BroadcastNearAsync(attacker.MapId, attacker.X, attacker.Y, MsgId.CombatSync, combat, ct);
         // Also send to attacker if not already in viewers list via Broadcast (Broadcast includes all near)
         await session.SendAsync(MsgId.CombatSync, 0, combat, ct);
+        await WearWeaponAsync(attacker, ct);
+        if (string.Equals(skill.Kind, "aoe", StringComparison.OrdinalIgnoreCase))
+            await SplashAoeAsync(session, attacker, monster, skill, dmgMult, ct);
 
         if (!killed)
             await TryPetAssistAfterOwnerAttackAsync(attacker, monster, ct);
@@ -1040,6 +1071,22 @@ public sealed partial class GameWorldModule : IGameModule
                 Message = "该掉落归属击杀者（保护期内不可拾取）。"
             }, ct);
             return;
+        }
+
+        if (_versionPack.Items.TryGetValue(loot.ItemId, out var lootItem))
+        {
+            int next = PhaseMRules.BagWeight(player.Inventory, _versionPack.Items)
+                       + PhaseMRules.StackWeight(lootItem, loot.Count);
+            if (next > PhaseMRules.MaxCarry(player.Level))
+            {
+                await session.SendAsync(MsgId.PickupResp, frame.Seq, new PickupResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrLootDenied,
+                    Message = "负重不足，无法拾取。"
+                }, ct);
+                return;
+            }
         }
 
         if (!_loots.TryRemove(loot.EntityId, out _))
@@ -1270,8 +1317,8 @@ public sealed partial class GameWorldModule : IGameModule
                 }
 
                 monster.NextAttackUnixMs = now + monster.Template.AttackCooldownMs;
-                int dmg = CombatMath.CalcDamage(monster.Template.Atk, target.Def, 1.0);
-                target.Hp = Math.Max(0, target.Hp - dmg);
+                int raw = CombatMath.CalcDamage(monster.Template.Atk, target.Def, 1.0);
+                int dmg = await ApplyIncomingDamageAsync(target, raw, ct);
                 bool died = target.Hp <= 0;
                 var sync = new CombatSync
                 {
@@ -1579,6 +1626,19 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
         int cost = (int)costLong;
+        if (_versionPack.Items.TryGetValue(offer.ItemId, out var bought) &&
+            PhaseMRules.BagWeight(player.Inventory, _versionPack.Items) + PhaseMRules.StackWeight(bought, count)
+                > PhaseMRules.MaxCarry(player.Level))
+        {
+            await session.SendAsync(MsgId.ShopBuyResp, frame.Seq, new ShopBuyResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrShopDenied,
+                Message = "负重不足",
+                Gold = player.Gold
+            }, ct);
+            return;
+        }
 
         lock (_combatLock)
         {
@@ -2055,6 +2115,9 @@ public sealed partial class GameWorldModule : IGameModule
                 InventoryHelper.AddItem(player.Inventory, existingSlot.ItemId, 1);
             preservedEnhance = existingSlot.EnhanceLevel;
             existingSlot.ItemId = tmpl.ItemId;
+            existingSlot.Durability = PhaseMRules.DurabilityMax;
+            existingSlot.MaxDurability = PhaseMRules.DurabilityMax;
+            existingSlot.Identified = !tmpl.NeedsIdentify;
         }
         else
         {
@@ -2062,7 +2125,10 @@ public sealed partial class GameWorldModule : IGameModule
             {
                 Slot = targetSlot,
                 ItemId = tmpl.ItemId,
-                EnhanceLevel = 0
+                EnhanceLevel = 0,
+                Durability = PhaseMRules.DurabilityMax,
+                MaxDurability = PhaseMRules.DurabilityMax,
+                Identified = !tmpl.NeedsIdentify
             });
         }
 
@@ -2426,6 +2492,42 @@ public sealed partial class GameWorldModule : IGameModule
             || (string.Equals(tmpl.Kind, "fashion_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockFashionId));
         bool isPetUnlock =
             string.Equals(tmpl.Kind, "pet_unlock", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tmpl.UnlockPetId);
+        bool isRecall = string.Equals(tmpl.Kind, "recall", StringComparison.OrdinalIgnoreCase);
+
+        if (isRecall)
+        {
+            if (!InventoryHelper.TryRemoveItem(player.Inventory, itemId, 1))
+            {
+                await session.SendAsync(MsgId.UseItemResp, frame.Seq, new UseItemResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrUseItemDenied,
+                    Message = "Item not in inventory."
+                }, ct);
+                return;
+            }
+            await PersistEconomyAsync(player, ct);
+            if (_maps.TryGetValue(player.MapId, out var fromAoi))
+                await RecallToTownAsync(session, player, fromAoi, tmpl.RecallMapId, ct);
+            int remRecall = player.Inventory.Where(s =>
+                string.Equals(s.ItemId, itemId, StringComparison.OrdinalIgnoreCase)).Sum(s => s.Count);
+            var recallResp = new UseItemResp
+            {
+                Success = true,
+                ErrorCode = ProtocolErrorCode.ErrNone,
+                Message = "回城",
+                ItemId = itemId,
+                RemainingCount = remRecall,
+                Hp = player.Hp,
+                MaxHp = player.MaxHp,
+                Mp = player.Mp,
+                MaxMp = player.MaxMp
+            };
+            foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+                recallResp.Inventory.Add(slot);
+            await session.SendAsync(MsgId.UseItemResp, frame.Seq, recallResp, ct);
+            return;
+        }
 
         if (isPetUnlock)
         {

@@ -5,7 +5,7 @@ using Legend.Playable.World;
 
 namespace Legend.Playable.Session;
 
-public sealed class PlayableSession : IDisposable
+public sealed partial class PlayableSession : IDisposable
 {
     private PlayableNetClient _net = new();
     private bool _suppressDisconnect;
@@ -139,12 +139,12 @@ public sealed class PlayableSession : IDisposable
         return sync;
     }
 
-    public async Task<AttackResp?> AttackAsync(string targetId, string? skillId = null)
+    public async Task<AttackResp?> AttackAsync(string targetId, string? skillId = null, bool force = false)
     {
         if (Fsm.Phase != SessionPhase.InWorld)
             return null;
         string skill = string.IsNullOrWhiteSpace(skillId) ? PlayableTuning.BasicSkillId : skillId;
-        var resp = await _net.RequestAttackAsync(targetId, skill);
+        var resp = await _net.RequestAttackAsync(targetId, skill, force);
         if (resp.Success || resp.RemainingMp > 0 || (resp.Message ?? "").Contains("MP", StringComparison.OrdinalIgnoreCase))
             Mp = Math.Max(0, resp.RemainingMp);
         return resp;
@@ -570,6 +570,46 @@ public sealed class PlayableSession : IDisposable
         {
             CopyMeta();
             MetaChanged?.Invoke();
+        };
+        net.OnPk += pk =>
+        {
+            World.SetNameColor(pk.EntityId, pk.NameColor);
+            if (World.Self != null && pk.EntityId == World.Self.EntityId)
+            {
+                AttackModeWire = pk.AttackMode;
+                PkKills = pk.PkKills;
+                NameColor = pk.NameColor;
+            }
+            MetaChanged?.Invoke();
+        };
+        net.OnTradeInvite += invite =>
+        {
+            TradeId = invite.TradeId ?? "";
+            TradePeer = invite.FromName ?? "";
+            Chat.Add($"[交易] {TradePeer} 请求交易");
+            TradeChanged?.Invoke();
+        };
+        net.OnTradeState += state =>
+        {
+            TradeId = state.TradeId ?? TradeId;
+            TradeState = state;
+            TradeChanged?.Invoke();
+        };
+        net.OnTradeResult += result =>
+        {
+            if (result.Success)
+                SyncInventory();
+            Chat.Add("[交易] " + result.Message);
+            if (!result.Success || result.Message.Contains("完成"))
+            {
+                TradeId = "";
+                TradeState = null;
+            }
+            TradeChanged?.Invoke();
+        };
+        net.OnSiege += siege =>
+        {
+            SiegeChanged?.Invoke(siege.IsActive ? "攻城开始" : "攻城状态 " + siege.Reason);
         };
         net.OnPartyInvite += invite =>
         {

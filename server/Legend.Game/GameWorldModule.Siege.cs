@@ -264,6 +264,7 @@ public sealed partial class GameWorldModule
                 Success = true,
                 ErrorCode = ProtocolErrorCode.ErrNone,
                 Message = "OK",
+                ScheduleNote = _versionPack.Siege.ScheduleNote ?? "",
                 CastleId = _versionPack.Siege.CastleId,
                 CastleName = _versionPack.Siege.DisplayName,
                 IsActive = _siegeIsActive,
@@ -610,8 +611,8 @@ public sealed partial class GameWorldModule
         long nextReady = now + cooldownMs;
         attacker.SkillReadyAtUnixMs[skill.SkillId] = nextReady;
 
-        int damage = CombatMath.CalcDamage(attacker.Atk, targetPlayer.Def, dmgMult);
-        targetPlayer.Hp = Math.Max(0, targetPlayer.Hp - damage);
+        int rawSiege = CombatMath.CalcDamage(attacker.Atk, targetPlayer.Def, dmgMult);
+        int damage = await ApplyIncomingDamageAsync(targetPlayer, rawSiege, ct);
         bool targetDied = targetPlayer.Hp <= 0;
         if (targetDied)
             targetPlayer.IsDead = true;

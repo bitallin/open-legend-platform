@@ -66,9 +66,9 @@
 | W-01 | 基本剑术 | Done | `basic_slash`，显示名「基本剑术」；三职业都能当作普攻 |
 | W-02 | 攻杀剑术 | Done | `power_strike`，显示名「攻杀剑术」，战士技能栏可放 |
 | W-03 | 刺杀剑术 | Done | |
-| W-04 | 半月弯刀 | Partial | |
+| W-04 | 半月弯刀 | Done | 以自身为圆心打一格内的其他目标 |
 | W-05 | 烈火剑法 | Partial | |
-| W-06 | 野蛮冲撞 | Partial | |
+| W-06 | 野蛮冲撞 | Done | 先向目标冲最多 3 格再攻击，不进安全区 |
 | W-07 | 技能书学习与技能升级 | Partial | 服务端 `LearnSkill` / 技能经验；客户端无面板 |
 | W-08 | 逐级伤害与冷却曲线 | Done | `SkillHelper` 已按等级计算 |
 
@@ -78,10 +78,10 @@
 |----|------|--------|------|
 | M-01 | 火球术 | Done | `arcane_bolt`「奥术飞弹」 |
 | M-02 | 抗拒火环 | Partial | |
-| M-03 | 火墙 | Partial | |
+| M-03 | 火墙 | Done | |
 | M-04 | 雷电术 | Done | |
-| M-05 | 魔法盾 | Partial | |
-| M-06 | 冰咆哮 | Partial | |
+| M-05 | 魔法盾 | Done | 吸收最多 80 点伤害，吸收完盾消失 |
+| M-06 | 冰咆哮 | Done | |
 | M-07 | 疾光电影 | Partial | |
 | M-08 | 地狱雷光 | Partial | |
 | M-09 | 爆裂火焰 | Partial | |
@@ -129,9 +129,9 @@
 | E-07 | 靴子 | Partial | |
 | E-08 | 腰带 | Partial | |
 | E-09 | 烛 / 火把照明 | Partial | |
-| E-10 | 耐久 | NotStarted | |
-| E-11 | 修理 | Partial | |
-| E-12 | 鉴定 | NotStarted | |
+| E-10 | 耐久 | Done | |
+| E-11 | 修理 | Done | |
+| E-12 | 鉴定 | Done | |
 | E-13 | 矿石强化 / 升级 | Partial | `EnhanceEquip` 花金币；无可玩 UI，无矿石 |
 | E-14 | 套装 | NotStarted | |
 
@@ -140,7 +140,7 @@
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
 | I-01 | 背包列表与使用药水 | Partial | `B` 打开，点击使用；无拖拽格子 |
-| I-02 | 负重 | NotStarted | |
+| I-02 | 负重 | Done | |
 | I-03 | 地面物品名 | Partial | 有名字；无品质色 |
 | I-04 | 快捷药品 1–6 | Done | |
 | I-05 | 个人仓库 NPC | Done | |
@@ -190,12 +190,12 @@
 
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
-| P-01 | 和平 | Partial | 无攻击模式 |
-| P-02 | 善恶 | Partial | |
-| P-03 | 组队 | Partial | |
-| P-04 | 行会 | Partial | |
-| P-05 | 全体 | Partial | |
-| P-06 | 名字颜色随 PK | NotStarted | |
+| P-01 | 和平 | Done | 服务端默认和平，只打怪；Shift 强制攻击会打人并计 PK |
+| P-02 | 善恶 | Done | |
+| P-03 | 组队 | Done | |
+| P-04 | 行会 | Done | |
+| P-05 | 全体 | Done | |
+| P-06 | 名字颜色随 PK | Done | |
 | P-07 | 安全区 | Done | 地图 safeZones + 禁攻 |
 | P-08 | 切换攻击模式 Ctrl+H | Done | |
 
@@ -204,15 +204,15 @@
 | ID | 条目 | Status | 说明 |
 |----|------|--------|------|
 | G-01 | 主城（比奇对照：曙光平原/新手村） | Partial | 安全区 + 商人 |
-| G-02 | 土城 / 盟重对照 | NotStarted | |
+| G-02 | 土城 / 盟重对照 | Done | |
 | G-03 | 封魔对照 | NotStarted | |
 | G-04 | 野外 | Partial | 幽影林 |
 | G-05 | 副本洞窟 | Partial | 史莱姆洞窟模板 |
 | G-06 | 地图传送点 | Done | |
-| G-07 | 回城卷 / 随机卷 | NotStarted | |
+| G-07 | 回城卷 / 随机卷 | Partial | 回城卷有；随机卷没有 |
 | G-08 | 小地图 | Partial | 色点 |
 | G-09 | 大地图 Tab | Partial | Tab 目前是切目标 |
-| G-10 | 世界地图 | NotStarted | |
+| G-10 | 世界地图 | Partial | |
 | G-11 | 昼夜 | NotStarted | 可选 |
 
 ## 12. 沙巴克攻城
@@ -224,7 +224,7 @@
 | B-03 | 旗帜 / 占领 | Partial | `SiegeCapture` |
 | B-04 | 时间表 | Partial | 配置 + Admin 开关 |
 | B-05 | 占领奖励 | Partial | 城主 buff 配置 |
-| B-06 | 可玩攻城循环（宣战→开战→占旗→领奖） | NotStarted | 可玩客户端没有入口 |
+| B-06 | 可玩攻城循环（宣战→开战→占旗→领奖） | Partial | 客户端可宣战、看日程、打城门/城墙/旗帜并占领。开战仍要控制报文或管理员，日程是占位 |
 
 ## 13. 经济
 
@@ -232,7 +232,7 @@
 |----|------|--------|------|
 | Y-01 | 金币 | Done | |
 | Y-02 | NPC 标价 | Done | `shops.json` |
-| Y-03 | 玩家面对面交易窗 | NotStarted | |
+| Y-03 | 玩家面对面交易窗 | Done | 发起、接受、放入一件物品和金币、双方锁定后成交 |
 | Y-04 | 摆摊 / 寄售 | Partial | 服务端 2601–2609；客户端无。P1 |
 | Y-05 | 出售回收价 | NotStarted | |
 
@@ -270,13 +270,13 @@
 | V-03 | 斜向或 2D 地砖 | Partial | 正视角棋盘格 |
 | V-04 | 墙与物件 | Partial | 阻挡格近黑 |
 | V-05 | 昼夜 | NotStarted | |
-| V-06 | 角色多方向走/跑/攻/施法/死 | NotStarted | 色块 + 朝向线 |
-| V-07 | 怪物多方向动作 | NotStarted | 色块 |
+| V-06 | 角色多方向走/跑/攻/施法/死 | Partial | 色块 + 朝向线 |
+| V-07 | 怪物多方向动作 | Partial | 色块 |
 | V-08 | 技能特效 | Partial | |
 | V-09 | 伤害数字 | Done | |
 | V-10 | HP/MP 条 | Done | |
 | V-11 | 名字、称号 | Partial | 名字有；称号无 |
-| V-12 | PK 名字颜色 | NotStarted | |
+| V-12 | PK 名字颜色 | Done | |
 | V-13 | HUD：HP/MP/EXP/负重/等级 | Partial | 无 EXP 条与负重 |
 | V-14 | 技能栏 F1–F8 | Done | |
 | V-15 | 药品栏 | Done | |

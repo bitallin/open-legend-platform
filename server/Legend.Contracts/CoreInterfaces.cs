@@ -220,6 +220,10 @@ public sealed class SkillConfigItem
     public string SummonPetId { get; set; } = string.Empty;
     /// <summary>Folded into cooldown when greater than the skill cooldown.</summary>
     public int CastTimeMs { get; set; }
+    /// <summary>self | target. Used when kind is aoe.</summary>
+    public string AoeCenter { get; set; } = "";
+    public int AoeRadius { get; set; }
+    public int ChargeSteps { get; set; }
 }
 
 public sealed class BuffConfigItem
@@ -235,6 +239,8 @@ public sealed class BuffConfigItem
     public int DotDamagePerTick { get; set; }
     public string StackRule { get; set; } = "refresh";
     public bool ClearOnDeath { get; set; } = true;
+    /// <summary>Flat damage absorbed before HP. Magic shield uses this instead of defense.</summary>
+    public int AbsorbAmount { get; set; }
 }
 
 public sealed class MonsterTemplate
@@ -287,6 +293,7 @@ public sealed class InventorySlot
 {
     public string ItemId { get; set; } = string.Empty;
     public int Count { get; set; }
+    public bool Identified { get; set; } = true;
 }
 
 
@@ -382,6 +389,10 @@ public sealed class ItemTemplate
     public string UnlockPetId { get; set; } = string.Empty;
     /// <summary>NPC recycle price. 0 = derive from shop buy price.</summary>
     public int SellPriceGold { get; set; }
+    public int Weight { get; set; }
+    public bool NeedsIdentify { get; set; }
+    /// <summary>When kind is recall, empty means the pack default town spawn.</summary>
+    public string RecallMapId { get; set; } = "";
 }
 
 public sealed class LevelEntryConfig
@@ -467,6 +478,7 @@ public sealed class SiegeConfig
     public string OwnerBuffId { get; set; } = "buff_castle_lord";
     public string OwnerTitle { get; set; } = "沙巴克城主行会";
     public int WinnerRewardGold { get; set; } = 100;
+    public string ScheduleNote { get; set; } = "";
 }
 
 
@@ -652,6 +664,9 @@ public sealed class EquippedItemState
     public string Slot { get; set; } = string.Empty;
     public string ItemId { get; set; } = string.Empty;
     public int EnhanceLevel { get; set; }
+    public int Durability { get; set; }
+    public int MaxDurability { get; set; }
+    public bool Identified { get; set; } = true;
 }
 
 public sealed class LoadedVersionPack

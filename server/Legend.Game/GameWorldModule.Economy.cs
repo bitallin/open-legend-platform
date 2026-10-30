@@ -103,7 +103,18 @@ public sealed partial class GameWorldModule
             return;
         }
         player.Gold -= cost;
+        foreach (var piece in player.Equipment)
+        {
+            if (!string.IsNullOrWhiteSpace(req.Slot) &&
+                !string.Equals(piece.Slot, req.Slot, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (piece.MaxDurability <= 0)
+                piece.MaxDurability = PhaseMRules.DurabilityMax;
+            piece.Durability = piece.MaxDurability;
+        }
+        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
         await PersistEconomyAsync(player, ct);
+        await PersistEquipmentAsync(player, ct);
         var resp = new RepairResp
         {
             Success = true,

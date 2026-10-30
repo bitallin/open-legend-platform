@@ -198,4 +198,32 @@ public class PlayableSliceTests
         Assert.Equal("骨脊小径（原创，对照骨洞路径）", bone.MapName);
         Assert.Equal("骨片", ContentCatalog.ItemName("item_bone_chip"));
     }
+
+    [Fact]
+    public void PhaseM_PkWeightShieldAndDurability()
+    {
+        Assert.Equal("white", PhaseMRules.NameColor(0));
+        Assert.Equal("yellow", PhaseMRules.NameColor(1));
+        Assert.Equal("red", PhaseMRules.NameColor(3));
+        Assert.False(PhaseMRules.AllowsPlayerTarget("peace", false, false, 0, force: false));
+        Assert.True(PhaseMRules.AllowsPlayerTarget("peace", false, false, 0, force: true));
+        Assert.True(PhaseMRules.AllowsPlayerTarget("good_evil", false, false, 3, force: false));
+        Assert.False(PhaseMRules.AllowsPlayerTarget("good_evil", false, false, 1, force: false));
+        Assert.False(PhaseMRules.AllowsPlayerTarget("guild", false, true, 0, force: false));
+        Assert.True(PhaseMRules.AllowsPlayerTarget("all", true, true, 0, force: false));
+        Assert.Equal(40, PhaseMRules.AbsorbDamage(100, 40));
+        Assert.Equal(0, PhaseMRules.AbsorbDamage(10, 0));
+        Assert.Equal((5, 4, 3), PhaseMRules.ApplyBroken(10, 8, 6, 0, 100));
+        Assert.Equal((10, 8, 6), PhaseMRules.ApplyBroken(10, 8, 6, 40, 100));
+        var items = new Dictionary<string, ItemTemplate>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["item_hp_potion"] = new ItemTemplate { ItemId = "item_hp_potion", Weight = 1 }
+        };
+        int weight = PhaseMRules.BagWeight(new[] { new InventorySlot { ItemId = "item_hp_potion", Count = 4 } }, items);
+        Assert.Equal(4, weight);
+        Assert.True(weight < PhaseMRules.MaxCarry(1));
+        Assert.Equal("oath_city", MapCatalog.Get("oath_city").MapId);
+        Assert.Equal("沙门关（原创，对照沙巴克城门）", MapCatalog.Get("sand_gate").MapName);
+        Assert.True(MapCatalog.Get("sand_gate").IsPortal(18, 15));
+    }
 }

@@ -45,11 +45,12 @@
     "durationMs": 20000,
     "tickMs": 0,
     "atkBonusPercent": 0,
-    "defBonusPercent": 40,
+    "defBonusPercent": 0,
     "moveSlowPercent": 0,
     "dotDamagePerTick": 0,
     "stackRule": "refresh",
-    "clearOnDeath": true
+    "clearOnDeath": true,
+    "absorbAmount": 80
   },
   {
     "buffId": "buff_holy_armor",

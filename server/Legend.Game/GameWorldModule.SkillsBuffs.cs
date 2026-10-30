@@ -236,6 +236,8 @@ public sealed partial class GameWorldModule
                 existing.Stacks = Math.Min(5, existing.Stacks + 1);
             existing.ExpiresAtUnixMs = now + Math.Max(100, cfg.DurationMs);
             existing.NextTickUnixMs = cfg.TickMs > 0 ? now + cfg.TickMs : 0;
+            if (cfg.AbsorbAmount > 0)
+                existing.AbsorbRemaining = cfg.AbsorbAmount;
         }
         else
         {
@@ -244,7 +246,8 @@ public sealed partial class GameWorldModule
                 BuffId = buffId,
                 Stacks = 1,
                 ExpiresAtUnixMs = now + Math.Max(100, cfg.DurationMs),
-                NextTickUnixMs = cfg.TickMs > 0 ? now + cfg.TickMs : 0
+                NextTickUnixMs = cfg.TickMs > 0 ? now + cfg.TickMs : 0,
+                AbsorbRemaining = Math.Max(0, cfg.AbsorbAmount)
             });
         }
 

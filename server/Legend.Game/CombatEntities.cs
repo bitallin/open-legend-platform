@@ -239,7 +239,16 @@ public static class EquipmentHelper
             return new List<EquippedItemState>();
         try
         {
-            return JsonSerializer.Deserialize<List<EquippedItemState>>(json, JsonOpts) ?? new List<EquippedItemState>();
+            var list = JsonSerializer.Deserialize<List<EquippedItemState>>(json, JsonOpts) ?? new List<EquippedItemState>();
+            foreach (var eq in list)
+            {
+                if (eq.MaxDurability <= 0)
+                {
+                    eq.MaxDurability = PhaseMRules.DurabilityMax;
+                    eq.Durability = PhaseMRules.DurabilityMax;
+                }
+            }
+            return list;
         }
         catch
         {
@@ -259,7 +268,9 @@ public static class EquipmentHelper
         int atk = tmpl.AtkBonus + lvl * tmpl.EnhanceAtkPerLevel;
         int def = tmpl.DefBonus + lvl * tmpl.EnhanceDefPerLevel;
         int hp = tmpl.MaxHpBonus + lvl * tmpl.EnhanceHpPerLevel;
-        return (atk, def, hp);
+        if (tmpl.NeedsIdentify && !eq.Identified)
+            return (0, 0, 0);
+        return PhaseMRules.ApplyBroken(atk, def, hp, eq.Durability, eq.MaxDurability);
     }
 
     public static EquippedSlot ToSlotProto(EquippedItemState eq, IReadOnlyDictionary<string, ItemTemplate> items)
@@ -272,7 +283,10 @@ public static class EquipmentHelper
             EnhanceLevel = eq.EnhanceLevel,
             AtkBonus = atk,
             DefBonus = def,
-            MaxHpBonus = hp
+            MaxHpBonus = hp,
+            Durability = eq.Durability,
+            MaxDurability = eq.MaxDurability,
+            Identified = eq.Identified
         };
     }
 
@@ -322,6 +336,7 @@ public sealed class ActiveBuffState
     public long ExpiresAtUnixMs { get; set; }
     public long NextTickUnixMs { get; set; }
     public int Stacks { get; set; } = 1;
+    public int AbsorbRemaining { get; set; }
 }
 
 public static class SkillHelper

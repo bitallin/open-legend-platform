@@ -159,17 +159,14 @@ public sealed class WorldCanvas : Control
                 DrawDiamond(context, center, fill);
                 break;
             case EntityKind.EntityMonster:
-                context.FillRectangle(fill, new Rect(sx - 12, sy - 12, 24, 24));
+                DrawMonsterFrame(context, actor, sx, sy, fill);
                 break;
             case EntityKind.EntityNpc:
                 context.FillRectangle(Brush("#F2E2B6"), new Rect(sx - 8, sy - 20, 16, 8));
                 context.DrawEllipse(fill, null, center, 11, 11);
                 break;
             default:
-                double bob = Math.Sin(AnimTime * 8 + actor.GridX) * 1.5;
-                context.DrawEllipse(fill, null, new Point(sx, sy + 4 + bob), 8, 11);
-                context.DrawEllipse(Brush("#F4E2C4"), null, new Point(sx, sy - 12 + bob), 6, 6);
-                context.FillRectangle(Brush("#3A2A22"), new Rect(sx - 7, sy - 2 + bob, 14, 6));
+                DrawPaperdoll(context, actor, sx, sy, fill);
                 break;
         }
 
@@ -188,7 +185,7 @@ public sealed class WorldCanvas : Control
         }
 
         string label = string.IsNullOrWhiteSpace(actor.Name) ? actor.Kind.ToString() : actor.Name;
-        var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 12, Brushes.White);
+        var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 12, Brush(NameHex(actor.NameColor)));
         context.DrawText(text, new Point(sx - text.Width / 2, sy - 44));
     }
 
@@ -205,6 +202,38 @@ public sealed class WorldCanvas : Control
         }
         context.DrawGeometry(fill, new Pen(Brush("#FFF1B8"), 1), geo);
     }
+
+    private void DrawPaperdoll(DrawingContext context, ActorView actor, double sx, double sy, IBrush fill)
+    {
+        int frame = (int)(AnimTime * 6) % 4;
+        double bob = frame is 1 or 3 ? 2 : 0;
+        bool attack = frame == 2 && actor.Pose == "attack";
+        double reach = attack ? 8 : 0;
+        var (fx, fy) = GridMath.FacingVector(actor.Direction);
+        context.FillRectangle(Brush("#3A2A22"), new Rect(sx - 6, sy - 1 + bob, 12, 8));
+        context.DrawEllipse(fill, null, new Point(sx, sy + 6 + bob), 7, 9);
+        context.DrawEllipse(Brush("#F4E2C4"), null, new Point(sx, sy - 12 + bob), 6, 6);
+        context.DrawLine(new Pen(Brush("#E8C872"), 2),
+            new Point(sx, sy),
+            new Point(sx + fx * (10 + reach), sy - fy * (10 + reach)));
+    }
+
+    private void DrawMonsterFrame(DrawingContext context, ActorView actor, double sx, double sy, IBrush fill)
+    {
+        int frame = (int)(AnimTime * 4 + actor.GridX) % 3;
+        double w = 20 + frame;
+        context.FillRectangle(fill, new Rect(sx - w / 2, sy - 10 - frame, w, 18));
+        context.FillRectangle(Brush("#2A120E"), new Rect(sx - 4, sy - 16 - frame, 3, 4));
+        context.FillRectangle(Brush("#2A120E"), new Rect(sx + 2, sy - 16 - frame, 3, 4));
+    }
+
+    private static string NameHex(string? color) => color switch
+    {
+        "red" => "#FF5A5A",
+        "yellow" => "#F0D060",
+        "green" => "#7DDE8A",
+        _ => "#FFFFFF"
+    };
 
     private static void DrawFx(DrawingContext context, CastFx fx, double camX, double camY, double w, double h, double cell)
     {

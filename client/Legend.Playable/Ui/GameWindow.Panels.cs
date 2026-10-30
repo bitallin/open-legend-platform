@@ -57,6 +57,9 @@ public sealed partial class GameWindow
         systems.Children.Add(Sys("组队", () => ShowPanel("party")));
         systems.Children.Add(Sys("行会", () => ShowPanel("guild")));
         systems.Children.Add(Sys("地图", () => ShowPanel("map")));
+        systems.Children.Add(Sys("世界", () => ShowPanel("world")));
+        systems.Children.Add(Sys("交易", () => ShowPanel("trade")));
+        systems.Children.Add(Sys("攻城", () => { ShowPanel("siege"); _ = Safe(async () => { await _session.SiegeStatusAsync(); }); }));
         systems.Children.Add(Sys("设置", () => ShowPanel("settings")));
         var dock = new StackPanel { Spacing = 4 };
         dock.Children.Add(_modeLabel);
@@ -145,7 +148,10 @@ public sealed partial class GameWindow
         EnsureBarForClass();
         _modeLabel.Text = "攻击模式 " + AttackModes.Label(_attackMode) + "  ·  Ctrl+H";
         int expMax = Math.Max(1, _session.ExpToNext);
-        _expLabel.Text = $"EXP {_session.Exp}/{expMax}   负重 —";
+        int weight = ContentCatalog.BagWeight(_session.Inventory.Items.Select(i => (i.ItemId, i.Count)));
+        int carry = 80 + Math.Max(1, _session.Level) * 5;
+        string pk = _session.NameColor switch { "red" => "红名", "yellow" => "黄名", _ => "白名" };
+        _expLabel.Text = $"EXP {_session.Exp}/{expMax}   负重 {weight}/{carry}   {pk}";
         for (int i = 0; i < 8; i++)
         {
             var def = ContentCatalog.FindSkill(_skillSlots[i]);
@@ -162,7 +168,8 @@ public sealed partial class GameWindow
         _panelHost.IsVisible = _openPanel.Length > 0 && _session.Fsm.Phase == SessionPhase.InWorld;
         if (!_panelHost.IsVisible)
             return;
-        string fp = _openPanel + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId;
+        var trade = _session.TradeState;
+        string fp = _openPanel + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote;
         if (fp == _panelFp)
             return;
         _panelFp = fp;
@@ -191,10 +198,21 @@ public sealed partial class GameWindow
                 _panelBody.Children.Add(Block($"职业 {_session.ClassId}  等级 {_session.Level}"));
                 _panelBody.Children.Add(Block($"攻 {_session.Atk}  防 {_session.Def}  金 {_session.Inventory.Gold}"));
                 _panelBody.Children.Add(Block(_session.GuildName.Length == 0 ? "行会：无" : $"行会 {_session.GuildName} {_session.GuildRank}"));
-                if (_session.Equipment.Count == 0)
-                    _panelBody.Children.Add(Block("未穿装备"));
-                foreach (var eq in _session.Equipment)
-                    _panelBody.Children.Add(Block($"{eq.Slot}  {ContentCatalog.ItemName(eq.ItemId)} +{eq.EnhanceLevel}"));
+                foreach (string slot in new[] { "weapon", "armor", "helmet", "necklace", "bracelet", "bracelet2", "ring", "ring2", "boots", "belt", "torch" })
+                {
+                    var eq = _session.Equipment.FirstOrDefault(e => string.Equals(e.Slot, slot, StringComparison.OrdinalIgnoreCase));
+                    string line = eq == null || string.IsNullOrEmpty(eq.ItemId)
+                        ? $"{SlotLabel(slot)}  —"
+                        : $"{SlotLabel(slot)}  {(eq.Identified ? ContentCatalog.ItemName(eq.ItemId) : "未鉴定")}  耐久 {eq.Durability}/{Math.Max(eq.MaxDurability, 1)}";
+                    _panelBody.Children.Add(Block(line));
+                    if (eq != null && !eq.Identified && !string.IsNullOrEmpty(eq.ItemId))
+                    {
+                        string id = eq.ItemId;
+                        var identify = new Button { Content = "鉴定", HorizontalAlignment = HorizontalAlignment.Stretch };
+                        identify.Click += async (_, _) => Toast(await _session.IdentifyAsync(id) ?? "已鉴定");
+                        _panelBody.Children.Add(identify);
+                    }
+                }
                 foreach (var item in _session.Inventory.Items)
                 {
                     var id = item.ItemId;
@@ -371,6 +389,68 @@ public sealed partial class GameWindow
                     _panelBody.Children.Add(Block($"传送 {portal.Id} ({portal.X},{portal.Y})"));
                 _panelBody.Children.Add(Block("路线：曙光镇外 → 沼窟外廊 → 骨脊小径"));
                 break;
+            case "trade":
+                _panelTitle.Text = "面对面交易";
+                var peer = new TextBox { Watermark = "对方角色名", Text = _session.TradePeer };
+                var start = new Button { Content = "发起", HorizontalAlignment = HorizontalAlignment.Stretch };
+                start.Click += async (_, _) => Toast(await _session.TradeStartAsync(peer.Text ?? "") ?? "已发起，等待对方");
+                _panelBody.Children.Add(peer);
+                _panelBody.Children.Add(start);
+                if (_session.TradeId.Length > 0)
+                {
+                    _panelBody.Children.Add(Block("单号 " + _session.TradeId));
+                    var yes = new Button { Content = "接受", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    yes.Click += async (_, _) => Toast(await _session.TradeRespondAsync(true) ?? "已接受");
+                    var no = new Button { Content = "拒绝", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    no.Click += async (_, _) => Toast(await _session.TradeRespondAsync(false) ?? "已拒绝");
+                    _panelBody.Children.Add(yes);
+                    _panelBody.Children.Add(no);
+                    var offerItem = new TextBox { Watermark = "放入的物品 id，可空" };
+                    var offerGold = new TextBox { Watermark = "金币", Text = "0" };
+                    var put = new Button { Content = "放入", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    put.Click += async (_, _) =>
+                    {
+                        int.TryParse(offerGold.Text, out int gold);
+                        Toast(await _session.TradePutAsync(offerItem.Text ?? "", string.IsNullOrWhiteSpace(offerItem.Text) ? 0 : 1, gold) ?? "已放入");
+                    };
+                    var lockBtn = new Button { Content = "锁定成交", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    lockBtn.Click += async (_, _) => Toast(await _session.TradeLockAsync(true) ?? "已锁定");
+                    var cancel = new Button { Content = "取消", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    cancel.Click += async (_, _) => await _session.TradeCancelAsync();
+                    _panelBody.Children.Add(offerItem);
+                    _panelBody.Children.Add(offerGold);
+                    _panelBody.Children.Add(put);
+                    _panelBody.Children.Add(lockBtn);
+                    _panelBody.Children.Add(cancel);
+                    if (_session.TradeState != null)
+                    {
+                        var st = _session.TradeState;
+                        _panelBody.Children.Add(Block($"我 {st.SelfItemId} x{st.SelfCount} 金{st.SelfGold} {(st.SelfLocked ? "已锁" : "")}"));
+                        _panelBody.Children.Add(Block($"对方 {st.PeerName} {st.PeerItemId} x{st.PeerCount} 金{st.PeerGold} {(st.PeerLocked ? "已锁" : "")}"));
+                    }
+                }
+                break;
+            case "siege":
+                _panelTitle.Text = "沙巴克";
+                _panelBody.Children.Add(Block("沙门关城墙挡住直路，城门格传送进皇宫区。旗帜在幽影林 (20,20)。"));
+                _panelBody.Children.Add(Block(string.IsNullOrWhiteSpace(_session.SiegeNote) ? "打开面板时会向服务器要状态。" : _session.SiegeNote));
+                var refreshSiege = new Button { Content = "刷新状态", HorizontalAlignment = HorizontalAlignment.Stretch };
+                refreshSiege.Click += async (_, _) => Toast(await _session.SiegeStatusAsync() ?? "已刷新");
+                var declare = new Button { Content = "行会宣战", HorizontalAlignment = HorizontalAlignment.Stretch };
+                declare.Click += async (_, _) => Toast(await _session.SiegeDeclareAsync() ?? "已宣战");
+                var capture = new Button { Content = "占领旗帜", HorizontalAlignment = HorizontalAlignment.Stretch };
+                capture.Click += async (_, _) => Toast(await _session.SiegeCaptureAsync() ?? "已占领");
+                _panelBody.Children.Add(refreshSiege);
+                _panelBody.Children.Add(declare);
+                _panelBody.Children.Add(capture);
+                break;
+            case "world":
+                _panelTitle.Text = "世界地图";
+                _panelBody.Children.Add(Block("曙光镇外 → 盟誓城 → 沙门关 → 幽影林皇宫"));
+                _panelBody.Children.Add(Block("曙光镇外 → 沼窟外廊 → 骨脊小径"));
+                _panelBody.Children.Add(Block("幽影林 ↔ 曙光镇外"));
+                _panelBody.Children.Add(Block("回城卷回到曙光镇出生点。当前：" + _session.World.Map.MapName));
+                break;
             case "settings":
                 _panelTitle.Text = "设置";
                 _panelBody.Children.Add(SliderRow("主音量", _audio.Master, v => _audio.Master = (float)v));
@@ -399,7 +479,19 @@ public sealed partial class GameWindow
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.H)
         {
             _attackMode = AttackModes.Next(_attackMode);
-            Toast("攻击模式 " + AttackModes.Label(_attackMode));
+            string wire = _attackMode switch
+            {
+                AttackMode.GoodEvil => "good_evil",
+                AttackMode.Group => "group",
+                AttackMode.Guild => "guild",
+                AttackMode.All => "all",
+                _ => "peace"
+            };
+            _ = Safe(async () =>
+            {
+                string? err = await _session.SetAttackModeAsync(wire);
+                Toast(err ?? ("攻击模式 " + AttackModes.Label(_attackMode)));
+            });
             e.Handled = true;
             return true;
         }
@@ -556,6 +648,22 @@ public sealed partial class GameWindow
         if (id.Contains("armor")) return "armor";
         return "weapon";
     }
+
+    private static string SlotLabel(string slot) => slot switch
+    {
+        "weapon" => "武器",
+        "armor" => "衣服",
+        "helmet" => "头盔",
+        "necklace" => "项链",
+        "bracelet" => "手镯",
+        "bracelet2" => "手镯2",
+        "ring" => "戒指",
+        "ring2" => "戒指2",
+        "boots" => "靴子",
+        "belt" => "腰带",
+        "torch" => "火把",
+        _ => slot
+    };
 
     private static string Short(string text) => text.Length <= 4 ? text : text[..4];
 
