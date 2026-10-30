@@ -40,10 +40,9 @@ public sealed partial class GameWindow
                 Width = 72,
                 Height = 40,
                 FontSize = 11,
-                Background = Brush("#1A120C"),
+                Background = MirChrome.Slot ?? Brush("#1A120C"),
                 Foreground = Brush("#F6E6C0"),
-                BorderBrush = Brush("#C6A15A"),
-                BorderThickness = new Avalonia.Thickness(1)
+                BorderThickness = new Avalonia.Thickness(0)
             };
             button.Click += (_, _) => CastSlot(slot);
             _skillButtons[i] = button;
@@ -53,7 +52,15 @@ public sealed partial class GameWindow
         for (int i = 0; i < 6; i++)
         {
             int slot = i;
-            var button = new Button { Width = 64, Height = 28, FontSize = 11 };
+            var button = new Button
+            {
+                Width = 64,
+                Height = 28,
+                FontSize = 11,
+                Background = MirChrome.Slot ?? Brush("#1A120C"),
+                Foreground = Brush("#F6E6C0"),
+                BorderThickness = new Avalonia.Thickness(0)
+            };
             button.Click += async (_, _) => await DrinkSlot(slot);
             _potionButtons[i] = button;
             potions.Children.Add(button);
@@ -81,9 +88,8 @@ public sealed partial class GameWindow
         dock.Children.Add(_expLabel);
         var bar = new Border
         {
-            Background = Brush("#F016100C"),
-            BorderBrush = Brush("#C6A15A"),
-            BorderThickness = new Avalonia.Thickness(1),
+            Background = MirChrome.BottomBar ?? Brush("#F016100C"),
+            BorderThickness = new Avalonia.Thickness(0),
             Padding = new Avalonia.Thickness(8),
             Margin = new Avalonia.Thickness(0, 0, 12, 12),
             Child = dock,
@@ -106,7 +112,7 @@ public sealed partial class GameWindow
         _panelBody.Children.Add(_panelTitle);
         _panelHost = new Border
         {
-            Background = Brush("#EE1C1612"),
+            Background = MirChrome.BagFrame ?? Brush("#EE1C1612"),
             BorderBrush = Brush("#E8C872"),
             BorderThickness = new Avalonia.Thickness(1),
             Padding = new Avalonia.Thickness(10),

@@ -291,6 +291,11 @@ public class PlayableSliceTests
         Assert.Contains("dragon", actors);
         Assert.Contains("horse", actors);
         Assert.Equal(5, doc.RootElement.GetProperty("dirSlots").GetInt32());
+        Assert.Equal(10, doc.RootElement.GetProperty("actionFrames").GetProperty("attack").GetInt32());
+        Assert.Equal(8, doc.RootElement.GetProperty("actionFrames").GetProperty("idle").GetInt32());
+        Assert.Contains("wep_iron", actors);
+        Assert.Contains("arm_cloth", actors);
+        Assert.Contains("helm_cloth", actors);
         Assert.Contains("grass", doc.RootElement.GetProperty("tiles").EnumerateArray().Select(x => x.GetString()));
         Assert.Contains("lightning", doc.RootElement.GetProperty("fx").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal("bone", MirSheet.ActorId(new ActorView
@@ -305,6 +310,26 @@ public class PlayableSliceTests
             Gender = "f"
         }));
         Assert.Equal(0, MirSheet.FrameIndex("attack", 0, 0.42));
-        Assert.Equal(5, MirSheet.FrameIndex("attack", 0.42, 0.42));
+        Assert.Equal(9, MirSheet.FrameIndex("attack", 0.42, 0.42));
+        Assert.Equal("wep_iron", ContentCatalog.Paperdoll("item_iron_sword"));
+        Assert.Equal("arm_cloth", ContentCatalog.Paperdoll("item_cloth_armor"));
+        Assert.Equal("helm_cloth", ContentCatalog.Paperdoll("item_cloth_helmet"));
+        Assert.Equal("wep_blade", ContentCatalog.Paperdoll("item_wooden_blade"));
+
+        var (sx, sy) = IsoProjection.ToScreen(10, 12, 10, 12, 800, 600);
+        Assert.Equal(400, sx);
+        Assert.Equal(300, sy);
+        var (gx, gy) = IsoProjection.ToCell(sx, sy, 10, 12, 800, 600);
+        Assert.Equal(10, gx);
+        Assert.Equal(12, gy);
+        var (ex, ey) = IsoProjection.ToScreen(11, 12, 10, 12, 800, 600);
+        Assert.True(ex > sx);
+        Assert.True(ey < sy);
+        var (nx, ny) = IsoProjection.ToScreen(10, 13, 10, 12, 800, 600);
+        Assert.True(nx < sx);
+        Assert.True(ny < sy);
+        var (backX, backY) = IsoProjection.ToCell(ex, ey, 10, 12, 800, 600);
+        Assert.Equal(11, backX);
+        Assert.Equal(12, backY);
     }
 }

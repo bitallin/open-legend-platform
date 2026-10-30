@@ -45,6 +45,23 @@ public static class ContentCatalog
     public static string UnlockItemFor(string appearanceId)
         => Loaded.Value.Unlocks.TryGetValue(appearanceId, out var item) ? item : "";
 
+    /// <summary>Sprite layer id for an equipped item. Empty when the item does not change the paperdoll.</summary>
+    public static string Paperdoll(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return "";
+        if (Loaded.Value.Paperdolls.TryGetValue(itemId, out var layer) && layer.Length > 0)
+            return layer;
+        string id = itemId.ToLowerInvariant();
+        if (id.Contains("blade")) return "wep_blade";
+        if (id.Contains("iron_sword")) return "wep_iron";
+        if (id.Contains("sword") || id.Contains("staff")) return id.Contains("staff") ? "wep_staff" : "wep_sword";
+        if (id.Contains("helmet") || id.Contains("helm")) return id.Contains("iron") ? "helm_iron" : "helm_cloth";
+        if (id.Contains("armor") || id.Contains("robe") || id.Contains("mail"))
+            return id.Contains("plate") || id.Contains("iron") ? "arm_plate" : id.Contains("leather") ? "arm_leather" : "arm_cloth";
+        return "";
+    }
+
     public static IReadOnlyList<string> DefaultBar(string? classId)
     {
         return (classId ?? "").ToLowerInvariant() switch
@@ -67,6 +84,7 @@ public static class ContentCatalog
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var weights = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var unlocks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var paperdolls = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         Read(asm, "configs.skills.json", json =>
         {
             using var doc = JsonDocument.Parse(json);
@@ -113,6 +131,9 @@ public static class ContentCatalog
                     continue;
                 names[id] = Str(el, "displayName", id);
                 weights[id] = Int(el, "weight");
+                string doll = Str(el, "paperdoll");
+                if (doll.Length > 0)
+                    paperdolls[id] = doll;
                 foreach (var key in new[] { "unlockMountId", "unlockFashionId", "unlockPetId" })
                 {
                     string target = Str(el, key);
@@ -121,7 +142,7 @@ public static class ContentCatalog
                 }
             }
         });
-        return new Catalog(skills, names, weights, unlocks);
+        return new Catalog(skills, names, weights, unlocks, paperdolls);
     }
 
     private static void Read(System.Reflection.Assembly asm, string name, Action<string> use)
@@ -143,5 +164,6 @@ public static class ContentCatalog
         IReadOnlyList<SkillDef> Skills,
         IReadOnlyDictionary<string, string> ItemNames,
         IReadOnlyDictionary<string, int> Weights,
-        IReadOnlyDictionary<string, string> Unlocks);
+        IReadOnlyDictionary<string, string> Unlocks,
+        IReadOnlyDictionary<string, string> Paperdolls);
 }
