@@ -1,6 +1,8 @@
 # 可玩 PC 客户端（非 Unity 为验收路径）
 
-协议仍为 **1.21.0**（本阶段未改游戏协议）。画面是程序绘制的格子与色块，声音是程序生成的 WAV，**禁止**导入官方传奇 / 996 闭源资源包。
+协议仍为 **1.21.0**（本阶段未改游戏协议版本字符串）。画面是程序绘制的格子与色块，声音是程序生成的 WAV，**禁止**导入官方传奇 / 996 闭源资源包。
+
+生产是否做完，不看这份「能玩一局」说明，而看 [MIR_PRODUCTION_FEATURE_MATRIX.md](MIR_PRODUCTION_FEATURE_MATRIX.md)。当前百分比与下一批任务见 [DEV_PROGRESS.md](DEV_PROGRESS.md)。协议若加报文，先写 [PROTOCOL_NOTES.md](PROTOCOL_NOTES.md)。
 
 不需要 Unity Editor，也不需要 Godot。在装有 .NET 8 SDK 的 Windows 上一条命令打出 `LegendClient.exe`，再用 Avalonia 登录器选区启动。
 
@@ -132,6 +134,10 @@ dotnet run --project client/Legend.Playable -c Release -- --probe --host 150.158
 | 商店 / 任务 / 行会 / 技能栏 | ❌ 缺 | **P1**（点 NPC 只会把对话和货品打到聊天） |
 | 精美 2D 精灵 / 地图块 | ❌ 缺 | **P1** |
 | Unity 玩家包 | 可选 | 见下文；没有 Editor 也能验收 |
+
+### 生产清单
+
+上面这张表只描述「能玩一局」。完整生产条目（玩法、画面、音效、键位）在 [MIR_PRODUCTION_FEATURE_MATRIX.md](MIR_PRODUCTION_FEATURE_MATRIX.md)，进度在 [DEV_PROGRESS.md](DEV_PROGRESS.md)。
 
 ### P1（下一轮）
 

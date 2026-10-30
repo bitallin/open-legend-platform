@@ -2,6 +2,10 @@
 
 > **100% 原创自研声明**：本仓库采用自有 Protobuf 协议、自有帧格式 (`[Len:4][MsgId:2][Seq:4][Payload]`)、自有版本包 (`version-packs/`) 与自有白名单 Lua 沙箱 API (`legend_api.*`)，严禁任何对第三方闭源引擎的逆向、破解或协议兼容。能力对标经典传奇玩法，**非协议/资源兼容 996**。
 
+## 生产完成度（事实来源）
+
+可玩演示已合并，**还不等于生产版本**。玩法、画面、音效、PC 操作的条目与状态以 [docs/MIR_PRODUCTION_FEATURE_MATRIX.md](docs/MIR_PRODUCTION_FEATURE_MATRIX.md) 为准，进度数字以 [docs/DEV_PROGRESS.md](docs/DEV_PROGRESS.md) 为准。协议增补记在 [docs/PROTOCOL_NOTES.md](docs/PROTOCOL_NOTES.md)。资源只允许原创 / CC0 / 程序生成。
+
 ## 可玩 PC 客户端（验收路径，无需 Unity）
 
 协议 **1.21.0**。Windows 玩家包用 `dotnet publish` 生成，不依赖 Unity Editor。登录器选区后启动 `LegendClient.exe`，连上公网试玩服即可移动、打怪、拾取、聊天。
@@ -11,7 +15,7 @@ scripts\publish-playable-windows.bat
 dist\windows-player\LegendClient.exe --host 150.158.164.90 --port 7100 --realm-id realm-classic-01
 ```
 
-操作：WASD / 方向键移动，鼠标左键点地或选中，右键或 Space / J 攻击，Tab 切目标，B 背包，Enter 聊天，Z / G 拾取。说明见 [docs/PLAYABLE_PC.md](docs/PLAYABLE_PC.md)。
+操作：WASD / 方向键移动，鼠标左键点地或选中，右键或 Space / J 攻击，Tab 切目标，B 背包，Enter 聊天，Z / G 拾取。生产键位以功能清单第 18 节为准。说明见 [docs/PLAYABLE_PC.md](docs/PLAYABLE_PC.md)。
 
 ## 当前里程碑：Phase J（Android 导出/打包流水线骨架）
 
