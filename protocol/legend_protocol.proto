@@ -217,6 +217,8 @@ message CharacterSummary {
   int32 max_mp = 11;
   int32 gold = 12;
   int32 exp = 13;
+  // Phase P. Empty on older servers.
+  string gender = 14;
 }
 
 message CharListReq {
@@ -294,6 +296,8 @@ message EntitySnapshot {
   string name_color = 20;
   string attack_mode = 21;
   string gender = 22;
+  // Phase P nameplate. Empty for monsters and old snapshots.
+  string title = 23;
 }
 
 message EnterWorldReq {
@@ -1801,4 +1805,13 @@ message GroundEffectNotify {
   int32 radius = 4;
   int32 duration_ms = 5;
   string skill_id = 6;
+}
+
+// Phase P. Leave the map but keep the login session so the client can return to character select.
+message LeaveWorldReq {}
+
+message LeaveWorldResp {
+  bool success = 1;
+  ProtocolErrorCode error_code = 2;
+  string message = 3;
 }

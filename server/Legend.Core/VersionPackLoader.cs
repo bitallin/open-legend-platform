@@ -479,6 +479,10 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+        string profanityPath = Path.Combine(baseDir, "configs", "profanity.txt");
+        if (File.Exists(profanityPath))
+            PhasePRules.UseWordList(File.ReadAllLines(profanityPath));
+
         return new LoadedVersionPack
         {
             Manifest = manifest,

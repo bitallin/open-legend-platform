@@ -384,6 +384,8 @@ public sealed partial class GameWorldModule
         if (await TryChatUtilityAsync(player, content, req.Channel, ct))
             return;
 
+        content = PhasePRules.MaskProfanity(content);
+
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (_lastChatUnixMs.TryGetValue(player.EntityId, out long last) && now - last < cfg.ChatCooldownMs)
         {

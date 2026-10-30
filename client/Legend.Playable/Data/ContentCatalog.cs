@@ -42,6 +42,9 @@ public static class ContentCatalog
     public static string ItemName(string itemId)
         => ItemNames.TryGetValue(itemId, out var name) ? name : itemId;
 
+    public static string UnlockItemFor(string appearanceId)
+        => Loaded.Value.Unlocks.TryGetValue(appearanceId, out var item) ? item : "";
+
     public static IReadOnlyList<string> DefaultBar(string? classId)
     {
         return (classId ?? "").ToLowerInvariant() switch
@@ -63,6 +66,7 @@ public static class ContentCatalog
         var skills = new List<SkillDef>();
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var weights = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var unlocks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         Read(asm, "configs.skills.json", json =>
         {
             using var doc = JsonDocument.Parse(json);
@@ -109,9 +113,15 @@ public static class ContentCatalog
                     continue;
                 names[id] = Str(el, "displayName", id);
                 weights[id] = Int(el, "weight");
+                foreach (var key in new[] { "unlockMountId", "unlockFashionId", "unlockPetId" })
+                {
+                    string target = Str(el, key);
+                    if (target.Length > 0)
+                        unlocks[target] = id;
+                }
             }
         });
-        return new Catalog(skills, names, weights);
+        return new Catalog(skills, names, weights, unlocks);
     }
 
     private static void Read(System.Reflection.Assembly asm, string name, Action<string> use)
@@ -132,5 +142,6 @@ public static class ContentCatalog
     private sealed record Catalog(
         IReadOnlyList<SkillDef> Skills,
         IReadOnlyDictionary<string, string> ItemNames,
-        IReadOnlyDictionary<string, int> Weights);
+        IReadOnlyDictionary<string, int> Weights,
+        IReadOnlyDictionary<string, string> Unlocks);
 }

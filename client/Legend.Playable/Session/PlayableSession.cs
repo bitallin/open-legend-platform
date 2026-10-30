@@ -125,6 +125,8 @@ public sealed partial class PlayableSession : IDisposable
             GuildName = _net.GuildName;
             GuildRank = _net.GuildRank;
             CopyMeta();
+            if (World.Self != null)
+                World.Self.Title = Legend.Contracts.PhasePRules.Title(Level, GuildRank);
             var map = _net.SelfEntity?.MapId ?? character.MapId;
             Fsm.MarkInWorld(string.IsNullOrEmpty(map) ? "?" : map);
             Chat.Add($"[系统] 进入 {World.Map.MapName}");
@@ -205,11 +207,14 @@ public sealed partial class PlayableSession : IDisposable
         return resp.Success ? null : (string.IsNullOrWhiteSpace(resp.Message) ? "无法使用" : resp.Message);
     }
 
-    public async Task SendChatAsync(ChatChannel channel, string content, string? targetName = null)
+    public async Task<bool> SendChatAsync(ChatChannel channel, string content, string? targetName = null)
     {
         if (Fsm.Phase != SessionPhase.InWorld)
-            return;
-        await _net.SendChatAsync(channel, content.Trim(), targetName);
+            return false;
+        string raw = content.Trim();
+        string masked = Legend.Contracts.PhasePRules.MaskProfanity(raw);
+        await _net.SendChatAsync(channel, masked, targetName);
+        return !string.Equals(raw, masked, StringComparison.Ordinal);
     }
 
     public async Task<string?> ShopBuyAsync(string itemId, int count = 1)
@@ -374,6 +379,7 @@ public sealed partial class PlayableSession : IDisposable
             SyncInventory();
             GuildName = resp.GuildName;
             GuildRank = resp.GuildRank;
+            await RefreshGuildAsync();
             return null;
         }
         return string.IsNullOrWhiteSpace(resp.Message) ? "创建行会失败" : resp.Message;
@@ -386,6 +392,7 @@ public sealed partial class PlayableSession : IDisposable
         {
             GuildName = resp.GuildName;
             GuildRank = resp.GuildRank;
+            await RefreshGuildAsync();
             return null;
         }
         return string.IsNullOrWhiteSpace(resp.Message) ? "加入失败" : resp.Message;
@@ -398,6 +405,10 @@ public sealed partial class PlayableSession : IDisposable
         {
             GuildName = "";
             GuildRank = "";
+            GuildInfo = null;
+            SocialRevision++;
+            if (World.Self != null)
+                World.Self.Title = Legend.Contracts.PhasePRules.Title(Level, GuildRank);
             return null;
         }
         return string.IsNullOrWhiteSpace(resp.Message) ? "退出失败" : resp.Message;
@@ -407,7 +418,16 @@ public sealed partial class PlayableSession : IDisposable
     {
         var resp = await _net.GuildInfoAsync();
         if (resp.Success)
+        {
             GuildName = resp.GuildName;
+            GuildInfo = resp;
+            var me = resp.Members.FirstOrDefault(m => string.Equals(m.CharacterId, CharacterId, StringComparison.Ordinal));
+            if (me != null && !string.IsNullOrWhiteSpace(me.Rank))
+                GuildRank = me.Rank;
+            if (World.Self != null)
+                World.Self.Title = Legend.Contracts.PhasePRules.Title(Level, GuildRank);
+        }
+        SocialRevision++;
         return resp;
     }
 
@@ -617,6 +637,9 @@ public sealed partial class PlayableSession : IDisposable
         {
             World.AddGround(ground.MapId, ground.X, ground.Y, ground.Radius, ground.DurationMs / 1000.0);
         };
+        net.OnBossHp += ApplyBossHp;
+        net.OnBossSpawn += ApplyBossSpawn;
+        net.OnAppearance += ApplyLook;
         net.OnSiege += siege =>
         {
             SiegeChanged?.Invoke(siege.IsActive ? "攻城开始" : "攻城状态 " + siege.Reason);
@@ -643,6 +666,7 @@ public sealed partial class PlayableSession : IDisposable
                 World.Self.Hp = lu.Hp;
                 if (lu.EffectiveMaxHp > 0)
                     World.Self.MaxHp = lu.EffectiveMaxHp;
+                World.Self.Title = Legend.Contracts.PhasePRules.Title(Level, GuildRank);
             }
             Chat.Add($"[系统] 升级到 {lu.NewLevel}");
             LeveledUp?.Invoke();

@@ -238,6 +238,7 @@ public sealed partial class GameWorldModule
             if (string.Equals(online.CharacterId, targetId, StringComparison.Ordinal))
             {
                 online.GuildRank = newRank;
+                await BroadcastPlayerSnapshotAsync(online, ct);
                 break;
             }
         }
