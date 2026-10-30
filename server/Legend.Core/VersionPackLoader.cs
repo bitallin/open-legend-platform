@@ -92,6 +92,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Skills config not found: {skillsPath}");
             string skillsJson = File.ReadAllText(skillsPath, Encoding.UTF8);
             hashInput.Append(skillsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Skills, skillsJson, manifest.SkillsConfigFile);
             var skills = JsonSerializer.Deserialize<List<SkillConfigItem>>(skillsJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize skills.json");
             foreach (var s in skills)
@@ -112,6 +113,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Monsters config not found: {monstersPath}");
             string monstersJson = File.ReadAllText(monstersPath, Encoding.UTF8);
             hashInput.Append(monstersJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Monsters, monstersJson, manifest.MonstersConfigFile);
             var monstersFile = JsonSerializer.Deserialize<MonstersConfigFile>(monstersJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize monsters.json");
             foreach (var t in monstersFile.Templates)
@@ -139,6 +141,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Loot tables config not found: {lootPath}");
             string lootJson = File.ReadAllText(lootPath, Encoding.UTF8);
             hashInput.Append(lootJson);
+            _schemaValidator.Validate(ConfigSchemaIds.LootTables, lootJson, manifest.LootTablesConfigFile);
             var lootTables = JsonSerializer.Deserialize<List<LootTableConfig>>(lootJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize loot_tables.json");
             foreach (var t in lootTables)
@@ -159,6 +162,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"NPCs config not found: {npcsPath}");
             string npcsJson = File.ReadAllText(npcsPath, Encoding.UTF8);
             hashInput.Append(npcsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Npcs, npcsJson, manifest.NpcsConfigFile);
             var npcs = JsonSerializer.Deserialize<List<NpcTemplate>>(npcsJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize npcs.json");
             foreach (var n in npcs)
@@ -180,6 +184,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Shops config not found: {shopsPath}");
             string shopsJson = File.ReadAllText(shopsPath, Encoding.UTF8);
             hashInput.Append(shopsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Shops, shopsJson, manifest.ShopsConfigFile);
             var shops = JsonSerializer.Deserialize<List<ShopConfig>>(shopsJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize shops.json");
             foreach (var s in shops)
@@ -199,6 +204,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Quests config not found: {questsPath}");
             string questsJson = File.ReadAllText(questsPath, Encoding.UTF8);
             hashInput.Append(questsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Quests, questsJson, manifest.QuestsConfigFile);
             var quests = JsonSerializer.Deserialize<List<QuestTemplate>>(questsJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize quests.json");
             foreach (var q in quests)
@@ -240,6 +246,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+        EnsureCrossReferences(skillDict, monsterDict, lootDict, shopDict, questDict, itemDict, classDict);
+
         // Levels / growth curve
         var levelsConfig = new LevelsConfigFile();
         if (!string.IsNullOrWhiteSpace(manifest.LevelsConfigFile))
@@ -249,6 +257,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Levels config not found: {levelsPath}");
             string levelsJson = File.ReadAllText(levelsPath, Encoding.UTF8);
             hashInput.Append(levelsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Levels, levelsJson, manifest.LevelsConfigFile);
             levelsConfig = JsonSerializer.Deserialize<LevelsConfigFile>(levelsJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize levels.json");
             if (levelsConfig.Entries.Count == 0)
@@ -263,6 +272,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Guild config not found: {guildPath}");
             string guildJson = File.ReadAllText(guildPath, Encoding.UTF8);
             hashInput.Append(guildJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Guild, guildJson, manifest.GuildConfigFile);
             guildConfig = JsonSerializer.Deserialize<GuildConfig>(guildJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize guild.json");
         }
@@ -275,6 +285,7 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 throw new FileNotFoundException($"Trade config not found: {tradePath}");
             string tradeJson = File.ReadAllText(tradePath, Encoding.UTF8);
             hashInput.Append(tradeJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Trade, tradeJson, manifest.TradeConfigFile);
             tradeConfig = JsonSerializer.Deserialize<TradeConfig>(tradeJson, JsonOptions)
                 ?? throw new InvalidDataException("Failed to deserialize trade.json");
         }
@@ -523,5 +534,63 @@ public sealed class VersionPackLoader : IVersionPackLoader
             LuaScripts = luaScripts,
             PackHash = packHash
         };
+    }
+
+    private static void EnsureCrossReferences(
+        IReadOnlyDictionary<string, SkillConfigItem> skills,
+        IReadOnlyDictionary<string, MonsterTemplate> monsters,
+        IReadOnlyDictionary<string, LootTableConfig> lootTables,
+        IReadOnlyDictionary<string, ShopConfig> shops,
+        IReadOnlyDictionary<string, QuestTemplate> quests,
+        IReadOnlyDictionary<string, ItemTemplate> items,
+        IReadOnlyDictionary<string, ClassConfigItem> classes)
+    {
+        foreach (var skill in skills.Values)
+        {
+            if (!string.IsNullOrEmpty(skill.SkillBookItemId) && !items.ContainsKey(skill.SkillBookItemId))
+                throw new InvalidDataException($"Skill '{skill.SkillId}' skillBookItemId '{skill.SkillBookItemId}' is not in items.");
+            foreach (string classId in skill.AllowedClasses)
+            {
+                if (!classes.ContainsKey(classId))
+                    throw new InvalidDataException($"Skill '{skill.SkillId}' allowed class '{classId}' unknown.");
+            }
+        }
+
+        foreach (var monster in monsters.Values)
+        {
+            if (!string.IsNullOrEmpty(monster.LootTableId) && !lootTables.ContainsKey(monster.LootTableId))
+                throw new InvalidDataException($"Monster '{monster.MonsterId}' lootTableId '{monster.LootTableId}' is not in loot tables.");
+        }
+
+        foreach (var table in lootTables.Values)
+        {
+            foreach (var entry in table.Entries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.ItemId) || !items.ContainsKey(entry.ItemId))
+                    throw new InvalidDataException($"Loot table '{table.LootTableId}' itemId '{entry.ItemId}' is not in items.");
+            }
+        }
+
+        foreach (var shop in shops.Values)
+        {
+            foreach (var offer in shop.Offers)
+            {
+                if (!items.ContainsKey(offer.ItemId))
+                    throw new InvalidDataException($"Shop '{shop.ShopId}' itemId '{offer.ItemId}' is not in items.");
+            }
+        }
+
+        foreach (var quest in quests.Values)
+        {
+            if (!string.IsNullOrEmpty(quest.TargetMonsterId) && !monsters.ContainsKey(quest.TargetMonsterId))
+                throw new InvalidDataException($"Quest '{quest.QuestId}' targetMonsterId '{quest.TargetMonsterId}' unknown.");
+            if (!string.IsNullOrEmpty(quest.PrerequisiteQuestId) && !quests.ContainsKey(quest.PrerequisiteQuestId))
+                throw new InvalidDataException($"Quest '{quest.QuestId}' prerequisiteQuestId '{quest.PrerequisiteQuestId}' unknown.");
+            foreach (var reward in quest.RewardItems)
+            {
+                if (!items.ContainsKey(reward.ItemId))
+                    throw new InvalidDataException($"Quest '{quest.QuestId}' reward itemId '{reward.ItemId}' is not in items.");
+            }
+        }
     }
 }

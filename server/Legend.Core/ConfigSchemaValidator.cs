@@ -14,7 +14,16 @@ public sealed class ConfigSchemaValidator : IConfigSchemaValidator
         _schemas = new Dictionary<string, JsonDocument>(StringComparer.Ordinal)
         {
             [ConfigSchemaIds.Map] = LoadEmbedded("Legend.Core.Schemas.map.schema.json"),
-            [ConfigSchemaIds.Items] = LoadEmbedded("Legend.Core.Schemas.items.schema.json")
+            [ConfigSchemaIds.Items] = LoadEmbedded("Legend.Core.Schemas.items.schema.json"),
+            [ConfigSchemaIds.Skills] = LoadEmbedded("Legend.Core.Schemas.skills.schema.json"),
+            [ConfigSchemaIds.Monsters] = LoadEmbedded("Legend.Core.Schemas.monsters.schema.json"),
+            [ConfigSchemaIds.LootTables] = LoadEmbedded("Legend.Core.Schemas.loot.schema.json"),
+            [ConfigSchemaIds.Npcs] = LoadEmbedded("Legend.Core.Schemas.npcs.schema.json"),
+            [ConfigSchemaIds.Shops] = LoadEmbedded("Legend.Core.Schemas.shops.schema.json"),
+            [ConfigSchemaIds.Quests] = LoadEmbedded("Legend.Core.Schemas.quests.schema.json"),
+            [ConfigSchemaIds.Levels] = LoadEmbedded("Legend.Core.Schemas.levels.schema.json"),
+            [ConfigSchemaIds.Guild] = LoadEmbedded("Legend.Core.Schemas.guild.schema.json"),
+            [ConfigSchemaIds.Trade] = LoadEmbedded("Legend.Core.Schemas.trade.schema.json")
         };
 
         foreach (var pair in _schemas)

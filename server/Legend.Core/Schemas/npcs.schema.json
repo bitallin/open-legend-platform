@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/npcs.schema.json",
+  "title": "Open Legend NPCs",
+  "type": "array",
+  "maxItems": 2000,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["npcId", "displayName", "mapId"],
+    "properties": {
+      "npcId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+      "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+      "mapId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+      "x": { "type": "integer", "minimum": 0, "maximum": 511 },
+      "y": { "type": "integer", "minimum": 0, "maximum": 511 },
+      "shopId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "dialogue": { "type": "string", "maxLength": 500 },
+      "questIds": {
+        "type": "array",
+        "maxItems": 32,
+        "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" }
+      },
+      "canRepair": { "type": "boolean" },
+      "canStore": { "type": "boolean" }
+    }
+  }
+}

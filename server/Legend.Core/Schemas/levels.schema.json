@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/levels.schema.json",
+  "title": "Open Legend levels",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "maxLevel": { "type": "integer", "minimum": 1, "maximum": 999 },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 999,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level", "expToNext"],
+        "properties": {
+          "level": { "type": "integer", "minimum": 1, "maximum": 999 },
+          "expToNext": { "type": "integer", "minimum": 0, "maximum": 100000000 }
+        }
+      }
+    },
+    "classGrowth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "warrior": { "type": "object", "additionalProperties": false, "properties": {
+          "atkPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "defPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "hpPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "mpPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 }
+        } },
+        "mage": { "type": "object", "additionalProperties": false, "properties": {
+          "atkPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "defPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "hpPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "mpPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 }
+        } },
+        "taoist": { "type": "object", "additionalProperties": false, "properties": {
+          "atkPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "defPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "hpPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "mpPerLevel": { "type": "integer", "minimum": 0, "maximum": 100000 }
+        } }
+      }
+    },
+    "deathGoldPercent": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "deathItemChancePercent": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "deathMaxItems": { "type": "integer", "minimum": 0, "maximum": 40 }
+  }
+}

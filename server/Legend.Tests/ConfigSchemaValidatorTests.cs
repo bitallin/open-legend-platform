@@ -161,7 +161,7 @@ public class ConfigSchemaValidatorTests
     [Fact]
     public void UnknownSchemaIdFails()
     {
-        var ex = Assert.Throws<ConfigSchemaException>(() => _validator.Validate("skills", "{}", "skills.json"));
+        var ex = Assert.Throws<ConfigSchemaException>(() => _validator.Validate("buffs", "{}", "buffs.json"));
         Assert.Contains("Unknown schema", ex.Message);
     }
 

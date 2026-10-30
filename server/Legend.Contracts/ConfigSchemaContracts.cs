@@ -8,6 +8,15 @@ public static class ConfigSchemaIds
 {
     public const string Map = "map";
     public const string Items = "items";
+    public const string Skills = "skills";
+    public const string Monsters = "monsters";
+    public const string LootTables = "lootTables";
+    public const string Npcs = "npcs";
+    public const string Shops = "shops";
+    public const string Quests = "quests";
+    public const string Levels = "levels";
+    public const string Guild = "guild";
+    public const string Trade = "trade";
 }
 
 /// <summary>

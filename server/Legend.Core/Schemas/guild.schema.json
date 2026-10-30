@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/guild.schema.json",
+  "title": "Open Legend guild",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "createCostGold": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+    "minNameLength": { "type": "integer", "minimum": 1, "maximum": 32 },
+    "maxNameLength": { "type": "integer", "minimum": 1, "maximum": 32 },
+    "maxMembers": { "type": "integer", "minimum": 1, "maximum": 10000 },
+    "chatMaxLength": { "type": "integer", "minimum": 1, "maximum": 500 },
+    "chatCooldownMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+    "nearbyChebyshev": { "type": "integer", "minimum": 0, "maximum": 64 },
+    "warehouseCapacitySlots": { "type": "integer", "minimum": 0, "maximum": 10000 },
+    "warehouseMaxStackPerItem": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "memberCanDeposit": { "type": "boolean" },
+    "memberCanWithdraw": { "type": "boolean" },
+    "leaderCanClear": { "type": "boolean" },
+    "viceLeaderCanClear": { "type": "boolean" },
+    "warehouseAdminCanClear": { "type": "boolean" },
+    "memberCanClear": { "type": "boolean" },
+    "leaderCanSetRank": { "type": "boolean" },
+    "maxViceLeaders": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "maxWarehouseAdmins": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "auditLogLimit": { "type": "integer", "minimum": 0, "maximum": 10000 }
+  }
+}

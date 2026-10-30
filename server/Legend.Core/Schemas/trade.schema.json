@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/trade.schema.json",
+  "title": "Open Legend trade",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "maxListingsPerChar": { "type": "integer", "minimum": 0, "maximum": 1000 },
+    "minUnitPriceGold": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+    "maxUnitPriceGold": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+    "taxRatePercent": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "requireSafeZone": { "type": "boolean" }
+  }
+}

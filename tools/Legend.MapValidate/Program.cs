@@ -38,9 +38,13 @@ foreach (string path in args)
 
     try
     {
-        var map = JsonSerializer.Deserialize<MapConfig>(File.ReadAllText(full), new JsonSerializerOptions
+        string json = File.ReadAllText(full);
+        ConfigSchemaValidator.Instance.Validate(ConfigSchemaIds.Map, json, full);
+        var map = JsonSerializer.Deserialize<MapConfig>(json, new JsonSerializerOptions
         {
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true
         }) ?? throw new InvalidDataException("null map");
         map.EnsureBlockedCache();
         errors += ValidateMap(map, full);

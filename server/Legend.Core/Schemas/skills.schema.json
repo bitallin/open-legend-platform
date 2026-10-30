@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/skills.schema.json",
+  "title": "Open Legend skills",
+  "type": "array",
+  "maxItems": 500,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["skillId", "displayName"],
+    "properties": {
+      "skillId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+      "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+      "mpCost": { "type": "integer", "minimum": 0, "maximum": 100000 },
+      "cooldownMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+      "range": { "type": "integer", "minimum": 0, "maximum": 64 },
+      "damageMultiplier": { "type": "number", "minimum": 0, "maximum": 1000 },
+      "damageMultiplierPerLevel": { "type": "number", "minimum": 0, "maximum": 1000 },
+      "cooldownMsPerLevel": { "type": "integer", "minimum": -600000, "maximum": 600000 },
+      "allowedClasses": {
+        "type": "array",
+        "maxItems": 16,
+        "items": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[a-z][a-z0-9_]*$" }
+      },
+      "requiresLearn": { "type": "boolean" },
+      "learnRequiredLevel": { "type": "integer", "minimum": 0, "maximum": 999 },
+      "maxLevel": { "type": "integer", "minimum": 1, "maximum": 99 },
+      "skillBookItemId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "skillExpPerCast": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+      "skillExpPerKill": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+      "expToNextLevel": {
+        "type": "array",
+        "maxItems": 64,
+        "items": { "type": "integer", "minimum": 0, "maximum": 100000000 }
+      },
+      "applyBuffOnCast": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "applyDebuffOnHit": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "kind": {
+        "type": "string",
+        "enum": ["attack", "heal", "buff", "summon", "teleport", "aoe", "charge"]
+      },
+      "healAmount": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+      "healAmountPerLevel": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+      "summonPetId": { "type": "string", "maxLength": 64, "pattern": "^$|^[a-z][a-z0-9_]*$" },
+      "castTimeMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+      "aoeCenter": { "type": "string", "enum": ["", "self", "target"] },
+      "aoeRadius": { "type": "integer", "minimum": 0, "maximum": 64 },
+      "chargeSteps": { "type": "integer", "minimum": 0, "maximum": 64 },
+      "groundDurationMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+      "groundTickMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
+      "aoeShape": { "type": "string", "enum": ["", "circle", "arc", "line"] }
+    }
+  }
+}
