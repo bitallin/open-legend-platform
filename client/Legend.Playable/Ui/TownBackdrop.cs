@@ -7,10 +7,31 @@ namespace Legend.Playable.Ui;
 /// <summary>Original login scene: gate, wall, houses, and lanterns. Not a ripped Mir backdrop.</summary>
 public sealed class TownBackdrop : Control
 {
+    private static readonly MirSheet? Sheet = MirSheet.TryLoad(typeof(TownBackdrop).Assembly);
+
     public override void Render(DrawingContext context)
     {
         var bounds = new Rect(0, 0, Math.Max(1, Bounds.Width), Math.Max(1, Bounds.Height));
         context.FillRectangle(Brush("#1C2838"), bounds);
+        if (Sheet != null && Sheet.TryTile("grass", out var grass))
+        {
+            for (double x = 0; x < bounds.Width; x += 48)
+                context.DrawImage(Sheet.Bitmap, grass, new Rect(x, bounds.Height * 0.62, 48, 32));
+            if (Sheet.TryTile("safe", out var stone))
+            {
+                for (double x = bounds.Width * 0.28; x < bounds.Width * 0.72; x += 48)
+                    context.DrawImage(Sheet.Bitmap, stone, new Rect(x, bounds.Height * 0.62, 48, 32));
+            }
+            if (Sheet.TrySprite("war_m", "idle", 4, 0, out var hero, out _))
+                context.DrawImage(Sheet.Bitmap, hero, new Rect(bounds.Width * 0.46, bounds.Height * 0.28, 48, 72));
+            if (Sheet.TrySprite("gate", "idle", 4, 0, out var gate, out _))
+                context.DrawImage(Sheet.Bitmap, gate, new Rect(bounds.Width * 0.62, bounds.Height * 0.22, 56, 84));
+            if (Sheet.TryTile("tree", out var tree))
+            {
+                context.DrawImage(Sheet.Bitmap, tree, new Rect(18, bounds.Height * 0.34, 48, 48));
+                context.DrawImage(Sheet.Bitmap, tree, new Rect(bounds.Width - 64, bounds.Height * 0.34, 48, 48));
+            }
+        }
         context.FillRectangle(Brush("#31425A"), new Rect(0, bounds.Height * 0.34, bounds.Width, bounds.Height * 0.22));
         context.FillRectangle(Brush("#243246"), new Rect(0, bounds.Height * 0.48, bounds.Width, bounds.Height * 0.18));
 

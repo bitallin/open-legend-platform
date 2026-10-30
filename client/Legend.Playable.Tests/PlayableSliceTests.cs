@@ -5,6 +5,7 @@ using Legend.Playable;
 using Legend.Playable.Audio;
 using Legend.Playable.Data;
 using Legend.Playable.Input;
+using Legend.Playable.Ui;
 using Legend.Playable.World;
 
 namespace Legend.Playable.Tests;
@@ -269,5 +270,41 @@ public class PlayableSliceTests
         fsm.ReturnToCharSelect("选择角色");
         Assert.Equal(SessionPhase.CharSelect, fsm.Phase);
         Assert.Equal("选择角色", fsm.StatusMessage);
+    }
+
+    [Fact]
+    public void MirSheet_CoversEightDirectionsTilesAndFx()
+    {
+        var asm = typeof(WorldCanvas).Assembly;
+        using var png = asm.GetManifestResourceStream("assets.atlas.png");
+        using var json = asm.GetManifestResourceStream("assets.atlas.json");
+        Assert.NotNull(png);
+        Assert.NotNull(json);
+        var header = new byte[8];
+        Assert.Equal(8, png!.Read(header, 0, 8));
+        Assert.Equal(0x89, header[0]);
+        Assert.Equal((byte)'P', header[1]);
+        using var reader = new StreamReader(json!);
+        using var doc = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
+        var actors = doc.RootElement.GetProperty("actors").EnumerateArray().Select(x => x.GetString()).ToList();
+        Assert.Contains("war_m", actors);
+        Assert.Contains("dragon", actors);
+        Assert.Contains("horse", actors);
+        Assert.Equal(5, doc.RootElement.GetProperty("dirSlots").GetInt32());
+        Assert.Contains("grass", doc.RootElement.GetProperty("tiles").EnumerateArray().Select(x => x.GetString()));
+        Assert.Contains("lightning", doc.RootElement.GetProperty("fx").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal("bone", MirSheet.ActorId(new ActorView
+        {
+            Kind = EntityKind.EntityMonster,
+            TemplateId = "bone_walker"
+        }));
+        Assert.Equal("tao_f", MirSheet.ActorId(new ActorView
+        {
+            Kind = EntityKind.EntityPlayer,
+            ClassId = "taoist",
+            Gender = "f"
+        }));
+        Assert.Equal(0, MirSheet.FrameIndex("attack", 0, 0.42));
+        Assert.Equal(5, MirSheet.FrameIndex("attack", 0.42, 0.42));
     }
 }

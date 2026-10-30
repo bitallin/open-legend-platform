@@ -22,13 +22,9 @@ public sealed class WorldCanvas : Control
     public double AnimTime { get; set; }
     public event Action<Point, bool, bool, bool, bool, int>? WorldPressed;
 
-    private static readonly Bitmap? Atlas = LoadAtlas();
-
-    private static Bitmap? LoadAtlas()
-    {
-        var stream = typeof(WorldCanvas).Assembly.GetManifestResourceStream("assets.atlas.png");
-        return stream == null ? null : new Bitmap(stream);
-    }
+    private const double TileW = 48;
+    private const double TileH = 32;
+    private static readonly MirSheet? Sheet = MirSheet.TryLoad(typeof(WorldCanvas).Assembly);
 
     public WorldCanvas()
     {
@@ -43,8 +39,7 @@ public sealed class WorldCanvas : Control
         var self = world?.Self;
         if (world == null || self == null)
             return false;
-        (gx, gy) = GridMath.ScreenToGrid(screen.X, screen.Y, self.DrawX, self.DrawY,
-            Bounds.Width, Bounds.Height, PlayableTuning.CellPixels);
+        (gx, gy) = ScreenToGrid(screen.X, screen.Y, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
         return world.Map.InBounds(gx, gy);
     }
 
@@ -58,12 +53,11 @@ public sealed class WorldCanvas : Control
         double bestD = 22;
         foreach (var actor in world.Actors.Values)
         {
-            var (sx, sy) = GridMath.GridToScreen(actor.DrawX, actor.DrawY, self.DrawX, self.DrawY,
-                Bounds.Width, Bounds.Height, PlayableTuning.CellPixels);
+            var (sx, sy) = GridToScreen(actor.DrawX, actor.DrawY, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
             double dx = sx - screen.X;
-            double dy = sy - screen.Y;
+            double dy = (sy - 12) - screen.Y;
             double d = Math.Sqrt(dx * dx + dy * dy);
-            double limit = actor.Kind == EntityKind.EntityLoot ? 16 : 20;
+            double limit = actor.Kind == EntityKind.EntityLoot ? 18 : 28;
             if (d <= limit && d <= bestD)
             {
                 bestD = d;
@@ -107,200 +101,155 @@ public sealed class WorldCanvas : Control
         var self = world.Self;
         double camX = self?.DrawX ?? 10;
         double camY = self?.DrawY ?? 10;
-        double cell = PlayableTuning.CellPixels;
-        DrawTiles(context, world, camX, camY, w, h, cell);
+        DrawTiles(context, world, camX, camY, w, h);
         if (world.HasMoveGoal)
-            DrawMarker(context, world.GoalX, world.GoalY, camX, camY, w, h, cell);
-        foreach (var actor in world.Actors.Values)
-            DrawActor(context, world, actor, camX, camY, w, h, cell);
-        foreach (var fx in world.Effects)
-            DrawFx(context, fx, camX, camY, w, h, cell);
+            DrawMarker(context, world.GoalX, world.GoalY, camX, camY, w, h);
         foreach (var patch in world.Grounds)
         {
             if (!string.Equals(patch.MapId, world.Map.MapId, StringComparison.OrdinalIgnoreCase))
                 continue;
             for (int gy = patch.Y - patch.Radius; gy <= patch.Y + patch.Radius; gy++)
             for (int gx = patch.X - patch.Radius; gx <= patch.X + patch.Radius; gx++)
-            {
-                var (px, py) = GridMath.GridToScreen(gx, gy, camX, camY, w, h, cell);
-                context.FillRectangle(Brush("#66E07020"), new Rect(px, py, cell, cell * 0.45));
-            }
+                DrawFxAt(context, "fire", (int)(world.Time * 8) % 4, gx, gy, camX, camY, w, h, 40);
         }
+        foreach (var actor in world.Actors.Values.OrderByDescending(a => a.DrawY).ThenBy(a => a.DrawX))
+            DrawActor(context, world, actor, camX, camY, w, h);
+        foreach (var fx in world.Effects)
+            DrawFx(context, fx, camX, camY, w, h);
         if (IsNight())
             context.FillRectangle(Brush("#33203358"), new Rect(0, 0, w, h));
         foreach (var floater in world.Floats)
-            DrawFloat(context, floater, camX, camY, w, h, cell);
+            DrawFloat(context, floater, camX, camY, w, h);
         DrawMinimap(context, world, w, h);
         if (!string.IsNullOrEmpty(Toast) && ToastAge < 2.4)
             DrawToast(context, w);
     }
 
-    private static void DrawTiles(DrawingContext context, WorldState world, double camX, double camY, double w, double h, double cell)
+    private void DrawTiles(DrawingContext context, WorldState world, double camX, double camY, double w, double h)
     {
-        int minX = (int)Math.Floor(camX - (w / 2) / cell) - 1;
-        int maxX = (int)Math.Ceiling(camX + (w / 2) / cell) + 1;
-        int minY = (int)Math.Floor(camY - (h / 2) / cell) - 1;
-        int maxY = (int)Math.Ceiling(camY + (h / 2) / cell) + 1;
+        int minX = (int)Math.Floor(camX - (w / 2) / TileW) - 1;
+        int maxX = (int)Math.Ceiling(camX + (w / 2) / TileW) + 1;
+        int minY = (int)Math.Floor(camY - (h / 2) / TileH) - 1;
+        int maxY = (int)Math.Ceiling(camY + (h / 2) / TileH) + 1;
         minX = Math.Max(0, minX);
         minY = Math.Max(0, minY);
         maxX = Math.Min(world.Map.Width - 1, maxX);
         maxY = Math.Min(world.Map.Height - 1, maxY);
-        for (int y = minY; y <= maxY; y++)
+        for (int y = maxY; y >= minY; y--)
         {
             for (int x = minX; x <= maxX; x++)
             {
-                bool safe = world.Map.IsSafe(x, y);
-                bool alt = ((x + y) & 1) == 0;
-                string hex = world.Map.IsBlocked(x, y)
-                    ? "#141414"
-                    : world.Map.IsPortal(x, y)
-                        ? "#1E7A8C"
-                        : safe
-                            ? (alt ? "#2F7A40" : "#276838")
-                            : (alt ? "#3C342C" : "#2A241E");
-                var (sx, sy) = GridMath.GridToScreen(x - 0.5, y + 0.5, camX, camY, w, h, cell);
-                context.FillRectangle(Brush(hex), new Rect(sx, sy, cell + 0.5, cell + 0.5));
-                int hash = (x * 17 + y * 31) & 7;
-                if (!world.Map.IsBlocked(x, y) && hash == 0)
-                    context.FillRectangle(Brush("#33000000"), new Rect(sx + 6, sy + cell - 10, 4, 3));
-                if (world.Map.IsBlocked(x, y))
-                    context.DrawLine(new Pen(Brush("#55FFFFFF"), 1), new Point(sx + 2, sy + 4), new Point(sx + cell - 4, sy + 4));
+                string name = TileName(world, x, y);
+                var (sx, sy) = GridToScreen(x - 0.5, y + 0.5, camX, camY, w, h);
+                var dest = new Rect(sx, sy, TileW + 0.5, TileH + 0.5);
+                if (Sheet != null && Sheet.TryTile(name == "tree" || name == "wall" ? "dirt" : name, out var src))
+                    context.DrawImage(Sheet.Bitmap, src, dest);
+                else
+                    context.FillRectangle(Brush("#3C342C"), dest);
+                if ((name == "tree" || name == "wall") && Sheet != null && Sheet.TryTile(name, out var obj))
+                    context.DrawImage(Sheet.Bitmap, obj, new Rect(sx + 4, sy - 20, TileW - 8, TileH + 18));
+                if (name == "portal")
+                    DrawFxAt(context, "portal", (int)(AnimTime * 6) % 4, x, y, camX, camY, w, h, 28);
             }
         }
     }
 
-    private static void DrawMarker(DrawingContext context, int gx, int gy, double camX, double camY, double w, double h, double cell)
+    private static string TileName(WorldState world, int x, int y)
     {
-        var (sx, sy) = GridMath.GridToScreen(gx, gy, camX, camY, w, h, cell);
-        context.DrawEllipse(Brush("#663DDC78"), new Pen(Brush("#B6F5C8"), 2), new Point(sx, sy), 10, 10);
+        if (world.Map.IsBlocked(x, y))
+            return ((x * 3 + y) & 1) == 0 ? "wall" : "tree";
+        if (world.Map.IsPortal(x, y))
+            return "portal";
+        if (world.Map.IsSafe(x, y))
+            return ((x + y) % 5) == 0 ? "stone" : "safe";
+        int n = (x * 13 + y * 7) & 15;
+        if (n == 0) return "path";
+        if (n == 1) return "dirt";
+        return ((x + y) & 1) == 0 ? "grass" : "grass_b";
     }
 
-    private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h, double cell)
+    private void DrawMarker(DrawingContext context, int gx, int gy, double camX, double camY, double w, double h)
     {
-        var (sx, sy) = GridMath.GridToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h, cell);
-        var center = new Point(sx, sy);
-        var fill = Brush(ColorFor(actor));
-        double lift = string.IsNullOrEmpty(actor.MountId) ? 0 : 10;
-        if (!string.IsNullOrEmpty(actor.FashionId) && actor.Kind == EntityKind.EntityPlayer)
+        var (sx, sy) = GridToScreen(gx, gy, camX, camY, w, h);
+        double pulse = 4 + (AnimTime * 6 % 1) * 6;
+        var pen = new Pen(Brush("#D8FFB0"), 2);
+        context.DrawLine(pen, new Point(sx - pulse, sy), new Point(sx + pulse, sy));
+        context.DrawLine(pen, new Point(sx, sy - pulse * 0.6), new Point(sx, sy + pulse * 0.6));
+    }
+
+    private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h)
+    {
+        var (sx, sy) = GridToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h);
+        if (actor.Kind == EntityKind.EntityLoot)
         {
-            var cloak = actor.FashionId.Contains("crimson", StringComparison.OrdinalIgnoreCase)
-                ? Brush("#C23B4A")
-                : Brush("#C4A46A");
-            context.FillRectangle(cloak, new Rect(sx - 14, sy - 6 - lift, 28, 20));
-        }
-        if (!string.IsNullOrEmpty(actor.MountId) && actor.Kind == EntityKind.EntityPlayer)
-        {
-            context.DrawEllipse(Brush("#F7F3EA"), null, new Point(sx, sy + 8), 18, 7);
-            context.DrawEllipse(Brush("#E4D2A2"), null, new Point(sx + 16, sy), 5, 5);
-            context.DrawLine(new Pen(Brush("#8A7040"), 2), new Point(sx - 16, sy + 10), new Point(sx - 20, sy + 16));
-            context.DrawLine(new Pen(Brush("#8A7040"), 2), new Point(sx + 8, sy + 10), new Point(sx + 12, sy + 16));
-        }
-        if (Atlas != null && actor.Kind is EntityKind.EntityPlayer or EntityKind.EntityMonster)
-        {
-            DrawAtlas(context, actor, sx, sy - lift);
-        }
-        else
-        switch (actor.Kind)
-        {
-            case EntityKind.EntityLoot:
-                DrawDiamond(context, center, fill);
-                break;
-            case EntityKind.EntityMonster:
-                DrawMonsterFrame(context, actor, sx, sy, fill);
-                break;
-            case EntityKind.EntityNpc:
-                context.FillRectangle(Brush("#F2E2B6"), new Rect(sx - 8, sy - 20, 16, 8));
-                context.DrawEllipse(fill, null, center, 11, 11);
-                break;
-            default:
-                DrawPaperdoll(context, actor, sx, sy - lift, fill);
-                break;
+            DrawLoot(context, sx, sy);
+            DrawName(context, actor, sx, sy - 18);
+            return;
         }
 
-        var (nx, ny) = GridMath.FacingVector(actor.Direction);
-        context.DrawLine(new Pen(Brush("#FFF6D8"), 2), center, new Point(sx + nx * 16, sy - ny * 16));
+        bool mounted = !string.IsNullOrEmpty(actor.MountId) && actor.Kind == EntityKind.EntityPlayer;
+        if (mounted)
+            DrawSprite(context, "horse", actor.Pose is "run" or "walk" ? actor.Pose : "idle", actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - 6, 52, 40);
+        double lift = mounted ? 16 : 0;
+        string sprite = MirSheet.ActorId(actor);
+        string action = string.IsNullOrEmpty(actor.Pose) ? "idle" : actor.Pose;
+        if (!DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 64 : 48, actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 72 : 64))
+            context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
 
         if (world.SelectedId == actor.EntityId)
-            context.DrawEllipse(null, new Pen(Brush("#FFE08A"), 2), center, 16, 16);
-
-        if (actor.Kind != EntityKind.EntityLoot && actor.MaxHp > 0)
+            context.DrawEllipse(null, new Pen(Brush("#F0D060"), 2), new Point(sx, sy + 8), 16, 7);
+        bool showBar = actor.Kind == EntityKind.EntityMonster || world.SelectedId == actor.EntityId;
+        if (showBar && actor.MaxHp > 0)
         {
             double ratio = Math.Clamp(actor.Hp / (double)actor.MaxHp, 0, 1);
-            var bar = new Rect(sx - 14, sy - 28, 28, 4);
-            context.FillRectangle(Brush("#2A1A1A"), bar);
-            context.FillRectangle(Brush(actor.Hp > 0 ? "#E24B4B" : "#666666"), new Rect(bar.X, bar.Y, 28 * ratio, 4));
+            var bar = new Rect(sx - 16, sy - 52 - lift, 32, 4);
+            context.FillRectangle(Brush("#1A0A0A"), bar);
+            context.FillRectangle(Brush(actor.Hp > 0 ? "#D01818" : "#666666"), new Rect(bar.X, bar.Y, 32 * ratio, 4));
         }
+        if (world.Time < actor.BuffUntil && Sheet != null && Sheet.TryFx("buff", (int)(AnimTime * 6) % 4, out var buff))
+            context.DrawImage(Sheet.Bitmap, buff, new Rect(sx + 10, sy - 58 - lift, 16, 16));
+        DrawName(context, actor, sx, sy - 46 - lift);
+    }
 
+    private bool DrawSprite(DrawingContext context, string actor, string action, int direction, double phase, double poseLock, double sx, double sy, double destW, double destH)
+    {
+        if (Sheet == null)
+            return false;
+        int frame = MirSheet.FrameIndex(action, phase, poseLock);
+        if (!Sheet.TrySprite(actor, action, direction, frame, out var src, out bool flip) &&
+            !Sheet.TrySprite(actor, "idle", direction, 0, out src, out flip))
+            return false;
+        var dest = new Rect(sx - destW / 2, sy - destH + 14, destW, destH);
+        if (!flip)
+        {
+            context.DrawImage(Sheet.Bitmap, src, dest);
+            return true;
+        }
+        using (context.PushTransform(Matrix.CreateScale(-1, 1)))
+            context.DrawImage(Sheet.Bitmap, src, new Rect(-(sx + destW / 2), dest.Y, destW, destH));
+        return true;
+    }
+
+    private void DrawLoot(DrawingContext context, double sx, double sy)
+    {
+        if (Sheet != null && Sheet.TryTile("path", out var src))
+            context.DrawImage(Sheet.Bitmap, src, new Rect(sx - 8, sy - 8, 16, 12));
+        context.DrawEllipse(Brush("#F2C14E"), null, new Point(sx, sy - 2), 5, 4);
+    }
+
+    private void DrawName(DrawingContext context, ActorView actor, double sx, double sy)
+    {
         if (actor.Kind == EntityKind.EntityPlayer && !string.IsNullOrWhiteSpace(actor.Title))
         {
             var title = new FormattedText(actor.Title, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 11, Brush("#E8C872"));
-            context.DrawText(title, new Point(sx - title.Width / 2, sy - 58));
+            context.DrawText(title, new Point(sx - title.Width / 2 + 1, sy - 14 + 1));
+            context.DrawText(title, new Point(sx - title.Width / 2, sy - 14));
         }
         string label = string.IsNullOrWhiteSpace(actor.Name) ? actor.Kind.ToString() : actor.Name;
-        var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 12, Brush(NameHex(actor.NameColor)));
-        context.DrawText(text, new Point(sx - text.Width / 2, sy - 44));
-    }
-
-    private static void DrawDiamond(DrawingContext context, Point center, IBrush fill)
-    {
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
-        {
-            g.BeginFigure(new Point(center.X, center.Y - 10), true);
-            g.LineTo(new Point(center.X + 8, center.Y));
-            g.LineTo(new Point(center.X, center.Y + 10));
-            g.LineTo(new Point(center.X - 8, center.Y));
-            g.EndFigure(true);
-        }
-        context.DrawGeometry(fill, new Pen(Brush("#FFF1B8"), 1), geo);
-    }
-
-    private void DrawAtlas(DrawingContext context, ActorView actor, double sx, double sy)
-    {
-        if (Atlas == null)
-            return;
-        int frame = (int)(AnimTime * (actor.Pose == "run" ? 10 : 6)) % 4;
-        int col = actor.Hp <= 0 ? 7 : frame switch { 0 => 0, 1 => 1, 2 => 2, _ => 3 };
-        if (actor.Pose == "attack") col = 4;
-        if (actor.Pose == "cast") col = 5;
-        int row = actor.Kind == EntityKind.EntityMonster ? 3
-            : string.Equals(actor.Gender, "f", StringComparison.OrdinalIgnoreCase) ? 2
-            : actor.Direction is 2 or 6 ? 1 : 0;
-        var src = new Rect(col * 32, row * 32, 32, 32);
-        var dest = new Rect(sx - 16, sy - 24, 32, 32);
-        if (actor.Direction == 6)
-        {
-            using (context.PushTransform(Matrix.CreateScale(-1, 1)))
-                context.DrawImage(Atlas, src, new Rect(-(sx + 16), sy - 24, 32, 32));
-        }
-        else
-            context.DrawImage(Atlas, src, dest);
-    }
-
-    private void DrawPaperdoll(DrawingContext context, ActorView actor, double sx, double sy, IBrush fill)
-    {
-        int frame = (int)(AnimTime * 6) % 4;
-        double bob = frame is 1 or 3 ? 2 : 0;
-        bool attack = frame == 2 && actor.Pose == "attack";
-        double reach = attack ? 8 : 0;
-        var (fx, fy) = GridMath.FacingVector(actor.Direction);
-        bool female = string.Equals(actor.Gender, "f", StringComparison.OrdinalIgnoreCase);
-        double shoulder = female ? 5 : 8;
-        context.FillRectangle(Brush(female ? "#6A3058" : "#3A2A22"), new Rect(sx - shoulder, sy - 1 + bob, shoulder * 2, 8));
-        context.DrawEllipse(fill, null, new Point(sx, sy + 6 + bob), female ? 6 : 7, 9);
-        context.DrawEllipse(Brush("#F4E2C4"), null, new Point(sx, sy - 12 + bob), 6, 6);
-        context.DrawLine(new Pen(Brush("#E8C872"), 2),
-            new Point(sx, sy),
-            new Point(sx + fx * (10 + reach), sy - fy * (10 + reach)));
-    }
-
-    private void DrawMonsterFrame(DrawingContext context, ActorView actor, double sx, double sy, IBrush fill)
-    {
-        int frame = (int)(AnimTime * 4 + actor.GridX) % 3;
-        double w = 20 + frame;
-        context.FillRectangle(fill, new Rect(sx - w / 2, sy - 10 - frame, w, 18));
-        context.FillRectangle(Brush("#2A120E"), new Rect(sx - 4, sy - 16 - frame, 3, 4));
-        context.FillRectangle(Brush("#2A120E"), new Rect(sx + 2, sy - 16 - frame, 3, 4));
+        var shadow = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 13, Brush("#1A100C"));
+        var text = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 13, Brush(NameHex(actor.NameColor)));
+        context.DrawText(shadow, new Point(sx - text.Width / 2 + 1, sy + 1));
+        context.DrawText(text, new Point(sx - text.Width / 2, sy));
     }
 
     private static bool IsNight()
@@ -317,22 +266,26 @@ public sealed class WorldCanvas : Control
         _ => "#FFFFFF"
     };
 
-    private static void DrawFx(DrawingContext context, CastFx fx, double camX, double camY, double w, double h, double cell)
+    private void DrawFx(DrawingContext context, CastFx fx, double camX, double camY, double w, double h)
     {
-        var (sx, sy) = GridMath.GridToScreen(fx.GridX, fx.GridY, camX, camY, w, h, cell);
-        string hex = fx.School switch
-        {
-            "mage" => "#66F08A3C",
-            "taoist" => "#6688E0C8",
-            _ => "#66F2E2A0"
-        };
-        double radius = 8 + fx.Age * 36;
-        context.DrawEllipse(null, new Pen(Brush(hex.Length == 9 ? "#" + hex[3..] : hex), 2), new Point(sx, sy), radius, radius * 0.6);
+        int frame = Math.Clamp((int)(fx.Age * 8), 0, 3);
+        DrawFxAt(context, string.IsNullOrEmpty(fx.Kind) ? "slash" : fx.Kind, frame, fx.GridX, fx.GridY, camX, camY, w, h, 56);
     }
 
-    private static void DrawFloat(DrawingContext context, FloatText floater, double camX, double camY, double w, double h, double cell)
+    private void DrawFxAt(DrawingContext context, string name, int frame, double gx, double gy, double camX, double camY, double w, double h, double size)
     {
-        var (sx, sy) = GridMath.GridToScreen(floater.GridX, floater.GridY, camX, camY, w, h, cell);
+        var (sx, sy) = GridToScreen(gx, gy, camX, camY, w, h);
+        if (Sheet != null && Sheet.TryFx(name, frame, out var src))
+        {
+            context.DrawImage(Sheet.Bitmap, src, new Rect(sx - size / 2, sy - size / 2, size, size));
+            return;
+        }
+        context.DrawEllipse(null, new Pen(Brush("#F2E2A0"), 2), new Point(sx, sy), 12, 8);
+    }
+
+    private static void DrawFloat(DrawingContext context, FloatText floater, double camX, double camY, double w, double h)
+    {
+        var (sx, sy) = GridToScreen(floater.GridX, floater.GridY, camX, camY, w, h);
         string hex = floater.Kind switch
         {
             FloatKind.Miss => "#C8C8C8",
@@ -340,17 +293,20 @@ public sealed class WorldCanvas : Control
             FloatKind.Kill => "#E070E8",
             _ => "#FFE36A"
         };
-        var text = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 16,
+        var text = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 18,
             Brush(hex));
-        context.DrawText(text, new Point(sx - text.Width / 2, sy - 36 - floater.Age * 28));
+        var shadow = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 18, Brush("#1A100C"));
+        context.DrawText(shadow, new Point(sx - text.Width / 2 + 1, sy - 40 - floater.Age * 36 + 1));
+        context.DrawText(text, new Point(sx - text.Width / 2, sy - 40 - floater.Age * 36));
     }
 
     private static void DrawMinimap(DrawingContext context, WorldState world, double w, double h)
     {
-        const double size = 128;
-        double x0 = w - size - 16;
-        double y0 = h - size - 16;
-        context.FillRectangle(Brush("#CC120E0C"), new Rect(x0 - 4, y0 - 18, size + 8, size + 22));
+        const double size = 132;
+        double x0 = w - size - 14;
+        double y0 = 28;
+        context.FillRectangle(Brush("#E8C872"), new Rect(x0 - 4, y0 - 18, size + 8, size + 22));
+        context.FillRectangle(Brush("#1A120C"), new Rect(x0 - 2, y0 - 16, size + 4, size + 18));
         var caption = new FormattedText("小地图", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 11, Brush("#E8C872"));
         context.DrawText(caption, new Point(x0, y0 - 16));
         double scale = size / Math.Max(world.Map.Width, world.Map.Height);
@@ -376,7 +332,8 @@ public sealed class WorldCanvas : Control
         var text = new FormattedText(Toast, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 16, Brushes.White);
         double width = Math.Max(160, text.Width + 28);
         var rect = new Rect((w - width) / 2, 72, width, 32);
-        context.FillRectangle(Brush("#E0221814"), rect);
+        context.FillRectangle(Brush("#E01A120C"), rect);
+        context.DrawRectangle(null, new Pen(Brush("#E8C872"), 1), rect);
         context.DrawText(text, new Point(rect.X + 14, rect.Y + 6));
     }
 
@@ -392,6 +349,20 @@ public sealed class WorldCanvas : Control
             EntityKind.EntityPet => "#8BD17C",
             _ => "#7EB6FF"
         };
+    }
+
+    private static (double sx, double sy) GridToScreen(double gx, double gy, double camX, double camY, double viewW, double viewH)
+    {
+        double sx = viewW / 2 + (gx - camX) * TileW;
+        double sy = viewH / 2 - (gy - camY) * TileH;
+        return (sx, sy);
+    }
+
+    private static (int gx, int gy) ScreenToGrid(double sx, double sy, double camX, double camY, double viewW, double viewH)
+    {
+        double gx = camX + (sx - viewW / 2) / TileW;
+        double gy = camY - (sy - viewH / 2) / TileH;
+        return ((int)Math.Round(gx), (int)Math.Round(gy));
     }
 
     private static readonly Dictionary<string, IBrush> Cache = new(StringComparer.Ordinal);

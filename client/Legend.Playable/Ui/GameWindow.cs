@@ -112,9 +112,9 @@ public sealed partial class GameWindow : Window
 
         _hpText = Label("HP");
         _mpText = Label("MP");
-        _hpBar = Bar("#C44747");
-        _mpBar = Bar("#3D6FBF");
-        _expBar = Bar("#D4A017");
+        _hpBar = Bar("#E01818");
+        _mpBar = Bar("#1C6FE0");
+        _expBar = Bar("#E0B030");
         _vitals = Label("");
         _target = Label("目标：无");
         _hint = Label("WASD 走 · Shift 跑 · 左键走/打/捡 · 右键跑/看 · F1–F8 技能 · F9 包 · F10 人物 · F11 技能 · Tab 地图 · Ctrl+H 模式 · Alt+X 选角");
@@ -169,7 +169,13 @@ public sealed partial class GameWindow : Window
             _audio.PlayForMap(_session.World.Map.MapId, _session.World.Self?.InSafeZone == true);
             _audio.PlayAmbient();
         };
-        _session.LeveledUp += () => _audio.PlayLevel();
+        _session.LeveledUp += () =>
+        {
+            _audio.PlayLevel();
+            var self = _session.World.Self;
+            if (self != null)
+                _session.World.AddCast(self.DrawX, self.DrawY, "warrior", "level");
+        };
         _session.MetaChanged += () => { };
         _session.PickedUp += () => _audio.PlayPickup();
         _session.CombatSeen += OnCombat;
@@ -306,8 +312,15 @@ public sealed partial class GameWindow : Window
             if (sync != null && sync.Accepted)
             {
                 _audio.PlayStep();
-                if (_session.World.Self != null)
-                    _session.World.Self.Pose = mounted || running ? "run" : "walk";
+                if (_session.World.Self != null && _session.World.Self.PoseLock <= 0)
+                {
+                    string next = mounted || running ? "run" : "walk";
+                    if (_session.World.Self.Pose != next)
+                    {
+                        _session.World.Self.Pose = next;
+                        _session.World.Self.AnimPhase = 0;
+                    }
+                }
             }
             if (sync != null && !sync.Accepted && !fromKeyboard)
             {
@@ -472,17 +485,26 @@ public sealed partial class GameWindow : Window
         if (support)
         {
             _audio.PlayCast(def?.School);
-            if (self != null)
-                self.Pose = "cast";
+            self?.PlayPose("cast", 0.48);
+            if (self != null && def?.Kind == "buff")
+                self.BuffUntil = _session.World.Time + 8;
         }
         else
         {
             _audio.PlayAttack();
-            if (self != null)
-                self.Pose = "attack";
+            self?.PlayPose("attack", 0.42);
         }
         if (self != null)
-            _session.World.AddCast(self.DrawX, self.DrawY, def?.School ?? "warrior");
+        {
+            string fx = def?.SkillId switch
+            {
+                "lightning" or "hell_lightning" or "fast_beam" => "lightning",
+                "heal" or "holy_armor" or "ghost_shield" or "soul_charm" or "poison_charm" => "heal",
+                "fire_wall" or "burst_flame" or "fire_rain" or "arcane_bolt" => "fire",
+                _ => support ? "heal" : "slash"
+            };
+            _session.World.AddCast(self.DrawX, self.DrawY, def?.School ?? "warrior", fx);
+        }
         if (def != null && def.CastMs > 0)
             await Task.Delay(Math.Min(def.CastMs, 400));
         try
@@ -1196,8 +1218,9 @@ public sealed partial class GameWindow : Window
     {
         Minimum = 0,
         Maximum = 1,
-        Height = 12,
-        Foreground = Brush(hex)
+        Height = 16,
+        Foreground = Brush(hex),
+        Background = Brush("#140C0A")
     };
 
     private static Button Small(string text) => new() { Content = text, Padding = new Avalonia.Thickness(10, 4) };

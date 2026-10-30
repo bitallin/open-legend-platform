@@ -58,6 +58,9 @@
     <EmbeddedResource Include="Assets\atlas.png">
       <LogicalName>assets.atlas.png</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Assets\atlas.json">
+      <LogicalName>assets.atlas.json</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\version-packs\sample-classic\configs\profanity.txt">
       <LogicalName>configs.profanity.txt</LogicalName>
     </EmbeddedResource>
