@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Legend.Contracts.Proto;
 using Legend.Playable.Session;
 using Legend.Playable.World;
@@ -20,6 +21,14 @@ public sealed class WorldCanvas : Control
     public double ToastAge { get; set; }
     public double AnimTime { get; set; }
     public event Action<Point, bool, bool, bool, bool, int>? WorldPressed;
+
+    private static readonly Bitmap? Atlas = LoadAtlas();
+
+    private static Bitmap? LoadAtlas()
+    {
+        var stream = typeof(WorldCanvas).Assembly.GetManifestResourceStream("assets.atlas.png");
+        return stream == null ? null : new Bitmap(stream);
+    }
 
     public WorldCanvas()
     {
@@ -171,6 +180,11 @@ public sealed class WorldCanvas : Control
         var (sx, sy) = GridMath.GridToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h, cell);
         var center = new Point(sx, sy);
         var fill = Brush(ColorFor(actor));
+        if (Atlas != null && actor.Kind is EntityKind.EntityPlayer or EntityKind.EntityMonster)
+        {
+            DrawAtlas(context, actor, sx, sy);
+        }
+        else
         switch (actor.Kind)
         {
             case EntityKind.EntityLoot:
@@ -219,6 +233,28 @@ public sealed class WorldCanvas : Control
             g.EndFigure(true);
         }
         context.DrawGeometry(fill, new Pen(Brush("#FFF1B8"), 1), geo);
+    }
+
+    private void DrawAtlas(DrawingContext context, ActorView actor, double sx, double sy)
+    {
+        if (Atlas == null)
+            return;
+        int frame = (int)(AnimTime * (actor.Pose == "run" ? 10 : 6)) % 4;
+        int col = actor.Hp <= 0 ? 7 : frame switch { 0 => 0, 1 => 1, 2 => 2, _ => 3 };
+        if (actor.Pose == "attack") col = 4;
+        if (actor.Pose == "cast") col = 5;
+        int row = actor.Kind == EntityKind.EntityMonster ? 3
+            : string.Equals(actor.Gender, "f", StringComparison.OrdinalIgnoreCase) ? 2
+            : actor.Direction is 2 or 6 ? 1 : 0;
+        var src = new Rect(col * 32, row * 32, 32, 32);
+        var dest = new Rect(sx - 16, sy - 24, 32, 32);
+        if (actor.Direction == 6)
+        {
+            using (context.PushTransform(Matrix.CreateScale(-1, 1)))
+                context.DrawImage(Atlas, src, new Rect(-(sx + 16), sy - 24, 32, 32));
+        }
+        else
+            context.DrawImage(Atlas, src, dest);
     }
 
     private void DrawPaperdoll(DrawingContext context, ActorView actor, double sx, double sy, IBrush fill)

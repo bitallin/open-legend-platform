@@ -86,6 +86,12 @@ public sealed partial class PlayableSession : IDisposable
         _characters.AddRange(list);
     }
 
+    public async Task DeleteCharacterAsync(string characterId)
+    {
+        await _net.DeleteCharAsync(characterId);
+        await RefreshCharactersAsync();
+    }
+
     public async Task CreateCharacterAsync(string name, string classId, string gender = "m")
     {
         if (Fsm.Phase != SessionPhase.CharSelect)

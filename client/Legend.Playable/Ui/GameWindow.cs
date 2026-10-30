@@ -41,6 +41,8 @@ public sealed partial class GameWindow : Window
     private readonly TextBlock _mpText;
     private readonly ProgressBar _hpBar;
     private readonly ProgressBar _mpBar;
+    private readonly ProgressBar _expBar;
+    private readonly Border _death;
     private readonly TextBlock _vitals;
     private readonly TextBlock _target;
     private readonly TextBlock _hint;
@@ -103,6 +105,7 @@ public sealed partial class GameWindow : Window
         _mpText = Label("MP");
         _hpBar = Bar("#C44747");
         _mpBar = Bar("#3D6FBF");
+        _expBar = Bar("#D4A017");
         _vitals = Label("");
         _target = Label("目标：无");
         _hint = Label("WASD 走 · Shift 跑 · 左键走/打/捡 · 右键跑/看 · F1–F8 技能 · F9 包 · F10 人物 · F11 技能 · Tab 地图 · Ctrl+H 模式");
@@ -120,6 +123,20 @@ public sealed partial class GameWindow : Window
 
         _reconnectText = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.White };
         _reconnect = BuildReconnect();
+        _death = new Border
+        {
+            Background = Brush("#CC2A1010"),
+            IsVisible = false,
+            Child = new TextBlock
+            {
+                Text = "你已死亡\n即将在出生点复活",
+                FontSize = 28,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            }
+        };
 
         _canvas.World = _session.World;
         _canvas.WorldPressed += (point, right, shift, ctrl, alt, clicks) =>
@@ -135,6 +152,7 @@ public sealed partial class GameWindow : Window
         root.Children.Add(_chars);
         root.Children.Add(_login);
         root.Children.Add(_reconnect);
+        root.Children.Add(_death);
         Content = root;
 
         _session.EnteredWorld += () =>
@@ -274,7 +292,11 @@ public sealed partial class GameWindow : Window
         {
             var sync = await _session.MoveAsync(x, y, dir);
             if (sync != null && sync.Accepted)
+            {
                 _audio.PlayStep();
+                if (_session.World.Self != null)
+                    _session.World.Self.Pose = _mouseRun || _held.Contains(Key.LeftShift) || _held.Contains(Key.RightShift) ? "run" : "walk";
+            }
             if (sync != null && !sync.Accepted && !fromKeyboard)
             {
                 _session.World.ClearGoal();
@@ -436,11 +458,21 @@ public sealed partial class GameWindow : Window
             return;
         _nextAttack = DateTime.UtcNow.AddSeconds(Math.Max(0.2, (def?.CooldownMs ?? 600) / 1000.0));
         if (support)
+        {
             _audio.PlayCast(def?.School);
+            if (self != null)
+                self.Pose = "cast";
+        }
         else
+        {
             _audio.PlayAttack();
+            if (self != null)
+                self.Pose = "attack";
+        }
         if (self != null)
             _session.World.AddCast(self.DrawX, self.DrawY, def?.School ?? "warrior");
+        if (def != null && def.CastMs > 0)
+            await Task.Delay(Math.Min(def.CastMs, 400));
         try
         {
             var resp = await _session.AttackAsync(targetId ?? "", skill, force);
@@ -562,10 +594,10 @@ public sealed partial class GameWindow : Window
         if (mode == ClientUiMode.Reconnecting)
             _reconnectText.Text = "与服务器断开。可重新登录后继续。";
 
+        var self = _session.World.Self;
+        _death.IsVisible = mode == ClientUiMode.InWorld && (self?.Hp ?? 1) <= 0;
         if (mode != ClientUiMode.InWorld)
             return;
-
-        var self = _session.World.Self;
         int hp = self?.Hp ?? 0;
         int maxHp = Math.Max(1, self?.MaxHp ?? 1);
         _hpBar.Maximum = maxHp;
@@ -619,7 +651,20 @@ public sealed partial class GameWindow : Window
                 try { await _session.EnterAsync(captured); }
                 catch (Exception ex) { _charStatus.Text = ex.Message; }
             };
-            _charList.Children.Add(button);
+            var del = new Button { Content = "删除", Width = 64 };
+            del.Click += async (_, _) =>
+            {
+                try
+                {
+                    await _session.DeleteCharacterAsync(captured.CharacterId);
+                    _charCount = -1;
+                }
+                catch (Exception ex) { _charStatus.Text = ex.Message; }
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            row.Children.Add(button);
+            row.Children.Add(del);
+            _charList.Children.Add(row);
         }
     }
 
@@ -637,22 +682,22 @@ public sealed partial class GameWindow : Window
             var id = item.ItemId;
             var button = new Button
             {
-                Content = $"{item.ItemId}  x{item.Count}   （点击使用）",
+                Content = $"{ContentCatalog.ItemName(item.ItemId)}  x{item.Count}   拖到人物面板装备，双击使用",
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Left
             };
-            button.Click += async (_, _) =>
+            button.PointerPressed += async (s, ev) =>
             {
-                _audio.PlayUiClick();
-                try
+                if (ev.ClickCount >= 2)
                 {
-                    string? err = await _session.UseItemAsync(id);
-                    Toast(err ?? $"使用 {id}");
+                    _audio.PlayUiClick();
+                    try { Toast(await _session.UseItemAsync(id) ?? $"使用 {ContentCatalog.ItemName(id)}"); }
+                    catch (Exception ex) { Toast(ex.Message); }
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    Toast(ex.Message);
-                }
+                var data = new DataObject();
+                data.Set("legend-item", id);
+                await DragDrop.DoDragDrop(ev, data, DragDropEffects.Copy);
             };
             _bagItems.Children.Add(button);
         }
@@ -844,6 +889,19 @@ public sealed partial class GameWindow : Window
             Foreground = Brush("#E8C872"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
+        var sky = new Border
+        {
+            Height = 120,
+            Background = Brush("#243044"),
+            Child = new TextBlock
+            {
+                Text = "城门  ·  原野  ·  灯火",
+                Foreground = Brush("#E8C872"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 18
+            }
+        };
         var sub = new TextBlock
         {
             Text = "自研客户端 · 协议 1.21.0 · 无 Unity",
@@ -864,6 +922,7 @@ public sealed partial class GameWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+        panel.Children.Add(sky);
         panel.Children.Add(title);
         panel.Children.Add(sub);
         panel.Children.Add(Labeled("主机", _host));
@@ -923,6 +982,7 @@ public sealed partial class GameWindow : Window
         bars.Children.Add(_hpBar);
         bars.Children.Add(_mpText);
         bars.Children.Add(_mpBar);
+        bars.Children.Add(_expBar);
         bars.Children.Add(_vitals);
         var topLeft = new Border
         {

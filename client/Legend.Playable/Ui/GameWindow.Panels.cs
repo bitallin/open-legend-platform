@@ -103,6 +103,8 @@ public sealed partial class GameWindow
             IsVisible = false
         };
         hud.Children.Add(_panelHost);
+        DragDrop.SetAllowDrop(_panelHost, true);
+        _panelHost.AddHandler(DragDrop.DropEvent, OnItemDropped);
         hud.Children.Add(channels);
         channels.HorizontalAlignment = HorizontalAlignment.Left;
         channels.VerticalAlignment = VerticalAlignment.Bottom;
@@ -148,6 +150,8 @@ public sealed partial class GameWindow
         EnsureBarForClass();
         _modeLabel.Text = "攻击模式 " + AttackModes.Label(_attackMode) + "  ·  Ctrl+H";
         int expMax = Math.Max(1, _session.ExpToNext);
+        _expBar.Maximum = expMax;
+        _expBar.Value = Math.Clamp(_session.Exp, 0, expMax);
         int weight = ContentCatalog.BagWeight(_session.Inventory.Items.Select(i => (i.ItemId, i.Count)));
         int carry = 80 + Math.Max(1, _session.Level) * 5;
         string pk = _session.NameColor switch { "red" => "红名", "yellow" => "黄名", _ => "白名" };
@@ -196,7 +200,9 @@ public sealed partial class GameWindow
             case "char":
                 _panelTitle.Text = "人物 F10";
                 _panelBody.Children.Add(Block($"职业 {_session.ClassId}  等级 {_session.Level}"));
-                _panelBody.Children.Add(Block($"攻 {_session.Atk}  防 {_session.Def}  金 {_session.Inventory.Gold}"));
+                var enhance = new Button { Content = "强化武器", HorizontalAlignment = HorizontalAlignment.Stretch };
+                enhance.Click += async (_, _) => Toast(await _session.EnhanceAsync("weapon") ?? "已尝试强化");
+                _panelBody.Children.Add(enhance);
                 _panelBody.Children.Add(Block(_session.GuildName.Length == 0 ? "行会：无" : $"行会 {_session.GuildName} {_session.GuildRank}"));
                 foreach (string slot in new[] { "weapon", "armor", "helmet", "necklace", "bracelet", "bracelet2", "ring", "ring2", "boots", "belt", "torch" })
                 {
@@ -357,7 +363,7 @@ public sealed partial class GameWindow
                     _panelBody.Children.Add(no);
                 }
                 if (_session.Party.Count == 0)
-                    _panelBody.Children.Add(Block("当前没有队伍"));
+                    _panelBody.Children.Add(Block("当前没有队伍。同图组队击杀会分享经验。"));
                 foreach (var member in _session.Party)
                     _panelBody.Children.Add(Block($"{member.Name}  Lv{member.Level}  {(member.IsLeader ? "队长" : "队员")}"));
                 var leave = new Button { Content = "离开队伍", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -367,6 +373,7 @@ public sealed partial class GameWindow
             case "guild":
                 _panelTitle.Text = "行会";
                 _panelBody.Children.Add(Block(_session.GuildName.Length == 0 ? "尚未加入行会" : $"{_session.GuildName}  {_session.GuildRank}"));
+        _panelBody.Children.Add(Block("经验分享：同图组队击杀有额外经验。行会频道输入「公告 …」或「宣战 行会名」。聊天 /屏蔽 名字，/拜师 名字。"));
                 var gname = new TextBox { Watermark = "行会名" };
                 var create = new Button { Content = "创建", HorizontalAlignment = HorizontalAlignment.Stretch };
                 create.Click += async (_, _) => Toast(await _session.CreateGuildAsync(gname.Text ?? "") ?? "已创建");
@@ -388,6 +395,10 @@ public sealed partial class GameWindow
                 foreach (var portal in map.Portals)
                     _panelBody.Children.Add(Block($"传送 {portal.Id} ({portal.X},{portal.Y})"));
                 _panelBody.Children.Add(Block("路线：曙光镇外 → 沼窟外廊 → 骨脊小径"));
+                break;
+            case "talk":
+                _panelTitle.Text = _session.LastTalk?.NpcName ?? "对话";
+                _panelBody.Children.Add(Block(_session.LastTalk?.Dialogue ?? ""));
                 break;
             case "trade":
                 _panelTitle.Text = "面对面交易";
@@ -480,14 +491,34 @@ public sealed partial class GameWindow
         }
     }
 
+    private async void OnItemDropped(object? sender, DragEventArgs e)
+    {
+        if (!e.Data.Contains("legend-item"))
+            return;
+        string? id = e.Data.Get("legend-item") as string;
+        if (string.IsNullOrEmpty(id))
+            return;
+        if (_openPanel == "char")
+            Toast(await _session.EquipAsync(id, GuessSlot(id)) ?? "已装备");
+        else if (_openPanel == "trade" && _session.TradeId.Length > 0)
+            Toast(await _session.TradePutAsync(id, 1, 0) ?? "已放入交易");
+        else if (_openPanel == "guild")
+            Toast(await _session.GuildDepositAsync(id) ?? "已存入行会仓库");
+        e.Handled = true;
+    }
+
     private void OpenNpcPanel(TalkResp resp)
     {
         if (resp.NpcId.Contains("guild", StringComparison.OrdinalIgnoreCase))
             _openPanel = "guild";
+        else if (resp.NpcId.Contains("way", StringComparison.OrdinalIgnoreCase))
+            _openPanel = "world";
         else if (resp.ShopOffers.Count > 0)
             _openPanel = "shop";
         else if (resp.Quests.Count > 0)
             _openPanel = "quest";
+        else
+            _openPanel = "talk";
         _panelFp = "";
     }
 

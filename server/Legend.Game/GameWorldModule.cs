@@ -675,7 +675,7 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
-        if (!aoi.IsWalkable(toX, toY))
+        if (!aoi.IsWalkable(toX, toY) && !IsBreached(entity.MapId, toX, toY))
         {
             await session.SendAsync(MsgId.MoveSync, frame.Seq, new MoveSync
             {
@@ -969,6 +969,12 @@ public sealed partial class GameWorldModule : IGameModule
         await GrantSkillExpAsync(attacker, skill, skill.SkillExpPerCast + (killed ? skill.SkillExpPerKill : 0), ct);
         if (!string.IsNullOrEmpty(skill.ApplyBuffOnCast))
             await ApplyBuffAsync(attacker, skill.ApplyBuffOnCast, ct);
+        if (!string.IsNullOrEmpty(skill.ApplyDebuffOnHit))
+            PoisonMonster(monster, skill.ApplyDebuffOnHit);
+        if (string.Equals(skill.SkillId, "repulse_ring", StringComparison.OrdinalIgnoreCase))
+            await KnockMonsterAsync(attacker, monster, ct);
+        if (string.Equals(skill.AoeShape, "line", StringComparison.OrdinalIgnoreCase))
+            await StrikeLineAsync(session, attacker, monster.X, monster.Y, skill, dmgMult, ct);
         // Debuffs on monsters are not tracked in M9 player-buff state machine; poison DoT reserved for player targets.
 
         if (killed)
@@ -1235,6 +1241,7 @@ public sealed partial class GameWorldModule : IGameModule
                 await TickLootExpiryAsync(ct);
                 await TickPlayerBuffsAsync(ct);
                 await TickGroundsAsync(ct);
+                await TickPoisonAsync(ct);
                 await TickSiegeScheduleAsync(ct);
             }
             catch (OperationCanceledException) { break; }
@@ -1271,7 +1278,7 @@ public sealed partial class GameWorldModule : IGameModule
             var aoi = GetAoi(monster.MapId);
             WorldPlayerEntity? target = null;
             if (!string.IsNullOrEmpty(monster.TargetEntityId) &&
-                aoi.TryGetEntity(monster.TargetEntityId, out var t) && t != null && !t.IsDead)
+                aoi.TryGetEntity(monster.TargetEntityId, out var t) && t != null && !t.IsDead && !IsHidden(t))
             {
                 target = t;
             }
@@ -1281,7 +1288,7 @@ public sealed partial class GameWorldModule : IGameModule
                 int best = int.MaxValue;
                 foreach (var p in aoi.AllPlayers())
                 {
-                    if (p.IsDead || p.InSafeZone) continue;
+                    if (p.IsDead || p.InSafeZone || IsHidden(p)) continue;
                     int d = CombatMath.Chebyshev(monster.X, monster.Y, p.X, p.Y);
                     if (d <= monster.Template.AggroRange && d < best)
                     {

@@ -404,6 +404,17 @@ public sealed class LoginModule : IGameModule
         }
 
         string classId = (req.ClassId ?? string.Empty).Trim().ToLowerInvariant();
+        string name = (req.Name ?? string.Empty).Trim();
+        if (name.Length < 2 || name.Length > 16 || name.Any(c => char.IsControl(c) || "<>/\\@# ".Contains(c)))
+        {
+            await session.SendAsync(MsgId.CreateCharResp, frame.Seq, new CreateCharResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrCharNameTaken,
+                Message = "角色名须为 2–16 字，且不能含空格或 <>/\\@#"
+            }, ct);
+            return;
+        }
         if (!_versionPack.Classes.TryGetValue(classId, out var classConfig))
         {
             await session.SendAsync(MsgId.CreateCharResp, frame.Seq, new CreateCharResp
@@ -419,7 +430,7 @@ public sealed class LoginModule : IGameModule
         var character = new CharacterRecord
         {
             AccountId = sess.AccountId,
-            Name = req.Name ?? string.Empty,
+            Name = name,
             ClassId = classConfig.ClassId,
             Level = 1,
             Exp = 0,

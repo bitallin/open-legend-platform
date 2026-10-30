@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Legend.Contracts;
 using Legend.Contracts.Proto;
 using Legend.Storage;
@@ -9,6 +10,9 @@ public sealed partial class GameWorldModule
     private readonly List<GroundHazard> _grounds = new();
     private bool _siegeOpenedBySchedule;
     private readonly object _groundGate = new();
+    private readonly ConcurrentDictionary<(string Map, int X, int Y), byte> _breaches = new();
+    private readonly ConcurrentDictionary<string, long> _poisonUntil = new();
+    private readonly ConcurrentDictionary<string, byte> _guildWars = new(StringComparer.Ordinal);
 
     private sealed class GroundHazard
     {
@@ -39,13 +43,21 @@ public sealed partial class GameWorldModule
 
     private async Task OnStructureDestroyedAsync(MonsterEntity monster, CancellationToken ct)
     {
-        if (!string.Equals(monster.MonsterId, _versionPack.Siege.GateMonsterId, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(monster.MonsterId, _versionPack.Siege.GateMonsterId, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(monster.MonsterId, "castle_wall", StringComparison.OrdinalIgnoreCase))
             return;
+        if (string.Equals(monster.MonsterId, "castle_wall", StringComparison.OrdinalIgnoreCase))
+        {
+            _breaches.TryAdd((monster.MapId, monster.X, monster.Y), 0);
+            _breaches.TryAdd((monster.MapId, monster.X + 1, monster.Y), 0);
+        }
         var notice = new ServerNotice
         {
             NoticeType = "gate",
             Title = "城门",
-            Content = "沙门城门被打破，可以进入皇宫区。"
+            Content = string.Equals(monster.MonsterId, "castle_wall", StringComparison.OrdinalIgnoreCase)
+                ? "城墙被打出缺口。"
+                : "沙门城门被打破，可以进入皇宫区。"
         };
         foreach (var p in EnumerateOnlinePlayers())
         {
@@ -143,9 +155,8 @@ public sealed partial class GameWorldModule
         }
         else if (!window && _siegeIsActive && _siegeOpenedBySchedule)
         {
-            _siegeIsActive = false;
             _siegeOpenedBySchedule = false;
-            await BroadcastSiegeStateNotifyAsync("schedule_stop", ct);
+            await FinishSiegeAsync(ct);
         }
     }
 
@@ -364,6 +375,24 @@ public sealed partial class GameWorldModule
 
     private async Task<bool> TryChatUtilityAsync(WorldPlayerEntity player, string content, ChatChannel channel, CancellationToken ct)
     {
+        if (content.StartsWith("宣战", StringComparison.Ordinal) && channel == ChatChannel.ChatGuild)
+        {
+            if (!string.Equals(player.GuildRank, "leader", StringComparison.OrdinalIgnoreCase))
+            {
+                await player.Session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice { NoticeType = "guild", Title = "宣战", Content = "只有会长能宣战" }, ct);
+                return true;
+            }
+            string name = content["宣战".Length..].Trim();
+            var other = await _storage.Guilds.GetByNameAsync(name, ct);
+            if (other is null)
+            {
+                await player.Session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice { NoticeType = "guild", Title = "宣战", Content = "没有这个行会" }, ct);
+                return true;
+            }
+            DeclareGuildWar(player.GuildId, other.GuildId);
+            await player.Session.SendAsync(MsgId.ServerNotice, 0, new ServerNotice { NoticeType = "guild", Title = "宣战", Content = "已向 " + other.Name + " 宣战，双方可互相攻击" }, ct);
+            return true;
+        }
         if (content.StartsWith("/屏蔽", StringComparison.Ordinal))
         {
             string name = content["/屏蔽".Length..].Trim();
@@ -422,5 +451,125 @@ public sealed partial class GameWorldModule
     {
         var map = GuildRanksJson.Parse(ranksJson);
         return map.TryGetValue("__notice", out var text) ? text : "";
+    }
+
+    private bool IsBreached(string mapId, int x, int y) => _breaches.ContainsKey((mapId, x, y));
+
+    private static bool IsHidden(WorldPlayerEntity player)
+        => player.ActiveBuffs.Any(b => string.Equals(b.BuffId, "buff_hide", StringComparison.OrdinalIgnoreCase));
+
+    private bool GuildsAtWar(string? a, string? b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b) || string.Equals(a, b, StringComparison.Ordinal))
+            return false;
+        string key = string.CompareOrdinal(a, b) < 0 ? a + "|" + b : b + "|" + a;
+        return _guildWars.ContainsKey(key);
+    }
+
+    private void DeclareGuildWar(string a, string b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+            return;
+        string key = string.CompareOrdinal(a, b) < 0 ? a + "|" + b : b + "|" + a;
+        _guildWars[key] = 0;
+    }
+
+    private void PoisonMonster(MonsterEntity monster, string debuffId)
+    {
+        if (!string.Equals(debuffId, "debuff_poison", StringComparison.OrdinalIgnoreCase))
+            return;
+        _poisonUntil[monster.EntityId] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 8000;
+    }
+
+    private async Task TickPoisonAsync(CancellationToken ct)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        foreach (var kv in _poisonUntil.ToArray())
+        {
+            if (kv.Value <= now || !_monsters.TryGetValue(kv.Key, out var monster) || !monster.Alive)
+            {
+                _poisonUntil.TryRemove(kv.Key, out _);
+                continue;
+            }
+            monster.Hp = Math.Max(0, monster.Hp - 4);
+            if (monster.Hp > 0)
+                continue;
+            monster.Alive = false;
+            monster.RespawnAtUnixMs = now + Math.Max(1000, monster.Template.RespawnMs);
+            await BroadcastNearAsync(monster.MapId, monster.X, monster.Y, MsgId.EntityDespawn,
+                new EntityDespawn { EntityId = monster.EntityId, Reason = "Killed", MapId = monster.MapId }, ct);
+            _poisonUntil.TryRemove(kv.Key, out _);
+        }
+    }
+
+    private async Task KnockMonsterAsync(WorldPlayerEntity attacker, MonsterEntity monster, CancellationToken ct)
+    {
+        int nx = monster.X + Math.Sign(monster.X - attacker.X);
+        int ny = monster.Y + Math.Sign(monster.Y - attacker.Y);
+        if (nx == monster.X && ny == monster.Y)
+            nx += 1;
+        if (!_versionPack.Maps.TryGetValue(monster.MapId, out var map) || map.IsBlocked(nx, ny))
+            return;
+        int ox = monster.X;
+        int oy = monster.Y;
+        monster.X = nx;
+        monster.Y = ny;
+        await BroadcastNearAsync(monster.MapId, nx, ny, MsgId.MoveSync, new MoveSync
+        {
+            EntityId = monster.EntityId,
+            FromX = ox,
+            FromY = oy,
+            ToX = nx,
+            ToY = ny,
+            Direction = 4,
+            Accepted = true,
+            Reason = "Repulse"
+        }, ct);
+    }
+
+    private async Task StrikeLineAsync(
+        IClientSession session,
+        WorldPlayerEntity attacker,
+        int targetX,
+        int targetY,
+        SkillConfigItem skill,
+        double dmgMult,
+        CancellationToken ct)
+    {
+        int dx = Math.Sign(targetX - attacker.X);
+        int dy = Math.Sign(targetY - attacker.Y);
+        if (dx == 0 && dy == 0)
+            return;
+        for (int i = 1; i <= Math.Max(1, skill.Range); i++)
+        {
+            int cx = attacker.X + dx * i;
+            int cy = attacker.Y + dy * i;
+            if (skill.GroundDurationMs > 0)
+                await PlaceGroundFireAsync(attacker, cx, cy, skill, ct);
+            foreach (var other in _monsters.Values.ToList())
+            {
+                if (!other.Alive || other.X != cx || other.Y != cy)
+                    continue;
+                if (!string.Equals(other.MapId, attacker.MapId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                await HitSplashedMonsterAsync(session, attacker, other, skill, dmgMult, ct);
+            }
+        }
+    }
+
+    private async Task ShareBuffWithPartyAsync(WorldPlayerEntity attacker, string buffId, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(attacker.PartyId) || string.IsNullOrEmpty(buffId))
+            return;
+        if (!_maps.TryGetValue(attacker.MapId, out var aoi))
+            return;
+        foreach (var other in aoi.AllPlayers())
+        {
+            if (other.EntityId == attacker.EntityId || other.PartyId != attacker.PartyId)
+                continue;
+            if (CombatMath.Chebyshev(attacker.X, attacker.Y, other.X, other.Y) > 6)
+                continue;
+            await ApplyBuffAsync(other, buffId, ct);
+        }
     }
 }

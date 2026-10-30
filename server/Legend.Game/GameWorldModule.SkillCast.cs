@@ -48,6 +48,8 @@ public sealed partial class GameWorldModule
             {
                 if (!string.IsNullOrWhiteSpace(skill.ApplyBuffOnCast))
                     await ApplyBuffAsync(attacker, skill.ApplyBuffOnCast, ct);
+                if (string.Equals(skill.SkillId, "group_hide", StringComparison.OrdinalIgnoreCase))
+                    await ShareBuffWithPartyAsync(attacker, skill.ApplyBuffOnCast, ct);
                 combat.Result = CombatResultKind.CombatHit;
                 combat.Damage = 0;
                 combat.TargetHp = attacker.Hp;

@@ -78,6 +78,20 @@ public sealed partial class PlayableNetClient
         return resp;
     }
 
+    public async Task<EnhanceEquipResp> EnhanceAsync(string slot, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.EnhanceEquipReq, new EnhanceEquipReq { Slot = slot }, ct).ConfigureAwait(false);
+        var resp = EnhanceEquipResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            Replace(Equipment, resp.Equipment);
+            EffectiveAtk = resp.EffectiveAtk;
+            EffectiveDef = resp.EffectiveDef;
+        }
+        return resp;
+    }
+
     public async Task<WorldTravelResp> WorldTravelAsync(string mapId, CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.WorldTravelReq, new WorldTravelReq { MapId = mapId }, ct).ConfigureAwait(false);
