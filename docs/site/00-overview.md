@@ -129,3 +129,12 @@ Host 启动示例见仓库 `README.md`：`--manifest`、`--storage`、`--realm-i
 | 自研特效管线配置 | [20](20-audio-visual.md) |
 | 数据上报、GM 命令表、排行榜 | [21](21-ops-gm-deploy.md) |
 | 防刷策略与客户端完整性 | [22](22-security-anti-cheat.md) |
+| 多货币账本、回收日限 | [11](11-trade-stall-auction.md)、[12](12-mall-payment.md) |
+| 天赋树 | [03](03-attributes-growth.md) |
+| 十二生肖、神器槽 | [07](07-equipment-inventory.md)、[16](16-craft-enhance-gem.md) |
+| 翅膀与限时时装 | [14](14-buff-title-fashion.md) |
+| 英雄合击完整草案、坐骑状态机、宠物蛋 | [15](15-pet-hero-mount.md)、[05](05-combat-skills.md) |
+| 地图 flags、岛屿对照 | [04](04-map-movement.md) |
+| 内挂、拾取过滤、红毒绿毒、离线挂机 | 占位。主规格在 [19](19-client-ui-controls.md)、[06](06-monsters-loot.md)。红毒绿毒拆分见 [05](05-combat-skills.md)，地图禁挂见 [04](04-map-movement.md) |
+
+表末新增行是扩展规格入口，仍未进入矩阵，不计分。内挂只占位，不在本 PR 展开。字段形状以各篇「扩展路线」为准。

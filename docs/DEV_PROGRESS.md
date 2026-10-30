@@ -4,7 +4,7 @@
 
 | 项 | 值 |
 |----|----|
-| 最后更新 | 2026-10-30 |
+| 最后更新 | 2026-10-31 |
 | 阶段 | Phase R：斜视角、装备分层、加帧、主界面贴图。功能清单仍是 100% |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
@@ -58,3 +58,5 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-30：Phase P 离开世界回选角、世界 BOSS 血条与仇恨、行会任命、好友列表、师徒经验、摆摊窗口、脏词表、坐骑时装宠物面板、登录城市场景、选角立绘、称号。总体 100%（217/217）。Done 217，Partial 0，NotStarted 0。MATRIX_COMPLETE=true。
 - 2026-10-30：Phase Q 用原创图集换掉占位渲染。八方向走跑攻施法受击死亡、地砖、怪物、HUD 金边、技能光效和飘字。功能清单仍是 100%。细节见 VISUAL_PARITY.md。
 - 2026-10-30：Phase R 斜 45° 菱形镜头（点地仍回格子坐标）、武器衣服头盔分层、动作加帧、原创主界面贴图。VISUAL_PARITY_COMPLETE=true。功能清单仍是 100%。
+- 2026-10-31：文档站扩展规格加厚（货币/生肖/神器/天赋/时装翅/坐骑/宠物/英雄/地图 flags）。矩阵仍 100%（扩展不计分）。详见 docs/site 各篇扩展路线与 research/SOURCES.md。
+- 2026-10-31：补占位：地图 `noHang` / `noAutoPickup`，红毒绿毒拆分，内挂、拾取过滤与离线挂机仅交叉链（主规格留 19 与 06）。矩阵仍 100%。

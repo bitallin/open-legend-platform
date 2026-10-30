@@ -22,8 +22,9 @@
 | 土城 / 盟重一类 | `oath_city` | 盟誓城 |
 | 沙巴克城门 | `sand_gate` | 沙门关 |
 | 封魔一类 | `sealed_temple` | 封碑神殿 |
+| 苍月岛一类 | `moon_isle` | 文档占位，样例包不落文件 |
 
-样例攻城占领区当前写在 `dark_forest` 的矩形上，城门怪 id 为 `castle_gate`。调整玩法循环时改 `configs/siege.json`，不要去找官方城堡目录。
+样例攻城占领区当前写在 `dark_forest` 的矩形上，城门怪 id 为 `castle_gate`。调整玩法循环时改 `configs/siege.json`，不要去找官方城堡目录。`moon_isle` 只在文档中占位，`version-packs/sample-classic/maps/` 不必添加该文件。地图 flag 与镜像见 [04](04-map-movement.md)。
 
 ## 技能显示名
 
@@ -35,4 +36,10 @@
 
 ## 经济与货币
 
-样例内流通货币是角色金币（gold）。支付商品 `gold_100`、`gold_1000` 表示发金币，不是第二种货币 id。多货币是扩展，见 [12](12-mall-payment.md)。
+| 经典说法 | OLP id | 说明 |
+|----------|--------|------|
+| 金币 | `gold` | 样例内唯一启用的流通货币。矩阵 **Y-01** |
+| 元宝一类显示名 | `ingot` | 扩展货币。显示名可叫元宝，id 保持 `ingot`。样例包未启用 |
+| 绑定金币 / 绑定元宝 | `gold_bound` / `ingot_bound` | 绑定后缀 `_bound`。同组扣款优先，通常不可交易 |
+
+支付商品 `gold_100`、`gold_1000` 在现网表示发 `gold`，不是第二种货币 id。多货币账本与充值改发 `ingot` 的规格见 [11](11-trade-stall-auction.md) 与 [12](12-mall-payment.md)，未进入矩阵。
