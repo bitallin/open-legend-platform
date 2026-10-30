@@ -10,7 +10,7 @@
 | 选区 | **Avalonia 窗口**或控制台菜单 / `--realm-id`；展示区名 / 状态 / TCP connect RTT |
 | 更新检查 | 本地 `version.json` vs `update-manifest*.json`（或 URL）；`IUpdateChannel` 可扩展 |
 | 下载骨架 | 无真实包 URL 时假进度并写 `cache/updates/update-*.bin` |
-| 启动客户端 | `clientExecutable`：Unity 玩家、`Legend.ClientStub.dll`、或 `scripts/fake-client.sh` |
+| 启动客户端 | `clientExecutable`：非 Unity `LegendClient.exe`（验收路径）、可选 Unity 玩家、`Legend.ClientStub.dll`、或 `scripts/fake-client.sh` |
 
 **不包含**：完整 CDN 差分热更、精美皮肤、支付。
 

@@ -115,5 +115,5 @@ echo "OK"
 
 echo
 echo "=== Phase K playable PC VERIFY OK ==="
-echo "Note: no Unity Editor here — LegendClient.exe not produced in this environment."
-echo "On user Windows with Unity 2022.3: see docs/PLAYABLE_PC.md"
+echo "Unity player remains optional. Acceptance exe (no Unity): ./scripts/publish-playable-windows.sh"
+echo "See docs/PLAYABLE_PC.md — public trial 150.158.164.90:7100"

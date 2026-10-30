@@ -38,6 +38,10 @@ launcher/cache/
 # Android / Unity build artifacts (Phase J)
 dist/android/**
 !dist/android/.gitkeep
+
+# Self-contained playable client output (rebuild with scripts/publish-playable-windows.sh)
+dist/windows-player/**
+!dist/windows-player/.gitkeep
 *.apk
 *.aab
 *.keystore

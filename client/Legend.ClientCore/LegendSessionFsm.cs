@@ -55,6 +55,15 @@ namespace Legend.ClientCore
                 Transition(SessionPhase.InWorld, $"In world ({mapId})");
         }
 
+        /// <summary>Enter failed or cancelled; stay logged in on the character screen.</summary>
+        public void AbortEnterWorld(string message)
+        {
+            if (Phase != SessionPhase.EnteringWorld)
+                return;
+            ErrorMessage = message ?? "";
+            Transition(SessionPhase.CharSelect, string.IsNullOrWhiteSpace(message) ? "Select or create character" : message);
+        }
+
         public void MarkDisconnected(bool expectReconnect)
         {
             if (Phase == SessionPhase.Disconnected)
