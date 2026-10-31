@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-legend.local/schemas/pickup_filters.schema.json",
+  "title": "PickupFilters",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profiles"],
+  "properties": {
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["profileId"],
+        "properties": {
+          "profileId": { "type": "string", "minLength": 1 },
+          "displayName": { "type": "string" },
+          "defaultForAssist": { "type": "boolean" },
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["itemId"],
+              "properties": {
+                "itemId": { "type": "string" },
+                "assistPickup": { "type": "boolean" },
+                "priority": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

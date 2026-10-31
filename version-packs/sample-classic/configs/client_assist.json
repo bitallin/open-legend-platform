@@ -1,0 +1,86 @@
+{
+  "enabled": false,
+  "hotkey": "F12",
+  "mode": "anchor",
+  "anchorRadiusCells": 12,
+  "patrolPoints": [],
+  "searchRangeCells": 8,
+  "maxPullCount": 3,
+  "ignoreTags": [
+    "guard",
+    "town_npc"
+  ],
+  "doNotAttackEntityKinds": [
+    "pet_own",
+    "hero_own",
+    "friendly"
+  ],
+  "stopOnPortal": true,
+  "stopOnMapChange": true,
+  "stopOnDeath": true,
+  "stopOnManualMove": true,
+  "globalCastGapMs": 350,
+  "comboPriority": "off",
+  "skills": [
+    {
+      "skillId": "thrust_slash",
+      "enabled": true,
+      "priority": 30,
+      "minMpPercent": 5
+    },
+    {
+      "skillId": "fatal_strike",
+      "enabled": true,
+      "priority": 40,
+      "minMpPercent": 10
+    },
+    {
+      "skillId": "half_moon",
+      "enabled": true,
+      "priority": 35,
+      "minMpPercent": 10,
+      "minMobCount": 2
+    },
+    {
+      "skillId": "basic_slash",
+      "enabled": true,
+      "priority": 1,
+      "minMpPercent": 0
+    }
+  ],
+  "poison": {
+    "enabled": false,
+    "applyRed": true,
+    "applyGreen": true,
+    "reapplyBeforeExpireMs": 2000,
+    "onlyIfTargetMissingDebuff": true
+  },
+  "pickup": {
+    "enabled": true,
+    "pickupRangeCells": 3,
+    "delayMs": 200,
+    "pauseAttackWhilePicking": true,
+    "priorityItemIds": [
+      "item_copper_coin"
+    ]
+  },
+  "hpPotions": [
+    {
+      "itemId": "item_hp_potion",
+      "hpPercent": 40,
+      "priority": 10,
+      "minIntervalMs": 800
+    }
+  ],
+  "mpPotions": [
+    {
+      "itemId": "item_mp_potion",
+      "mpPercent": 30,
+      "priority": 10,
+      "minIntervalMs": 800
+    }
+  ],
+  "emergencyScrollHpPercent": 15,
+  "emergencyScrollItemId": "item_town_scroll",
+  "autoRecycleWhenSlotsBelow": 2
+}

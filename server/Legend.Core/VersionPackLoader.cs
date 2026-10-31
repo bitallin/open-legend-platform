@@ -799,6 +799,64 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        var clientAssistConfig = new ClientAssistConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.ClientAssistConfigFile))
+        {
+            string assistPath = Path.Combine(baseDir, manifest.ClientAssistConfigFile);
+            if (!File.Exists(assistPath))
+                throw new FileNotFoundException($"Client assist config not found: {assistPath}");
+            string assistJson = File.ReadAllText(assistPath, Encoding.UTF8);
+            hashInput.Append(assistJson);
+            _schemaValidator.Validate(ConfigSchemaIds.ClientAssist, assistJson, manifest.ClientAssistConfigFile);
+            clientAssistConfig = JsonSerializer.Deserialize<ClientAssistConfigFile>(assistJson, JsonOptions)
+                ?? new ClientAssistConfigFile();
+            clientAssistConfig.Skills ??= new();
+            clientAssistConfig.IgnoreTags ??= new();
+            clientAssistConfig.DoNotAttackEntityKinds ??= new();
+            clientAssistConfig.PatrolPoints ??= new();
+            clientAssistConfig.HpPotions ??= new();
+            clientAssistConfig.MpPotions ??= new();
+            clientAssistConfig.Poison ??= new AssistPoisonConfig();
+            clientAssistConfig.Pickup ??= new AssistPickupConfig();
+            clientAssistConfig.Pickup.PriorityItemIds ??= new();
+            // Pack defaults must stay off; player enables locally.
+            clientAssistConfig.Enabled = false;
+            foreach (var sk in clientAssistConfig.Skills)
+            {
+                if (skillDict.Count > 0 && !string.IsNullOrWhiteSpace(sk.SkillId) && !skillDict.ContainsKey(sk.SkillId))
+                    throw new InvalidDataException($"client_assist skillId '{sk.SkillId}' not in skills.json.");
+            }
+        }
+
+        var pickupFiltersConfig = new PickupFiltersConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.PickupFiltersConfigFile))
+        {
+            string pfPath = Path.Combine(baseDir, manifest.PickupFiltersConfigFile);
+            if (!File.Exists(pfPath))
+                throw new FileNotFoundException($"Pickup filters config not found: {pfPath}");
+            string pfJson = File.ReadAllText(pfPath, Encoding.UTF8);
+            hashInput.Append(pfJson);
+            _schemaValidator.Validate(ConfigSchemaIds.PickupFilters, pfJson, manifest.PickupFiltersConfigFile);
+            pickupFiltersConfig = JsonSerializer.Deserialize<PickupFiltersConfigFile>(pfJson, JsonOptions)
+                ?? new PickupFiltersConfigFile();
+            pickupFiltersConfig.Profiles ??= new();
+            var pids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var profile in pickupFiltersConfig.Profiles)
+            {
+                if (string.IsNullOrWhiteSpace(profile.ProfileId))
+                    throw new InvalidDataException("Pickup filter profile missing profileId.");
+                if (!pids.Add(profile.ProfileId))
+                    throw new InvalidDataException($"Duplicate pickup filter profileId '{profile.ProfileId}'.");
+                profile.Rules ??= new();
+                foreach (var rule in profile.Rules)
+                {
+                    if (itemDict.Count > 0 && !itemDict.ContainsKey(rule.ItemId))
+                        throw new InvalidDataException($"Pickup filter itemId '{rule.ItemId}' not in items.json.");
+                }
+            }
+        }
+
         string profanityPath = Path.Combine(baseDir, "configs", "profanity.txt");
         if (File.Exists(profanityPath))
             PhasePRules.UseWordList(File.ReadAllLines(profanityPath));
@@ -839,6 +897,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             ArtifactUpgrades = artifactUpgradeDict,
             Heroes = heroesConfig,
             Combos = combosConfig,
+            ClientAssist = clientAssistConfig,
+            PickupFilters = pickupFiltersConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

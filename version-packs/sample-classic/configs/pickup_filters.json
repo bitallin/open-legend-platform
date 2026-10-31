@@ -1,0 +1,31 @@
+{
+  "profiles": [
+    {
+      "profileId": "default",
+      "displayName": "默认",
+      "defaultForAssist": true,
+      "rules": [
+        {
+          "itemId": "item_copper_coin",
+          "assistPickup": true,
+          "priority": 100
+        },
+        {
+          "itemId": "item_slime_gel",
+          "assistPickup": true,
+          "priority": 50
+        },
+        {
+          "itemId": "item_hp_potion",
+          "assistPickup": true,
+          "priority": 40
+        },
+        {
+          "itemId": "item_mp_potion",
+          "assistPickup": true,
+          "priority": 40
+        }
+      ]
+    }
+  ]
+}

@@ -335,6 +335,9 @@ message EnterWorldResp {
   bool is_castle_lord_guild = 26;
   bool is_muted = 27;
   int64 mute_expires_unix_ms = 28;
+  // Map flags for client assist (docs/site/04, 19). Protocol stays 1.21.0.
+  bool map_no_hang = 29;
+  bool map_no_auto_pickup = 30;
 }
 
 // 8. AOI Movement (MsgId: 2003–2007)
@@ -375,6 +378,9 @@ message MapChangeNotify {
   string portal_id = 6;
   bool in_safe_zone = 7;
   repeated EntitySnapshot nearby_entities = 8;
+  // Map flags for client assist. Protocol stays 1.21.0.
+  bool map_no_hang = 9;
+  bool map_no_auto_pickup = 10;
 }
 
 // 9. Combat & Loot (MsgId: 2101–2109)

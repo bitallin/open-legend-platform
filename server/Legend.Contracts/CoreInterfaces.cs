@@ -93,6 +93,8 @@ public sealed class VersionPackManifest
     public string ArtifactsConfigFile { get; set; } = "";
     public string HeroesConfigFile { get; set; } = "";
     public string CombosConfigFile { get; set; } = "";
+    public string ClientAssistConfigFile { get; set; } = "";
+    public string PickupFiltersConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -153,6 +155,8 @@ public sealed class MapConfig
 
     /// <summary>True when mapFlags.noPk is set. Player-vs-player must be rejected outside safe zones.</summary>
     public bool IsNoPk => MapFlags.NoPk;
+    public bool IsNoHang => MapFlags.NoHang;
+    public bool IsNoAutoPickup => MapFlags.NoAutoPickup;
 
     public PortalConfig? FindPortalAt(int x, int y)
         => Portals.FirstOrDefault(p => p.X == x && p.Y == y);
@@ -918,6 +922,101 @@ public sealed class CombosConfigFile
 }
 
 /// <summary>Persisted hero instance (appearance_json). Not an account character slot.</summary>
+
+/// <summary>configs/client_assist.json — client autoplay defaults (docs/site/19). Default enabled=false.</summary>
+public sealed class ClientAssistConfigFile
+{
+    public bool Enabled { get; set; }
+    public string Hotkey { get; set; } = "F12";
+    public string Mode { get; set; } = "anchor";
+    public int AnchorRadiusCells { get; set; } = 12;
+    public List<AssistPatrolPoint> PatrolPoints { get; set; } = new();
+    public int SearchRangeCells { get; set; } = 8;
+    public int MaxPullCount { get; set; } = 3;
+    public List<string> IgnoreTags { get; set; } = new();
+    public List<string> DoNotAttackEntityKinds { get; set; } = new();
+    public bool StopOnPortal { get; set; } = true;
+    public bool StopOnMapChange { get; set; } = true;
+    public bool StopOnDeath { get; set; } = true;
+    public bool StopOnManualMove { get; set; } = true;
+    public int GlobalCastGapMs { get; set; } = 350;
+    public string ComboPriority { get; set; } = "off";
+    public List<AssistSkillConfig> Skills { get; set; } = new();
+    public AssistPoisonConfig Poison { get; set; } = new();
+    public AssistPickupConfig Pickup { get; set; } = new();
+    public List<AssistPotionConfig> HpPotions { get; set; } = new();
+    public List<AssistPotionConfig> MpPotions { get; set; } = new();
+    public double EmergencyScrollHpPercent { get; set; } = 15;
+    public string EmergencyScrollItemId { get; set; } = "item_town_scroll";
+    public int AutoRecycleWhenSlotsBelow { get; set; }
+}
+
+public sealed class AssistPatrolPoint
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+}
+
+public sealed class AssistSkillConfig
+{
+    public string SkillId { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+    public int Priority { get; set; }
+    public double MinMpPercent { get; set; }
+    public double? MinHpPercent { get; set; }
+    public int MinMobCount { get; set; }
+    public string? RequireBuffMissing { get; set; }
+}
+
+public sealed class AssistPoisonConfig
+{
+    public bool Enabled { get; set; }
+    public bool ApplyRed { get; set; } = true;
+    public bool ApplyGreen { get; set; } = true;
+    public int ReapplyBeforeExpireMs { get; set; } = 2000;
+    public bool OnlyIfTargetMissingDebuff { get; set; } = true;
+    public string? ConsumesItemId { get; set; }
+}
+
+public sealed class AssistPickupConfig
+{
+    public bool Enabled { get; set; } = true;
+    public int PickupRangeCells { get; set; } = 3;
+    public int DelayMs { get; set; } = 200;
+    public bool PauseAttackWhilePicking { get; set; } = true;
+    public List<string> PriorityItemIds { get; set; } = new();
+}
+
+public sealed class AssistPotionConfig
+{
+    public string ItemId { get; set; } = "";
+    public double HpPercent { get; set; }
+    public double MpPercent { get; set; }
+    public int Priority { get; set; }
+    public int MinIntervalMs { get; set; } = 800;
+}
+
+/// <summary>configs/pickup_filters.json</summary>
+public sealed class PickupFiltersConfigFile
+{
+    public List<PickupFilterProfile> Profiles { get; set; } = new();
+}
+
+public sealed class PickupFilterProfile
+{
+    public string ProfileId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public bool DefaultForAssist { get; set; }
+    public List<PickupFilterRule> Rules { get; set; } = new();
+}
+
+public sealed class PickupFilterRule
+{
+    public string ItemId { get; set; } = "";
+    public bool AssistPickup { get; set; } = true;
+    public int Priority { get; set; }
+}
+
 public sealed class HeroSaveState
 {
     public string HeroId { get; set; } = "";
@@ -978,6 +1077,8 @@ public sealed class LoadedVersionPack
         new Dictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>>(StringComparer.OrdinalIgnoreCase);
     public HeroesConfigFile Heroes { get; init; } = new();
     public CombosConfigFile Combos { get; init; } = new();
+    public ClientAssistConfigFile ClientAssist { get; init; } = new();
+    public PickupFiltersConfigFile PickupFilters { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 

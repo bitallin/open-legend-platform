@@ -63,7 +63,8 @@ public sealed partial class GameWorldModule
             BlockedCells = template.BlockedCells,
             BlockedBitsetBase64 = template.BlockedBitsetBase64,
             SafeZones = template.SafeZones,
-            Portals = new List<PortalConfig>()
+            Portals = new List<PortalConfig>(),
+            MapFlags = template.MapFlags
         };
     }
 
@@ -110,7 +111,9 @@ public sealed partial class GameWorldModule
             ToX = tx,
             ToY = ty,
             PortalId = reason,
-            InSafeZone = entity.InSafeZone
+            InSafeZone = entity.InSafeZone,
+            MapNoHang = toMap.IsNoHang,
+            MapNoAutoPickup = toMap.IsNoAutoPickup
         };
         foreach (var n in nearby)
             notify.NearbyEntities.Add(n.ToSnapshot());

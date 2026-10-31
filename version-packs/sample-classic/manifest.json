@@ -62,5 +62,7 @@
   "equipmentSlotsConfigFile": "configs/equipment_slots.json",
   "artifactsConfigFile": "configs/artifacts.json",
   "heroesConfigFile": "configs/heroes.json",
-  "combosConfigFile": "configs/combos.json"
+  "combosConfigFile": "configs/combos.json",
+  "clientAssistConfigFile": "configs/client_assist.json",
+  "pickupFiltersConfigFile": "configs/pickup_filters.json"
 }
