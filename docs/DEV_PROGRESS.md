@@ -5,7 +5,7 @@
 | 项 | 值 |
 |----|----|
 | 最后更新 | 2026-10-31 |
-| 阶段 | Phase R：斜视角、装备分层、加帧、主界面贴图。功能清单仍是 100%。引擎重构 E0–E8 已完成（含 DocOnly `mapFlags.noPk`），不计矩阵分，见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
+| 阶段 | Phase R + 引擎 E0–E8 已完成；`c23e8a0` 收尾 Stall 商店选 NPC、试玩服与 Windows 客户端对齐。功能清单 100%。见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
 | 总体 | **100%**（217 / 217） |
@@ -70,4 +70,4 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：引擎重构 E6。`ProtocolCatalogTests` 锁定 MsgId↔proto 消息、`ProtocolErrorCode` 不重复不回收；协议仍 1.21.0。矩阵仍 100%。
 - 2026-10-31：引擎重构 E7。进图/击杀/拾取/对话钩子异常隔离；`ScriptSandboxTests` 锁沙箱无 IO 与坏热更回滚后仍可移动。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎重构 E8。地图 Schema 增加可选 `mapFlags`；服务端执行 `noPk`（安全区外禁玩家互攻，`ERR_INVALID_TARGET`）。样例地图行为不变。其它 flag 仅 Schema。矩阵仍 100%。协议仍是 1.21.0。
-- 2026-10-31：收尾。`Stall_OfflineSeller` / M3 商店路径误选 `npc_waygate`（无 shop）改为显式 `npc_village_merchant`；试玩服对齐 main；Windows `LegendClient.exe` 重打。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：收尾。`Stall_OfflineSeller` / M3 商店路径误选 `npc_waygate`（无 shop）改为显式 `npc_village_merchant`（#21 → `c23e8a0`）。试玩服 `150.158.164.90:7100` 由 `3b97446` 升至 `c23e8a0`，CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 基于 `c23e8a0` 重打。矩阵仍 100%。协议仍是 1.21.0。
