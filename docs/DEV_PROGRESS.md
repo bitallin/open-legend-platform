@@ -43,13 +43,15 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 - Avalonia 客户端导入原型 kit：`Assets/chrome/`（阴阳球 / 聊天 / BR / 小地图 / 背包人物整窗 / 九宫 / 按钮 / 物品格）。
 - 登录、选角、主 HUD、背包网格、人物环绕槽对齐 OL-01-A/B/C · OL-02-A/B · OL-03-C 硬门槛；禁墙纸平铺与浮空灰块。
-- 扩展窗：技能 OL-04-A、商店 OL-06-B、仓库 OL-06-E、交易 OL-08-A、行会 OL-09-A、大地图 OL-05-B、设置 OL-12-A、组队/好友/右键 OL-07、任务 OL-11、死亡/安全区/名色 OL-10、攻沙顶栏 OL-09-E、寄售 OL-08-H、商城 OL-17-A、英雄/宝宝 OL-13-A/OL-02-I — 九宫 Framed + Tab/列表/追踪条（非整窗 AI 贴图；商城购买与英雄合击不升协议）。
+- 扩展窗：技能 OL-04-A、商店 OL-06-B、仓库 OL-06-E、交易 OL-08-A、行会 OL-09-A、大地图 OL-05-B、设置 OL-12-A、组队/好友/右键/邮件 OL-07、任务 OL-11、死亡/安全区/名色 OL-10、攻沙顶栏 OL-09-E、寄售 OL-08-H、商城 OL-17-A、英雄/宝宝 OL-13-A/OL-02-I、内挂 OL-16 — 九宫 Framed + Tab/列表/追踪条（非整窗 AI 贴图；商城支付不接线；合击走既有 hero_combo）。
 - 协议仍 **1.21.0**；服务端无协议变更。矩阵仍 100%。
 - 进度对照 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
 - 2026-11-01：扩展窗布局合入 #33 → `840e6f3` — OL-04-A 技能列表+F1–F8、OL-06-B 商店 Tab 双栏、OL-06-E 仓库双栏、OL-08-A 交易双格、OL-09-A 行会、OL-05-B 大地图示意、OL-12-A 设置 Tab。仅客户端 UI；服务端无变更（试玩服未重部署）。Windows `dist/windows-player/LegendClient.exe` 已按 `840e6f3` 重打并同步用户机。见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
 - 2026-11-01：第三刀扩展窗合入 — OL-07 组队/好友/玩家菜单、OL-11 任务窗+追踪、OL-10 死亡/安全区条/名色、OL-09-E 攻沙顶栏、OL-08-H 寄售 Tab、OL-17-A 商城占位、OL-13-A/OL-02-I 英雄与宝宝。仅客户端 UI；协议仍 1.21.0；试玩服未重部署。Windows `LegendClient.exe` 重打并同步用户机。见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
+- 2026-11-01：第四刀扩展窗合入 — 邮件 OL-07-H（收件/写信/读领删发）、内挂 OL-16（四 Tab·默认关·风险确认）、加深 OL-07/08/09/17 列头与状态色、英雄合击 Ctrl+S→`hero_combo`（无新 MsgId）、规避抽检叠字/调试残片。仅客户端 UI；协议仍 1.21.0；试玩服未重部署。Windows `LegendClient.exe` 重打并同步用户机。见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
+
 
 - 2026-11-01：Avalonia 石金壳合入 #32 → `686e207`。试玩服 `150.158.164.90:7100` 无服务端增量（仍跑既有 tip）；CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 已按 `686e207` 重打并同步用户机。协议仍 1.21.0。
 

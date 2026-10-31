@@ -1,3 +1,4 @@
+using System.Linq;
 using Legend.ClientCore;
 using Legend.Contracts;
 using Legend.Contracts.Proto;
@@ -9,10 +10,15 @@ public sealed partial class PlayableSession
     private WorldBossInfo[] _bosses = Array.Empty<WorldBossInfo>();
     private readonly List<FriendInfo> _friends = new();
     private StallListingInfo[] _market = Array.Empty<StallListingInfo>();
+    private readonly List<MailEntry> _mails = new();
+    private int _mailCapacity;
 
     public IReadOnlyList<WorldBossInfo> Bosses => _bosses;
     public IReadOnlyList<FriendInfo> Friends => _friends;
     public IReadOnlyList<StallListingInfo> Market => _market;
+    public IReadOnlyList<MailEntry> Mails => _mails;
+    public int MailCapacity => _mailCapacity;
+    public MailEntry? SelectedMail { get; private set; }
     public GuildInfoResp? GuildInfo { get; private set; }
     public MountStatusResp? Mounts { get; private set; }
     public FashionStatusResp? Fashions { get; private set; }
@@ -234,4 +240,59 @@ public sealed partial class PlayableSession
         if (World.Self != null)
             World.Self.Title = PhasePRules.Title(Level, GuildRank);
     }
+
+
+    public async Task RefreshMailsAsync()
+    {
+        var resp = await _net.MailListAsync();
+        _mails.Clear();
+        if (resp.Success)
+        {
+            _mails.AddRange(resp.Mails);
+            _mailCapacity = resp.Capacity;
+            if (SelectedMail is not null)
+            {
+                var keep = _mails.FirstOrDefault(m => m.MailId == SelectedMail.MailId);
+                SelectedMail = keep;
+            }
+        }
+        SocialRevision++;
+    }
+
+    public async Task ReadMailAsync(string mailId)
+    {
+        var resp = await _net.MailReadAsync(mailId);
+        if (!resp.Success)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(resp.Message) ? "读信失败" : resp.Message);
+        SelectedMail = resp.Mail;
+        await RefreshMailsAsync();
+    }
+
+    public async Task ClaimMailAsync(string mailId)
+    {
+        var resp = await _net.MailClaimAsync(mailId);
+        if (!resp.Success)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(resp.Message) ? "领取失败" : resp.Message);
+        SelectedMail = resp.Mail;
+        await RefreshMailsAsync();
+    }
+
+    public async Task DeleteMailAsync(string mailId)
+    {
+        var resp = await _net.MailDeleteAsync(mailId);
+        if (!resp.Success)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(resp.Message) ? "删除失败" : resp.Message);
+        if (SelectedMail?.MailId == mailId)
+            SelectedMail = null;
+        await RefreshMailsAsync();
+    }
+
+    public async Task SendMailAsync(string toName, string subject, string body, int attachGold = 0)
+    {
+        var resp = await _net.MailSendAsync(toName, subject, body, attachGold);
+        if (!resp.Success)
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(resp.Message) ? "发信失败" : resp.Message);
+        await RefreshMailsAsync();
+    }
+
 }

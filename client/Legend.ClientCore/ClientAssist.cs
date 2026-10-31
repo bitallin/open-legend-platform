@@ -195,6 +195,7 @@ public sealed class ClientAssistEngine
 
     public bool Running { get; private set; }
     public string LastStopReason { get; private set; } = "";
+    public ClientAssistSettings Settings => _cfg;
 
     public ClientAssistEngine(ClientAssistSettings cfg, PickupFilterSettings? filters = null)
     {
