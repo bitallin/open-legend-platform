@@ -111,7 +111,7 @@ sequenceDiagram
 5. **移动。** `MoveReq (2003)` 携带目标格。世界依次检查：已进世界、未死亡、地图可走（城门未破时城门格拒绝）、`IAntiCheatProbe.ValidateMove`、移动间隔。拒绝时 `MoveSync (2004)` 的 `Accepted` 为 false，`ErrorCode` 为 `ERR_MOVE_BLOCKED (1005)` 或 `ERR_MOVE_TOO_FAST (1073)`，坐标留在原格。接受后更新 AOI，并给离开视野的连接发 `EntityLeaveAoi (2006)`。传送门命中时另发 `MapChangeNotify (2007)`。
 6. **战斗。** `AttackReq (2101)`。世界检查令牌、死亡、安全区、技能 id、距离、冷却、目标。安全区是 `ERR_SAFE_ZONE (1015)`，死亡是 `ERR_DEAD (1018)`。命中后写 `CombatSync (2103)`。击杀、掉落、拾取走 2104–2109，与本切片相邻，但 E0 不改它们的代码。
 
-客户端：`LegendSessionFsm` 只记录阶段。Playable 的网络层把上述报文翻译成阶段切换和格子坐标。斜 45° 投影在 `IsoProjection`，不进入协议。预测端口留给 E5。今天被拒绝的移动以 `MoveSync` 为准。
+客户端：`LegendSessionFsm` 只记录阶段。Playable 的网络层把上述报文翻译成阶段切换和格子坐标。斜 45° 投影在 `IsoProjection`，不进入协议。E5 已提供 `IMovePrediction`：Playable 乐观更新格子，拒绝时以 `MoveSync` From 坐标回滚。
 
 ## 5. E0 故意不做的端口
 
@@ -120,7 +120,7 @@ sequenceDiagram
 | 存储端口搬到 Contracts | E2 已完成 | 端口在 Contracts 程序集；Host 仍负责选择实现 |
 | `IMovementRules` | E3 已完成 | 纯判定在 `DefaultMovementRules`；AOI 仍在 `GridAoiManager` |
 | `ICombatResolver` | E4 已完成 | 纯判定在 `DefaultCombatResolver`；伤害仍转发 `CombatMath`，数字未改 |
-| ClientCore 预测端口 | E5 | 视觉原型未要求本 PR 改 Avalonia |
+| `IMovePrediction` | E5 已完成 | 格子坐标预测；`Accepted=false` 回滚到服务器 From 坐标 |
 | 协议目录生成器 | E6 | E0 只给阅读指针 |
 | 新的 `legend_api` 方法 | E7 之后 | 18 的扩展路线，不是地基 |
 

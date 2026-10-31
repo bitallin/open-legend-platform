@@ -158,6 +158,58 @@ public class PlayableSliceTests
         Assert.Equal("在吗", whisper.Content);
     }
 
+
+    [Fact]
+    public void PredictSelfMove_ThenAccept_KeepsServerCell()
+    {
+        var world = new WorldState();
+        world.Upsert("self", "旅人", EntityKind.EntityPlayer, 10, 10, 4, 80, 100, true, true);
+        world.PredictSelfMove(11, 10, 2);
+        Assert.Equal(11, world.Self!.GridX);
+        Assert.True(world.MovePrediction.HasPending);
+
+        world.ApplyMove(new MoveSync
+        {
+            EntityId = "self",
+            FromX = 10,
+            FromY = 10,
+            ToX = 11,
+            ToY = 10,
+            Direction = 2,
+            Accepted = true,
+            InSafeZone = true
+        });
+        Assert.False(world.MovePrediction.HasPending);
+        Assert.Equal(11, world.Self.GridX);
+        Assert.Equal(10, world.Self.GridY);
+    }
+
+    [Fact]
+    public void PredictSelfMove_ThenReject_RollsBackToServerCell()
+    {
+        var world = new WorldState();
+        world.Upsert("self", "旅人", EntityKind.EntityPlayer, 10, 10, 4, 80, 100, true, true);
+        world.PredictSelfMove(11, 10, 2);
+        Assert.Equal(11, world.Self!.GridX);
+
+        world.ApplyMove(new MoveSync
+        {
+            EntityId = "self",
+            FromX = 10,
+            FromY = 10,
+            ToX = 10,
+            ToY = 10,
+            Direction = 2,
+            Accepted = false,
+            Reason = "blocked"
+        });
+        Assert.False(world.MovePrediction.HasPending);
+        Assert.Equal(10, world.Self.GridX);
+        Assert.Equal(10, world.Self.GridY);
+        Assert.Equal(10.0, world.Self.DrawX);
+        Assert.Equal(10.0, world.Self.DrawY);
+    }
+
     [Fact]
     public void ClassicPointer_AndAttackMode()
     {
