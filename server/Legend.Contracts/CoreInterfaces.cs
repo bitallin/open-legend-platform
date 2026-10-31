@@ -127,6 +127,8 @@ public sealed class MapConfig
     public string? BlockedBitsetBase64 { get; set; }
     public List<SafeZoneRect> SafeZones { get; set; } = new();
     public List<PortalConfig> Portals { get; set; } = new();
+    /// <summary>Optional map boolean flags (docs/site/04-map-movement.md). Omitted keys are false.</summary>
+    public MapFlagsConfig MapFlags { get; set; } = new();
 
     private bool[]? _blockedCache;
 
@@ -140,6 +142,9 @@ public sealed class MapConfig
 
     public bool IsInSafeZone(int x, int y)
         => SafeZones.Any(z => z.Contains(x, y));
+
+    /// <summary>True when mapFlags.noPk is set. Player-vs-player must be rejected outside safe zones.</summary>
+    public bool IsNoPk => MapFlags.NoPk;
 
     public PortalConfig? FindPortalAt(int x, int y)
         => Portals.FirstOrDefault(p => p.X == x && p.Y == y);
@@ -183,6 +188,19 @@ public sealed class MapConfig
         }
         return Convert.ToBase64String(bytes);
     }
+}
+
+/// <summary>Map-level boolean flags. Defaults false; schema keys in map.schema.json mapFlags.</summary>
+public sealed class MapFlagsConfig
+{
+    public bool NoPk { get; set; }
+    public bool NoMount { get; set; }
+    public bool NoSummon { get; set; }
+    public bool NoTeleport { get; set; }
+    public bool NoTrade { get; set; }
+    public bool Instance { get; set; }
+    public bool NoHang { get; set; }
+    public bool NoAutoPickup { get; set; }
 }
 
 public sealed record GridCoord(int X, int Y);

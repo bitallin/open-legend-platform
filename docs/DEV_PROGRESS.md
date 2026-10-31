@@ -5,7 +5,7 @@
 | 项 | 值 |
 |----|----|
 | 最后更新 | 2026-10-31 |
-| 阶段 | Phase R：斜视角、装备分层、加帧、主界面贴图。功能清单仍是 100%。引擎重构 E7 已收紧脚本沙箱与热更回滚，不计矩阵分，见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
+| 阶段 | Phase R：斜视角、装备分层、加帧、主界面贴图。功能清单仍是 100%。引擎重构 E0–E8 已完成（含 DocOnly `mapFlags.noPk`），不计矩阵分，见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
 | 总体 | **100%**（217 / 217） |
@@ -69,3 +69,4 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：引擎重构 E5。`IMovePrediction` 在 ClientCore；Playable 乐观移格子，`MoveSync.Accepted=false` 回服务器坐标。不改 Avalonia 布局与 Unity。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎重构 E6。`ProtocolCatalogTests` 锁定 MsgId↔proto 消息、`ProtocolErrorCode` 不重复不回收；协议仍 1.21.0。矩阵仍 100%。
 - 2026-10-31：引擎重构 E7。进图/击杀/拾取/对话钩子异常隔离；`ScriptSandboxTests` 锁沙箱无 IO 与坏热更回滚后仍可移动。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：引擎重构 E8。地图 Schema 增加可选 `mapFlags`；服务端执行 `noPk`（安全区外禁玩家互攻，`ERR_INVALID_TARGET`）。样例地图行为不变。其它 flag 仅 Schema。矩阵仍 100%。协议仍是 1.21.0。

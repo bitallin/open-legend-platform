@@ -490,6 +490,12 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return sync;
     }
 
+    public async Task<SetAttackModeResp> SetAttackModeAsync(string mode, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.SetAttackModeReq, new SetAttackModeReq { Mode = mode }, ct);
+        return SetAttackModeResp.Parser.ParseFrom(frame.Payload);
+    }
+
     public async Task<PongResp> PingAsync(CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.PingReq, new PingReq
@@ -499,7 +505,7 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return PongResp.Parser.ParseFrom(frame.Payload);
     }
 
-    public async Task<(AttackResp Resp, CombatSync? Combat)> AttackAsync(string targetEntityId, string skillId, CancellationToken ct = default)
+    public async Task<(AttackResp Resp, CombatSync? Combat)> AttackAsync(string targetEntityId, string skillId, CancellationToken ct = default, bool force = false)
     {
         // Drain stale combat events
         while (ReceivedCombatSyncs.TryDequeue(out _)) { }
@@ -507,7 +513,8 @@ public sealed class LegendTcpClient : IAsyncDisposable
         var frame = await SendRequestAsync(MsgId.AttackReq, new AttackReq
         {
             TargetEntityId = targetEntityId,
-            SkillId = skillId
+            SkillId = skillId,
+            Force = force
         }, ct);
         var resp = AttackResp.Parser.ParseFrom(frame.Payload);
         CombatSync? combat = null;
