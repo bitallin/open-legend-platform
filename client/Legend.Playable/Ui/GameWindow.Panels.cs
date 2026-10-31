@@ -33,8 +33,12 @@ public sealed partial class GameWindow
     private string _selectedShopItem = "";
     private string _friendsTab = "friends";
     private string _stallTab = "browse";
+    private string _stallQuery = "";
+    private string _stallCat = "all";
     private string _mallTab = "hot";
     private string _looksTab = "pets";
+    private string _guildTab = "members";
+    private string _selectedGuildMemberId = "";
     private string _mailTab = "inbox";
     private string _assistTab = "fight";
     private bool _assistArmed;
@@ -403,7 +407,7 @@ public sealed partial class GameWindow
         if (!_panelHost.IsVisible)
             return;
         var trade = _session.TradeState;
-        string fp = _openPanel + "|" + _shopTab + "|" + _settingsTab + "|" + _friendsTab + "|" + _stallTab + "|" + _mallTab + "|" + _looksTab + "|" + _mailTab + "|" + _assistTab + "|" + _assistArmed + "|" + _assistNearFirst + "|" + _assistSkillLoop + "|" + _assistComboReadyOnly + "|" + _assistQualityBlue + "|" + _assistStopFullBag + "|" + _assistPauseOnPvp + "|" + _assistStopInSafe + "|" + _assistNoAttackGuard + "|" + _selectedMailId + "|" + _session.Mails.Count + "|" + _mailTrash.Count + "|" + (assistRun ? 1 : 0) + "|" + _selectedShopItem + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote + "|" + _session.SocialRevision + "|" + _session.Friends.Count + "|" + _session.Market.Count;
+        string fp = _openPanel + "|" + _shopTab + "|" + _settingsTab + "|" + _friendsTab + "|" + _stallTab + "|" + _stallQuery + "|" + _stallCat + "|" + _mallTab + "|" + _guildTab + "|" + _selectedGuildMemberId + "|" + _looksTab + "|" + _mailTab + "|" + _assistTab + "|" + _assistArmed + "|" + _assistNearFirst + "|" + _assistSkillLoop + "|" + _assistComboReadyOnly + "|" + _assistQualityBlue + "|" + _assistStopFullBag + "|" + _assistPauseOnPvp + "|" + _assistStopInSafe + "|" + _assistNoAttackGuard + "|" + _selectedMailId + "|" + _session.Mails.Count + "|" + _mailTrash.Count + "|" + (assistRun ? 1 : 0) + "|" + _selectedShopItem + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote + "|" + _session.SocialRevision + "|" + _session.Friends.Count + "|" + _session.Market.Count;
         if (fp == _panelFp)
             return;
         _panelFp = fp;
@@ -875,20 +879,65 @@ public sealed partial class GameWindow
                 _panelBody.Children.Add(partyHead);
                 if (_session.PendingPartyId.Length > 0)
                 {
-                    var inviteRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-                    inviteRow.Children.Add(new TextBlock
+                    // OL-07-D 组队邀请请求
+                    var inviteBody = new StackPanel { Spacing = 8 };
+                    inviteBody.Children.Add(new TextBlock
                     {
-                        Text = $"{_session.PendingInviter} 邀请入队",
-                        Foreground = Brush("#F6E6C0"), VerticalAlignment = VerticalAlignment.Center, Width = 200
+                        Text = "组队邀请", FontSize = 14, FontWeight = FontWeight.Bold,
+                        Foreground = Brush("#E8C872"), HorizontalAlignment = HorizontalAlignment.Center
                     });
-                    var yes = new Button { Content = "接受", MinWidth = 64 };
+                    var who = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+                    who.Children.Add(new Border
+                    {
+                        Width = 48, Height = 48, Background = Brush("#2A1C14"),
+                        BorderBrush = Brush("#8A6A38"), BorderThickness = new Avalonia.Thickness(1),
+                        Child = new TextBlock
+                        {
+                            Text = "头", FontSize = 12, Foreground = Brush("#A09070"),
+                            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                        }
+                    });
+                    var whoCol = new StackPanel { Spacing = 2 };
+                    whoCol.Children.Add(new TextBlock
+                    {
+                        Text = string.IsNullOrWhiteSpace(_session.PendingInviter) ? "未知玩家" : _session.PendingInviter,
+                        FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0")
+                    });
+                    whoCol.Children.Add(new TextBlock
+                    {
+                        Text = "邀请你加入队伍",
+                        FontSize = 11, Foreground = Brush("#C8B48A")
+                    });
+                    whoCol.Children.Add(new TextBlock
+                    {
+                        Text = $"当前队伍 {_session.Party.Count}/8（示意）",
+                        FontSize = 11, Foreground = Brush("#70D070")
+                    });
+                    who.Children.Add(whoCol);
+                    inviteBody.Children.Add(who);
+                    inviteBody.Children.Add(new TextBlock
+                    {
+                        Text = "入队后，可开启/检查攻击模式，避免自动误伤。",
+                        FontSize = 11, Foreground = Brush("#E8C872"), TextWrapping = TextWrapping.Wrap
+                    });
+                    var invBtns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
+                    var yes = new Button { Content = "同意", MinWidth = 88 };
                     MirChrome.StylePrimary(yes);
                     yes.Click += async (_, _) => Toast(await _session.AcceptPartyAsync(true) ?? "已入队");
-                    var no = new Button { Content = "拒绝", MinWidth = 64 };
+                    var no = new Button { Content = "拒绝", MinWidth = 88 };
                     MirChrome.StyleDanger(no);
                     no.Click += async (_, _) => Toast(await _session.AcceptPartyAsync(false) ?? "已拒绝");
-                    inviteRow.Children.Add(yes); inviteRow.Children.Add(no);
-                    _panelBody.Children.Add(MirChrome.ListRow(inviteRow));
+                    invBtns.Children.Add(yes); invBtns.Children.Add(no);
+                    inviteBody.Children.Add(invBtns);
+                    _panelBody.Children.Add(new Border
+                    {
+                        Background = Brush("#661C1612"),
+                        BorderBrush = Brush("#E8C872"),
+                        BorderThickness = new Avalonia.Thickness(1),
+                        Padding = new Avalonia.Thickness(12, 10),
+                        Margin = new Avalonia.Thickness(0, 0, 0, 10),
+                        Child = inviteBody
+                    });
                 }
                 _panelBody.Children.Add(new TextBlock { Text = "成员", FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
                 if (_session.Party.Count == 0)
@@ -961,17 +1010,30 @@ public sealed partial class GameWindow
 
             case "guild":
             {
+                // OL-09-D 行会成员管理密度
                 _panelTitle.Text = "行会";
                 string gtitle = _session.GuildName.Length == 0 ? "尚未加入行会" : $"{_session.GuildName}  ·  {RankLabel(_session.GuildRank)}";
                 _panelBody.Children.Add(new TextBlock { Text = gtitle, FontSize = 14, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
-                _panelBody.Children.Add(new TextBlock
+                var gTabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 4, 0, 6) };
+                foreach (var (id, label) in new[] { ("members", "成员"), ("apps", "申请"), ("vault", "仓库") })
                 {
-                    Text = "同图组队击杀有额外经验。拜师徒弟 +10%，在线师父获 20%。行会频道可发公告或宣战。",
-                    FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap,
-                    Margin = new Avalonia.Thickness(0, 2, 0, 6)
-                });
-                bool leader = string.Equals(_session.GuildRank, "leader", StringComparison.OrdinalIgnoreCase);
-                if (_session.GuildInfo != null)
+                    string tabId = id;
+                    var tab = MirChrome.MakeTab(label, _guildTab == tabId);
+                    tab.Click += (_, _) => { _guildTab = tabId; _panelFp = ""; RefreshPhaseL(); };
+                    gTabs.Children.Add(tab);
+                }
+                _panelBody.Children.Add(gTabs);
+                bool canManage = string.Equals(_session.GuildRank, "leader", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(_session.GuildRank, "vice_leader", StringComparison.OrdinalIgnoreCase);
+                if (_guildTab == "apps")
+                {
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("申请列表占位（未升协议）。可由会长在聊天约定后手动审批。")));
+                }
+                else if (_guildTab == "vault")
+                {
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("行会仓库占位。仓管职位可任命；本刀不升协议。")));
+                }
+                else if (_session.GuildInfo != null)
                 {
                     if (!string.IsNullOrWhiteSpace(_session.GuildInfo.Notice))
                         _panelBody.Children.Add(new TextBlock
@@ -980,56 +1042,152 @@ public sealed partial class GameWindow
                             FontSize = 11, Foreground = Brush("#F0D060"), TextWrapping = TextWrapping.Wrap,
                             Margin = new Avalonia.Thickness(0, 0, 0, 6)
                         });
-                    _panelBody.Children.Add(new TextBlock
+                    var split = new Grid { ColumnDefinitions = new ColumnDefinitions("260,12,*"), MinHeight = 220 };
+                    var left = new StackPanel { Spacing = 2 };
+                    var right = new StackPanel { Spacing = 4 };
+                    Grid.SetColumn(left, 0); Grid.SetColumn(right, 2);
+                    split.Children.Add(left); split.Children.Add(right);
+                    left.Children.Add(new TextBlock
                     {
-                        Text = $"成员列表  {_session.GuildInfo.Members.Count} 人",
-                        FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872")
+                        Text = $"成员列表（管理） {_session.GuildInfo.Members.Count} 人",
+                        FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872"),
+                        Margin = new Avalonia.Thickness(0, 0, 0, 4)
                     });
-                    var gHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Avalonia.Thickness(4, 2, 0, 2) };
-                    foreach (var (lab, w) in new[] { ("角色", 120.0), ("职位", 56.0), ("操作", 180.0) })
+                    var gHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(4, 0, 0, 2) };
+                    foreach (var (lab, w) in new[] { ("角色", 110.0), ("职位", 56.0), ("状态", 40.0) })
                         gHead.Children.Add(new TextBlock { Text = lab, FontSize = 10, Foreground = Brush("#A09070"), Width = w });
-                    _panelBody.Children.Add(gHead);
+                    left.Children.Add(gHead);
+                    if (string.IsNullOrEmpty(_selectedGuildMemberId) && _session.GuildInfo.Members.Count > 0)
+                        _selectedGuildMemberId = _session.GuildInfo.Members[0].CharacterId;
+                    var selected = _session.GuildInfo.Members.FirstOrDefault(m => m.CharacterId == _selectedGuildMemberId)
+                        ?? _session.GuildInfo.Members.FirstOrDefault();
                     foreach (var member in _session.GuildInfo.Members)
                     {
                         bool isSelf = string.Equals(member.CharacterId, _session.CharacterId, StringComparison.Ordinal);
-                        var rowInner = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                        bool sel = selected != null && member.CharacterId == selected.CharacterId;
+                        var rowInner = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
                         rowInner.Children.Add(new TextBlock
                         {
                             Text = (isSelf ? "◆ " : "") + member.Name,
-                            FontSize = 12, Foreground = Brush(isSelf ? "#E8C872" : "#F6E6C0"), Width = 120,
+                            FontSize = 12, Foreground = Brush(isSelf ? "#E8C872" : "#F6E6C0"), Width = 110,
+                            TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
+                        });
+                        rowInner.Children.Add(new TextBlock
+                        {
+                            Text = RankLabel(member.Rank), FontSize = 11, Foreground = Brush("#E8C872"), Width = 56,
                             VerticalAlignment = VerticalAlignment.Center
                         });
                         rowInner.Children.Add(new TextBlock
                         {
-                            Text = RankLabel(member.Rank),
-                            FontSize = 11, Foreground = Brush("#E8C872"), Width = 56,
+                            Text = "在线", FontSize = 10, Foreground = Brush("#F0D060"), Width = 40,
                             VerticalAlignment = VerticalAlignment.Center
                         });
-                        if (leader && !string.Equals(member.CharacterId, _session.CharacterId, StringComparison.Ordinal))
-                        {
-                            string id = member.CharacterId;
-                            var rb1 = RankButton("副会", id, "vice_leader");
-                            var rb2 = RankButton("仓管", id, "warehouse_admin");
-                            var rb3 = RankButton("成员", id, "member");
-                            MirChrome.StyleSys(rb1); MirChrome.StyleSys(rb2); MirChrome.StyleSys(rb3);
-                            rowInner.Children.Add(rb1); rowInner.Children.Add(rb2); rowInner.Children.Add(rb3);
-                        }
-                        _panelBody.Children.Add(MirChrome.ListRow(rowInner));
+                        string mid = member.CharacterId;
+                        var row = MirChrome.ListRow(rowInner, sel);
+                        row.PointerPressed += (_, _) => { _selectedGuildMemberId = mid; _panelFp = ""; RefreshPhaseL(); };
+                        left.Children.Add(row);
                     }
+                    if (selected == null)
+                        right.Children.Add(Block("点选左侧成员查看管理项。"));
+                    else
+                    {
+                        right.Children.Add(new TextBlock
+                        {
+                            Text = selected.Name, FontSize = 14, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0")
+                        });
+                        right.Children.Add(new TextBlock
+                        {
+                            Text = $"{RankLabel(selected.Rank)} · 贡献 —（协议未带等级/贡献）",
+                            FontSize = 11, Foreground = Brush("#C8B48A"), Margin = new Avalonia.Thickness(0, 2, 0, 8)
+                        });
+                        right.Children.Add(new TextBlock
+                        {
+                            Text = "职位与管理（会长/副会长）", FontSize = 12, FontWeight = FontWeight.Bold,
+                            Foreground = Brush("#E8C872"), Margin = new Avalonia.Thickness(0, 0, 0, 4)
+                        });
+                        var mgr = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                        string sid = selected.CharacterId;
+                        bool selfSel = string.Equals(sid, _session.CharacterId, StringComparison.Ordinal);
+                        var promote = new Button { Content = "升职", MinWidth = 72, IsEnabled = canManage && !selfSel };
+                        MirChrome.StylePrimary(promote);
+                        promote.Click += async (_, _) =>
+                        {
+                            string next = selected.Rank switch
+                            {
+                                "member" => "warehouse_admin",
+                                "warehouse_admin" => "vice_leader",
+                                _ => "vice_leader"
+                            };
+                            Toast(await _session.SetGuildRankAsync(sid, next) ?? "已升职");
+                            _panelFp = "";
+                        };
+                        var demote = new Button { Content = "降职", MinWidth = 72, IsEnabled = canManage && !selfSel };
+                        MirChrome.StyleNormal(demote);
+                        demote.Click += async (_, _) =>
+                        {
+                            string next = selected.Rank switch
+                            {
+                                "vice_leader" => "warehouse_admin",
+                                "warehouse_admin" => "member",
+                                _ => "member"
+                            };
+                            Toast(await _session.SetGuildRankAsync(sid, next) ?? "已降职");
+                            _panelFp = "";
+                        };
+                        var kick = new Button { Content = "踢出", MinWidth = 72, IsEnabled = canManage && !selfSel };
+                        MirChrome.StyleDanger(kick);
+                        kick.Click += (_, _) => Toast("踢出需二次确认 · 本刀未升协议（优先清挂名离线）");
+                        mgr.Children.Add(promote); mgr.Children.Add(demote); mgr.Children.Add(kick);
+                        right.Children.Add(new Border
+                        {
+                            Background = Brush("#5514100C"), BorderBrush = Brush("#5A4030"),
+                            BorderThickness = new Avalonia.Thickness(1), Padding = new Avalonia.Thickness(8, 6),
+                            Child = new StackPanel
+                            {
+                                Spacing = 6,
+                                Children =
+                                {
+                                    mgr,
+                                    new TextBlock
+                                    {
+                                        Text = "踢出需二次确认，退员时优先清挂名离线。",
+                                        FontSize = 10, Foreground = Brush("#A09070"), TextWrapping = TextWrapping.Wrap
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    _panelBody.Children.Add(split);
                 }
-                var gname = new TextBox { Watermark = "行会名", Margin = new Avalonia.Thickness(0, 8, 0, 4) };
+                else
+                {
+                    _panelBody.Children.Add(new TextBlock
+                    {
+                        Text = "同图组队击杀有额外经验。创建或加入行会后可管理成员。",
+                        FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap,
+                        Margin = new Avalonia.Thickness(0, 2, 0, 6)
+                    });
+                }
+                var gname = new TextBox { Watermark = "行会名 / 邀请角色名", Margin = new Avalonia.Thickness(0, 10, 0, 4) };
                 MirChrome.StyleField(gname);
                 var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-                var create = new Button { Content = "创建", MinWidth = 72 };
+                var create = new Button { Content = "创建", MinWidth = 64 };
                 MirChrome.StylePrimary(create);
                 create.Click += async (_, _) => Toast(await _session.CreateGuildAsync(gname.Text ?? "") ?? "已创建");
-                var join = new Button { Content = "加入", MinWidth = 72 };
+                var join = new Button { Content = "加入", MinWidth = 64 };
                 MirChrome.StyleNormal(join);
                 join.Click += async (_, _) => Toast(await _session.JoinGuildAsync(gname.Text ?? "") ?? "已加入");
-                var gleave = new Button { Content = "退出", MinWidth = 72 };
+                var invite = new Button { Content = "邀请", MinWidth = 64 };
+                MirChrome.StyleNormal(invite);
+                invite.Click += (_, _) => Toast("行会邀请占位 · 可先用组队/好友联系");
+                var apps = new Button { Content = "申请列表", MinWidth = 80 };
+                MirChrome.StyleSys(apps);
+                apps.Click += (_, _) => { _guildTab = "apps"; _panelFp = ""; RefreshPhaseL(); };
+                var gleave = new Button { Content = "退出", MinWidth = 64 };
                 MirChrome.StyleDanger(gleave);
                 gleave.Click += async (_, _) => Toast(await _session.LeaveGuildAsync() ?? "已退出");
-                actions.Children.Add(create); actions.Children.Add(join); actions.Children.Add(gleave);
+                actions.Children.Add(create); actions.Children.Add(join); actions.Children.Add(invite);
+                actions.Children.Add(apps); actions.Children.Add(gleave);
                 _panelBody.Children.Add(gname);
                 _panelBody.Children.Add(actions);
                 break;
@@ -1516,7 +1674,7 @@ public sealed partial class GameWindow
             {
                 _panelTitle.Text = "交易行 · 寄售";
                 var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 0, 0, 6) };
-                foreach (var (id, label) in new[] { ("browse", "浏览"), ("mine", "我的"), ("list", "上架") })
+                foreach (var (id, label) in new[] { ("browse", "浏览"), ("mine", "我的"), ("list", "上架"), ("log", "记录") })
                 {
                     string tabId = id;
                     var tab = MirChrome.MakeTab(label, _stallTab == tabId);
@@ -1526,10 +1684,42 @@ public sealed partial class GameWindow
                 _panelBody.Children.Add(tabs);
                 _panelBody.Children.Add(new TextBlock
                 {
-                    Text = "浏览成交无手续费 · 上架扣 1%（示意）· 仅安全区可上架 · 单价 1–100000",
+                    Text = "浏览成交无手续费 · 上架扣 1%（成交结算）· 仅安全区可上架 · 单价 1–100000",
                     FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap,
                     Margin = new Avalonia.Thickness(0, 0, 0, 6)
                 });
+                if (_stallTab == "log")
+                {
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("成交记录占位（本刀未升协议）。")));
+                    break;
+                }
+                if (_stallTab is "browse" or "mine")
+                {
+                    var searchRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Avalonia.Thickness(0, 0, 0, 4) };
+                    var qBox = new TextBox { Watermark = "搜索物品名", Text = _stallQuery, Width = 140 };
+                    MirChrome.StyleField(qBox);
+                    var search = new Button { Content = "搜索", MinWidth = 56 };
+                    MirChrome.StylePrimary(search);
+                    search.Click += (_, _) => { _stallQuery = qBox.Text ?? ""; _panelFp = ""; RefreshPhaseL(); };
+                    var reset = new Button { Content = "重置", MinWidth = 56 };
+                    MirChrome.StyleNormal(reset);
+                    reset.Click += (_, _) => { _stallQuery = ""; _stallCat = "all"; _panelFp = ""; RefreshPhaseL(); };
+                    searchRow.Children.Add(qBox); searchRow.Children.Add(search); searchRow.Children.Add(reset);
+                    foreach (var (cid, lab) in new[] { ("all", "全部"), ("weapon", "武器"), ("armor", "防具"), ("acc", "饰品"), ("mat", "材料") })
+                    {
+                        string cat = cid;
+                        var b = new Button { Content = lab, MinWidth = 44 };
+                        if (_stallCat == cat) MirChrome.StylePrimary(b); else MirChrome.StyleSys(b);
+                        b.Click += (_, _) => { _stallCat = cat; _panelFp = ""; RefreshPhaseL(); };
+                        searchRow.Children.Add(b);
+                    }
+                    _panelBody.Children.Add(searchRow);
+                    _panelBody.Children.Add(new TextBlock
+                    {
+                        Text = $"筛选：{(_stallCat == "all" ? "全部" : _stallCat)} · 「{(string.IsNullOrWhiteSpace(_stallQuery) ? "*" : _stallQuery)}」 · 上架扣1%（成交结算）",
+                        FontSize = 10, Foreground = Brush("#F0D060"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                    });
+                }
                 if (_stallTab == "list")
                 {
                     var priceBox = new TextBox { Watermark = "单价", Text = "10", Width = 100 };
@@ -1569,6 +1759,9 @@ public sealed partial class GameWindow
                         bool mine = string.Equals(listing.SellerCharacterId, _session.CharacterId, StringComparison.Ordinal);
                         if (mineOnly && !mine) continue;
                         if (!mineOnly && mine) continue; // browse shows others; mine shows mine. If browse and empty others, show all?
+                        if (!string.IsNullOrWhiteSpace(_stallQuery)
+                            && ContentCatalog.ItemName(listing.ItemId).IndexOf(_stallQuery, StringComparison.OrdinalIgnoreCase) < 0)
+                            continue;
                         shown++;
                         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
                         row.Children.Add(MirChrome.SlotCell(new TextBlock
@@ -1631,11 +1824,47 @@ public sealed partial class GameWindow
                         }
                     }
                     if (shown == 0)
-                        _panelBody.Children.Add(MirChrome.ListRow(Block(_stallTab == "mine" ? "你还没有寄售。" : "暂无寄售商品。")));
-                    var refresh = new Button { Content = "刷新", MinWidth = 72, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
+                    {
+                        // OL-08-J 寄售无结果
+                        var empty = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Avalonia.Thickness(0, 16, 0, 8) };
+                        empty.Children.Add(new TextBlock
+                        {
+                            Text = _stallTab == "mine" ? "你还没有寄售。" : "暂无符合条件的寄售",
+                            FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0"),
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        });
+                        empty.Children.Add(new TextBlock
+                        {
+                            Text = "试试清空筛选，或自己上架一件物品",
+                            FontSize = 11, Foreground = Brush("#A09070"),
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        });
+                        var emptyBtns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+                        var clear = new Button { Content = "清空筛选", MinWidth = 96 };
+                        MirChrome.StyleNormal(clear);
+                        clear.Click += (_, _) => { _stallQuery = ""; _stallCat = "all"; _panelFp = ""; RefreshPhaseL(); };
+                        var goList = new Button { Content = "去上架", MinWidth = 96 };
+                        MirChrome.StylePrimary(goList);
+                        goList.Click += (_, _) => { _stallTab = "list"; _panelFp = ""; RefreshPhaseL(); };
+                        emptyBtns.Children.Add(clear); emptyBtns.Children.Add(goList);
+                        empty.Children.Add(emptyBtns);
+                        _panelBody.Children.Add(empty);
+                    }
+                    var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
+                    var listBtn = new Button { Content = "上架物品", MinWidth = 88 };
+                    MirChrome.StylePrimary(listBtn);
+                    listBtn.Click += (_, _) => { _stallTab = "list"; _panelFp = ""; RefreshPhaseL(); };
+                    var refresh = new Button { Content = "刷新", MinWidth = 72 };
                     MirChrome.StyleNormal(refresh);
                     refresh.Click += async (_, _) => { await _session.RefreshMarketAsync(); _panelFp = ""; RefreshPhaseL(); };
-                    _panelBody.Children.Add(refresh);
+                    foot.Children.Add(listBtn); foot.Children.Add(refresh);
+                    if (shown == 0)
+                        foot.Children.Add(new TextBlock
+                        {
+                            Text = "无匹配结果可清空筛选，或自行上架",
+                            FontSize = 10, Foreground = Brush("#A09070"), VerticalAlignment = VerticalAlignment.Center
+                        });
+                    _panelBody.Children.Add(foot);
                 }
                 break;
             }
@@ -1686,6 +1915,7 @@ public sealed partial class GameWindow
 
             case "mall":
             {
+                // OL-17-B 赞助/礼包密度
                 _panelTitle.Text = "商城";
                 var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 0, 0, 6) };
                 foreach (var (id, label) in new[] { ("hot", "热销"), ("consumable", "消耗"), ("fashion", "时装"), ("material", "材料"), ("pack", "礼包"), ("pay", "充值") })
@@ -1696,19 +1926,18 @@ public sealed partial class GameWindow
                     tabs.Children.Add(tab);
                 }
                 _panelBody.Children.Add(tabs);
-                var currency = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Avalonia.Thickness(0, 0, 0, 8) };
-                currency.Children.Add(new TextBlock { Text = $"金币 {_session.Inventory.Gold:N0}", FontSize = 12, Foreground = Brush("#E8C872") });
-                currency.Children.Add(new TextBlock { Text = "元宝 0（占位）", FontSize = 12, Foreground = Brush("#70B0F0") });
-                currency.Children.Add(new TextBlock { Text = "绑元 0（占位）", FontSize = 12, Foreground = Brush("#C070F0") });
+                var currency = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Avalonia.Thickness(0, 0, 0, 6) };
+                currency.Children.Add(new TextBlock { Text = $"金 {_session.Inventory.Gold:N0}", FontSize = 12, Foreground = Brush("#E8C872") });
+                currency.Children.Add(new TextBlock { Text = "元宝 1,280（示意）", FontSize = 12, Foreground = Brush("#70B0F0") });
+                currency.Children.Add(new TextBlock { Text = "绑 80（示意）", FontSize = 12, Foreground = Brush("#C070F0") });
                 _panelBody.Children.Add(currency);
-                _panelBody.Children.Add(new TextBlock
-                {
-                    Text = "热销角标 · 限时标签示意 · 购买不接线支付（试玩服）",
-                    FontSize = 10, Foreground = Brush("#A09070"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
-                });
                 if (_mallTab == "pay")
                 {
-                    _panelBody.Children.Add(MirChrome.ListRow(Block("充值入口占位。试玩服不接线支付，不升协议。")));
+                    _panelBody.Children.Add(new TextBlock
+                    {
+                        Text = "充值入口占位 · 试玩服不接线支付 · 不升协议",
+                        FontSize = 10, Foreground = Brush("#A09070"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                    });
                     foreach (var (title, price) in new[] { ("60 元宝", "¥6"), ("300 元宝", "¥30"), ("980 元宝", "¥98"), ("1980 元宝", "¥198") })
                     {
                         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
@@ -1721,43 +1950,124 @@ public sealed partial class GameWindow
                     }
                     break;
                 }
-                var offers = MallOffers(_mallTab);
-                var grid = new WrapPanel { Width = 440 };
-                string? selected = _selectedShopItem;
-                foreach (var (id, name, price, tag) in offers)
+                if (_mallTab == "pack")
                 {
-                    bool sel = selected == id;
-                    var cell = new StackPanel { Spacing = 2, Width = 100 };
-                    cell.Children.Add(MirChrome.SlotCell(new TextBlock
+                    _panelBody.Children.Add(new TextBlock
                     {
-                        Text = Short(name), FontSize = 9, Foreground = Brush("#F6E6C0"),
-                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
-                    }, 40));
-                    cell.Children.Add(new TextBlock { Text = name, FontSize = 11, Foreground = Brush("#F6E6C0"), TextWrapping = TextWrapping.Wrap });
-                    cell.Children.Add(new TextBlock { Text = price, FontSize = 10, Foreground = Brush("#E8C872") });
-                    if (tag.Length > 0)
-                        cell.Children.Add(new TextBlock { Text = tag, FontSize = 10, Foreground = Brush("#F0D060") });
-                    string itemId = id;
-                    var border = MirChrome.ListRow(cell, sel);
-                    border.Width = 108;
-                    border.PointerPressed += (_, _) => { _selectedShopItem = itemId; _panelFp = ""; RefreshPhaseL(); };
-                    grid.Children.Add(border);
+                        Text = "赞助档位 · 限购按角色 · 绑定规则见 Caption · 禁止叠加折扣倍",
+                        FontSize = 11, Foreground = Brush("#F0D060"), Margin = new Avalonia.Thickness(0, 0, 0, 8)
+                    });
+                    var packs = MallPacks();
+                    var wrap = new WrapPanel { Width = 460 };
+                    foreach (var p in packs)
+                    {
+                        bool sel = _selectedShopItem == p.id;
+                        var card = new StackPanel { Spacing = 3, Width = 200 };
+                        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                        head.Children.Add(new TextBlock
+                        {
+                            Text = p.name, FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0")
+                        });
+                        head.Children.Add(new TextBlock
+                        {
+                            Text = $"限购 {p.bought}/{p.limit}", FontSize = 10, Foreground = Brush("#A09070"),
+                            VerticalAlignment = VerticalAlignment.Center
+                        });
+                        card.Children.Add(head);
+                        var icons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+                        foreach (var ic in p.icons)
+                        {
+                            icons.Children.Add(MirChrome.SlotCell(new TextBlock
+                            {
+                                Text = ic, FontSize = 9, Foreground = Brush("#F6E6C0"),
+                                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                            }, 32));
+                        }
+                        card.Children.Add(icons);
+                        card.Children.Add(new TextBlock
+                        {
+                            Text = p.loot, FontSize = 10, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap
+                        });
+                        card.Children.Add(new TextBlock
+                        {
+                            Text = p.bind, FontSize = 10, Foreground = Brush("#C070F0"), TextWrapping = TextWrapping.Wrap
+                        });
+                        var buyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Avalonia.Thickness(0, 4, 0, 0) };
+                        buyRow.Children.Add(new TextBlock
+                        {
+                            Text = p.price, FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872"),
+                            VerticalAlignment = VerticalAlignment.Center
+                        });
+                        string pid = p.id;
+                        var pick = new Button { Content = sel ? "购买选中" : "选购", MinWidth = 72 };
+                        if (sel) MirChrome.StylePrimary(pick); else MirChrome.StyleNormal(pick);
+                        pick.Click += (_, _) =>
+                        {
+                            _selectedShopItem = pid;
+                            _panelFp = "";
+                            if (sel) Toast("试玩服商城占位，礼包购买未接线");
+                            else RefreshPhaseL();
+                        };
+                        buyRow.Children.Add(pick);
+                        card.Children.Add(buyRow);
+                        var border = MirChrome.ListRow(card, sel);
+                        border.Width = 214;
+                        border.Margin = new Avalonia.Thickness(0, 0, 6, 6);
+                        border.PointerPressed += (_, _) => { _selectedShopItem = pid; _panelFp = ""; RefreshPhaseL(); };
+                        wrap.Children.Add(border);
+                    }
+                    _panelBody.Children.Add(wrap);
+                    _panelBody.Children.Add(new TextBlock
+                    {
+                        Text = "选中档位 → 购买 → 确认（绑定/赠物 Caption）· 充值入口仍在「充值」Tab",
+                        FontSize = 10, Foreground = Brush("#A09070"), Margin = new Avalonia.Thickness(0, 4, 0, 6)
+                    });
                 }
-                _panelBody.Children.Add(grid);
-                var buy = new Button { Content = "购买选中", MinWidth = 100, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
-                MirChrome.StylePrimary(buy);
-                buy.Click += (_, _) =>
+                else
+                {
+                    _panelBody.Children.Add(new TextBlock
+                    {
+                        Text = "热销角标 · 限时标签示意 · 购买不接线支付（试玩服）",
+                        FontSize = 10, Foreground = Brush("#A09070"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                    });
+                    var offers = MallOffers(_mallTab);
+                    var grid = new WrapPanel { Width = 440 };
+                    string? selected = _selectedShopItem;
+                    foreach (var (id, name, price, tag) in offers)
+                    {
+                        bool sel = selected == id;
+                        var cell = new StackPanel { Spacing = 2, Width = 100 };
+                        cell.Children.Add(MirChrome.SlotCell(new TextBlock
+                        {
+                            Text = Short(name), FontSize = 9, Foreground = Brush("#F6E6C0"),
+                            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                        }, 40));
+                        cell.Children.Add(new TextBlock { Text = name, FontSize = 11, Foreground = Brush("#F6E6C0"), TextWrapping = TextWrapping.Wrap });
+                        cell.Children.Add(new TextBlock { Text = price, FontSize = 10, Foreground = Brush("#E8C872") });
+                        if (tag.Length > 0)
+                            cell.Children.Add(new TextBlock { Text = tag, FontSize = 10, Foreground = Brush("#F0D060") });
+                        string itemId = id;
+                        var border = MirChrome.ListRow(cell, sel);
+                        border.Width = 108;
+                        border.PointerPressed += (_, _) => { _selectedShopItem = itemId; _panelFp = ""; RefreshPhaseL(); };
+                        grid.Children.Add(border);
+                    }
+                    _panelBody.Children.Add(grid);
+                }
+                var buyFoot = new Button { Content = "购买选中", MinWidth = 100, Margin = new Avalonia.Thickness(0, 4, 0, 0) };
+                MirChrome.StylePrimary(buyFoot);
+                buyFoot.Click += (_, _) =>
                 {
                     if (string.IsNullOrEmpty(_selectedShopItem) || !_selectedShopItem.StartsWith("mall:", StringComparison.Ordinal))
                         Toast("先点选一件商品");
                     else
                         Toast("试玩服商城占位，元宝购买未接线");
                 };
-                var recharge = new Button { Content = "充值", MinWidth = 72, Margin = new Avalonia.Thickness(8, 8, 0, 0) };
+                var recharge = new Button { Content = "充值", MinWidth = 72 };
                 MirChrome.StyleNormal(recharge);
                 recharge.Click += (_, _) => { _mallTab = "pay"; _panelFp = ""; RefreshPhaseL(); };
-                var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-                foot.Children.Add(buy); foot.Children.Add(recharge);
+                var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Avalonia.Thickness(0, 4, 0, 0) };
+                foot.Children.Add(buyFoot); foot.Children.Add(recharge);
                 _panelBody.Children.Add(foot);
                 break;
             }
@@ -2879,8 +3189,10 @@ public sealed partial class GameWindow
         },
         "pack" => new[]
         {
-            ("mall:starter", "新手礼包", "98 元宝", "惠"),
-            ("mall:storage", "仓库扩容+8", "150 元宝", "绑")
+            ("mall:pack_novice", "新手礼包", "60 元宝", "惠"),
+            ("mall:pack_value", "超值礼包", "300 元宝", "惠"),
+            ("mall:pack_supreme", "至尊礼包", "980 元宝", "绑"),
+            ("mall:pack_month", "月卡赞助", "1,280 元宝", "绑")
         },
         _ => new[]
         {
@@ -2894,5 +3206,14 @@ public sealed partial class GameWindow
             ("mall:repair", "修复油 x5", "45 元宝", "")
         }
     };
+
+    private static (string id, string name, string price, string loot, string bind, string[] icons, int bought, int limit)[] MallPacks() =>
+        new[]
+        {
+            ("mall:pack_novice", "新手礼包", "60 元宝", "金创×20 · 回城×5 · 经验符", "绑 · 全创项绑定", new[] { "药", "卷", "符" }, 0, 1),
+            ("mall:pack_value", "超值礼包", "300 元宝", "传送石 · 聚灵珠 · 双倍符", "绑 · 道具绑 · 元宝不绑", new[] { "石", "珠", "倍" }, 2, 5),
+            ("mall:pack_supreme", "至尊礼包", "980 元宝", "时装·青衫 · 炼制符 · 仓扩", "绑 · 时装绑 · 材料可交易", new[] { "装", "符", "仓" }, 0, 2),
+            ("mall:pack_month", "月卡赞助", "1,280 元宝", "银元×30/日 · 30天", "绑 · 每日领银元 · 到期停", new[] { "银", "日", "月" }, 0, 1)
+        };
 
 }
