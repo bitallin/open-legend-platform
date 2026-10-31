@@ -83,8 +83,7 @@ public class M7IntegrationTests
                 {
                     // Seller buys 3 potions from NPC in safe zone (12,12)
                     await WalkAsync(seller, 12, 12);
-                    var npc = enterS.NearbyEntities.First(e => e.Kind == EntityKind.EntityNpc);
-                    var shopBuy = await seller.ShopBuyAsync(npc.EntityId, "item_hp_potion", 3);
+                    var shopBuy = await seller.ShopBuyAsync("npc_village_merchant", "item_hp_potion", 3);
                     Assert.True(shopBuy.Success, shopBuy.Message);
                     int potionsInitial = shopBuy.Inventory.First(i => i.ItemId == "item_hp_potion").Count;
                     Assert.Equal(3, potionsInitial);

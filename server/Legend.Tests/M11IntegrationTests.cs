@@ -171,20 +171,9 @@ public class M11IntegrationTests
             var (buyer, _, _) = await EnterAsAsync(engine, $"m11u_{suffix}", $"买{suffix}", "mage");
             await using var _buyer = buyer;
 
+            // Prefer merchant (shopId set); nearby may also include npc_waygate (no shop).
             await WalkAsync(seller, 12, 12);
-            var npc = enterS.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
-            if (npc is null)
-            {
-                for (int i = 0; i < 40 && npc is null; i++)
-                {
-                    while (seller.ReceivedEntitySpawns.TryDequeue(out var sp))
-                        if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
-                    await Task.Delay(25);
-                }
-            }
-            Assert.NotNull(npc);
-            await WalkAsync(seller, npc!.X, npc.Y);
-            var shop = await seller.ShopBuyAsync(npc.EntityId, "item_hp_potion", 1);
+            var shop = await seller.ShopBuyAsync("npc_village_merchant", "item_hp_potion", 1);
             Assert.True(shop.Success, shop.Message);
             await WalkAsync(seller, 10, 10);
             var list = await seller.StallListAsync("item_hp_potion", 1, 22);

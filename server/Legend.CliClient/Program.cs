@@ -743,13 +743,13 @@ static async Task RunMailAcceptanceAsync(string host, int port, CancellationToke
     }
 
     await Walk(bob, 12, 12);
-    var npc = enterB.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+    var npc = enterB.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc && e.TemplateId == "npc_village_merchant");
     if (npc is null)
     {
         for (int i = 0; i < 30 && npc is null; i++)
         {
             while (bob.ReceivedEntitySpawns.TryDequeue(out var sp))
-                if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
+                if (sp.Entity.Kind == EntityKind.EntityNpc && sp.Entity.TemplateId == "npc_village_merchant") { npc = sp.Entity; break; }
             await Task.Delay(25, ct);
         }
     }
@@ -1323,13 +1323,13 @@ static async Task RunTradeAcceptanceAsync(string host, int port, CancellationTok
 
     // Ensure seller is in safe zone (10,10) and has at least 3 potions from NPC shop
     await Walk(seller, 12, 12);
-    var npc = enterS.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+    var npc = enterS.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc && e.TemplateId == "npc_village_merchant");
     if (npc is null)
     {
         for (int i = 0; i < 20 && npc is null; i++)
         {
             while (seller.ReceivedEntitySpawns.TryDequeue(out var sp))
-                if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
+                if (sp.Entity.Kind == EntityKind.EntityNpc && sp.Entity.TemplateId == "npc_village_merchant") { npc = sp.Entity; break; }
             await Task.Delay(25, ct);
         }
     }
@@ -1657,7 +1657,7 @@ async Task Walk(int tx, int ty)
 // --- M3: NPC shop + quest ---
 if (!equipTest && !levelTest)
 {
-    var npc = enterA.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+    var npc = enterA.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc && e.TemplateId == "npc_village_merchant");
     if (npc is null)
     {
         await Walk(12, 12);
@@ -1665,7 +1665,7 @@ if (!equipTest && !levelTest)
         {
             while (clientA.ReceivedEntitySpawns.TryDequeue(out var sp))
             {
-                if (sp.Entity.Kind == EntityKind.EntityNpc) { npc = sp.Entity; break; }
+                if (sp.Entity.Kind == EntityKind.EntityNpc && sp.Entity.TemplateId == "npc_village_merchant") { npc = sp.Entity; break; }
             }
             await Task.Delay(30, cts.Token);
         }
