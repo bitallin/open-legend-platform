@@ -2,12 +2,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Legend.Admin.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Encodings.Web;
 
 namespace Legend.Admin.Services;
 
 public sealed class LookBindingService(VersionPackService packs, AdminDbContext db, AuditService audit)
 {
-    private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public async Task<(bool ok, string message)> BindMonsterLookAsync(
         string packId, string monsterId,

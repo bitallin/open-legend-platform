@@ -2,12 +2,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Legend.Admin.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Encodings.Web;
 
 namespace Legend.Admin.Services;
 
 public sealed class AssetManifestService(VersionPackService packs, AdminDbContext db, AuditService audit)
 {
-    private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public static readonly string[] UiSlots =
     [
@@ -137,4 +138,37 @@ public sealed class AssetManifestService(VersionPackService packs, AdminDbContex
 
         await audit.WriteAsync(actor, "ui_skin.bind", $"{packId}/{slot}", new { assetId, note, hash }, ip, ct);
     }
+
+    public async Task<(bool ok, string message)> AddUiSkinSlotAsync(string packId, string slot, string actor, string ip, CancellationToken ct = default)
+    {
+        slot = (slot ?? "").Trim();
+        if (string.IsNullOrEmpty(slot) || slot.Length > 64) return (false, "槽位名非法");
+        foreach (var c in slot)
+            if (!(char.IsLetterOrDigit(c) || c is '_' or '-')) return (false, "槽位名仅字母数字_-");
+        var root = await ReadUiSkinAsync(packId, ct);
+        var slots = root["slots"] as JsonObject ?? new JsonObject();
+        root["slots"] = slots;
+        if (slots.ContainsKey(slot)) return (false, "槽位已存在");
+        slots[slot] = new JsonObject { ["assetId"] = "", ["note"] = "" };
+        var json = root.ToJsonString(Pretty) + "\n";
+        var (ok, msg, hash) = await packs.WriteAsync(packId, "configs/ui_skin.json", json, actor, $"ui_skin.add:{slot}", ct);
+        if (!ok) return (false, msg);
+        await audit.WriteAsync(actor, "ui_skin.add", $"{packId}/{slot}", new { hash }, ip, ct);
+        return (true, "已添加槽位 " + slot);
+    }
+
+    public async Task<(bool ok, string message)> RemoveUiSkinSlotAsync(string packId, string slot, string actor, string ip, CancellationToken ct = default)
+    {
+        var root = await ReadUiSkinAsync(packId, ct);
+        var slots = root["slots"] as JsonObject ?? new JsonObject();
+        if (!slots.ContainsKey(slot)) return (false, "槽位不存在");
+        slots.Remove(slot);
+        root["slots"] = slots;
+        var json = root.ToJsonString(Pretty) + "\n";
+        var (ok, msg, hash) = await packs.WriteAsync(packId, "configs/ui_skin.json", json, actor, $"ui_skin.remove:{slot}", ct);
+        if (!ok) return (false, msg);
+        await audit.WriteAsync(actor, "ui_skin.remove", $"{packId}/{slot}", new { hash }, ip, ct);
+        return (true, "已删除槽位 " + slot);
+    }
+
 }

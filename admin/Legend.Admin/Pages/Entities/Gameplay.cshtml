@@ -1,8 +1,9 @@
 @page
 @model Legend.Admin.Pages.Entities.GameplayModel
-@{ ViewData["Title"] = "玩法数值合集"; }
+@{ ViewData["Title"] = "玩法开关 / 数值合集"; }
+<nav class="crumbs"><a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> / <span>玩法开关</span></nav>
 <div class="card">
-  <p class="muted">版本包 <code>@Model.PackId</code> · 一站式跳转到各类数值/玩法 JSON（对齐 docs/site 与私服常见后台模块）</p>
+  <p class="muted">版本包 <code>@Model.PackId</code> · 结构化开关 + 数值 JSON 跳转</p>
   <form method="get" class="row">
     <div>
       <label>版本包</label>
@@ -15,7 +16,87 @@
     </div>
   </form>
 </div>
+
 <div class="card">
+  <h3>关键键开关 / 参数</h3>
+  @if (Model.Toggles.Count == 0)
+  {
+    <div class="empty">未找到可编辑开关文件。</div>
+  }
+  @foreach (var t in Model.Toggles)
+  {
+    <div class="toggle-row">
+      <div>
+        <div>@t.Label</div>
+        <div class="tiny muted"><code>@t.File</code> · <code>@t.Path</code></div>
+      </div>
+      @if (Model.CanWrite)
+      {
+        <form method="post" asp-page-handler="Toggle" class="row" style="margin:0;flex:0 1 360px">
+          <input type="hidden" name="packId" value="@Model.PackId" />
+          <input type="hidden" name="file" value="@t.File" />
+          <input type="hidden" name="path" value="@t.Path" />
+          @if (t.Kind == "bool")
+          {
+            <select name="value">
+              <option value="true" selected="@(t.Value=="true")">true</option>
+              <option value="false" selected="@(t.Value=="false")">false</option>
+            </select>
+          }
+          else if (t.Kind == "number")
+          {
+            <input type="number" step="any" name="value" value="@t.Value" />
+          }
+          else
+          {
+            <input type="text" name="value" value="@t.Value" />
+          }
+          <button class="btn btn-sm btn-primary" type="submit">保存</button>
+        </form>
+        <form method="post" asp-page-handler="RemoveFlag" onsubmit="return confirm('删除路径 @t.Path ？');">
+          <input type="hidden" name="packId" value="@Model.PackId" />
+          <input type="hidden" name="file" value="@t.File" />
+          <input type="hidden" name="path" value="@t.Path" />
+          <button class="btn btn-sm btn-danger" type="submit">删项</button>
+        </form>
+      }
+      else
+      {
+        <code>@t.Value</code>
+      }
+    </div>
+  }
+</div>
+
+@if (Model.CanWrite)
+{
+<div class="card">
+  <h3>新增开关项（写入 JSON 路径）</h3>
+  <form method="post" asp-page-handler="AddFlag" class="row">
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <div>
+      <label>文件</label>
+      <select name="file">
+        <option value="configs/client_assist.json">client_assist.json</option>
+        <option value="configs/internal.json">internal.json</option>
+        <option value="configs/pickup_filters.json">pickup_filters.json</option>
+      </select>
+    </div>
+    <div>
+      <label>路径</label>
+      <input type="text" name="path" required placeholder="customFlag 或 nested.key" />
+    </div>
+    <div>
+      <label>值</label>
+      <input type="text" name="value" value="true" />
+    </div>
+    <div><button class="btn btn-primary" type="submit">添加/覆盖</button></div>
+  </form>
+</div>
+}
+
+<div class="card">
+  <h3>玩法数值文件</h3>
   <table class="data">
     <thead><tr><th>模块</th><th>文件</th><th>说明</th><th></th></tr></thead>
     <tbody>

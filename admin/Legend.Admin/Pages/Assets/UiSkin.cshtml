@@ -1,8 +1,8 @@
 @page
 @model Legend.Admin.Pages.Assets.UiSkinModel
-@{ ViewData["Title"] = "UI 皮肤槽位"; }
+@{ ViewData["Title"] = "UI 皮肤"; }
+<nav class="crumbs"><a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> / <span>UI 皮肤</span></nav>
 <div class="card">
-  <p class="muted">把素材库中的图片绑定到命名 UI 槽位（login_bg、hp_orb…）。保存后写入 <code>configs/ui_skin.json</code>，并复制到 <code>assets/ui/</code>。</p>
   <form method="get" class="row">
     <div>
       <label>版本包</label>
@@ -14,47 +14,83 @@
       </select>
     </div>
   </form>
-  <div class="toolbar">
-    <a class="btn" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-kind="ui">去素材库上传 UI 图</a>
-    <a class="btn" asp-page="/Assets/Guide">操作指南</a>
-  </div>
+  <p class="muted">为登录底、HUD、红蓝球等槽位绑定素材；可增删自定义槽位。</p>
 </div>
-@foreach (var slot in Legend.Admin.Services.AssetManifestService.UiSlots)
+
+@if (Model.CanWrite)
 {
-  var cur = Model.SlotAssetId(slot);
-  <div class="card">
-    <div class="row" style="align-items:center">
-      <div style="flex:0 0 140px">
-        <strong>@slot</strong>
-        @if (!string.IsNullOrEmpty(cur))
-        {
-          <div><img class="thumb-sm" src="/Assets/File?id=@cur&thumb=true" alt="@slot" /></div>
-        }
-      </div>
-      <div style="flex:1">
-        @if (Model.CanWrite)
-        {
-          <form method="post">
-            <input type="hidden" name="packId" value="@Model.PackId" />
-            <input type="hidden" name="slot" value="@slot" />
-            <label>素材</label>
-            <select name="assetId">
-              <option value="">（清空）</option>
-              @foreach (var a in Model.UiAssets)
-              {
-                <option value="@a.Id" selected="@(a.Id==cur)">@a.FileName (@a.Id[..8]) @a.Width×@a.Height</option>
-              }
-            </select>
-            <label>备注</label>
-            <input type="text" name="note" value="@Model.SlotNote(slot)" />
-            <button class="btn btn-primary" type="submit">保存槽位</button>
-          </form>
-        }
-        else
-        {
-          <span class="muted">当前 assetId：<code>@(string.IsNullOrEmpty(cur)?"未绑定":cur)</code></span>
-        }
-      </div>
+<div class="card">
+  <h3>新增槽位</h3>
+  <form method="post" asp-page-handler="AddSlot" class="row">
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <div>
+      <label>槽位名</label>
+      <input type="text" name="newSlot" required pattern="[A-Za-z0-9_\-]{2,64}" placeholder="custom_banner" />
     </div>
-  </div>
+    <div><button class="btn btn-primary" type="submit">添加</button></div>
+  </form>
+</div>
 }
+
+<div class="card">
+  <div class="table-scroll">
+  <table class="data">
+    <thead><tr><th>预览</th><th>槽位</th><th>素材</th><th>备注</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var slot in Model.SlotNames)
+    {
+      var aid = Model.SlotAssetId(slot);
+      <tr>
+        <td>
+          @if (!string.IsNullOrEmpty(aid))
+          { <img class="thumb-sm lightbox-src" src="/Assets/File?id=@aid&thumb=1" alt="" /> }
+          else { <span class="muted">—</span> }
+        </td>
+        <td><code>@slot</code></td>
+        <td>
+          @if (Model.CanWrite)
+          {
+            <form method="post" class="row" style="margin:0">
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="slot" value="@slot" />
+              <div style="min-width:220px">
+                <select name="assetId">
+                  <option value="">（清空）</option>
+                  @foreach (var a in Model.UiAssets)
+                  {
+                    <option value="@a.Id" selected="@(a.Id==aid)">@a.FileName (@a.Id[..8])</option>
+                  }
+                </select>
+              </div>
+              <div style="min-width:140px">
+                <input type="text" name="note" value="@Model.SlotNote(slot)" placeholder="备注" />
+              </div>
+              <div><button class="btn btn-sm btn-primary" type="submit">保存</button></div>
+            </form>
+          }
+          else
+          {
+            <code>@aid</code>
+          }
+        </td>
+        <td class="muted">@Model.SlotNote(slot)</td>
+        <td>
+          @if (Model.CanWrite)
+          {
+            <form method="post" asp-page-handler="RemoveSlot" onsubmit="return confirm('删除槽位 @slot？');">
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="slot" value="@slot" />
+              <button class="btn btn-sm btn-danger" type="submit">删槽</button>
+            </form>
+          }
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  </div>
+  @if (Model.SlotNames.Count == 0)
+  {
+    <div class="empty">暂无槽位，请先添加。</div>
+  }
+</div>

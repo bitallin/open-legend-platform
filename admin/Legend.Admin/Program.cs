@@ -28,6 +28,8 @@ builder.Services.AddScoped<RealmService>();
 builder.Services.AddScoped<MediaLibraryService>();
 builder.Services.AddScoped<AssetManifestService>();
 builder.Services.AddScoped<LookBindingService>();
+builder.Services.AddScoped<JsonEntityStore>();
+builder.Services.AddScoped<LookThumbResolver>();
 builder.Services.AddHttpClient<HostAdminClient>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
 {

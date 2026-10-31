@@ -1,0 +1,155 @@
+@page
+@model Legend.Admin.Pages.Entities.EditModel
+@{
+  ViewData["Title"] = Model.IsCreate ? $"新建{Model.Desc?.TitleZh}" : $"编辑{Model.Desc?.TitleZh}";
+  var d = Model.Desc;
+}
+@if (d is null)
+{
+  <div class="card"><p class="text-danger">未知内容域。</p></div>
+}
+else
+{
+<nav class="crumbs">
+  <a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> /
+  <a asp-page="@Legend.Admin.Pages.Entities.EditModel.ListPage(Model.Kind)" asp-route-packId="@Model.PackId">@d.TitleZh</a> /
+  <span>@(Model.IsCreate ? "新建" : Model.EntityId)</span>
+</nav>
+
+<div class="card">
+  <div class="toolbar">
+    <span class="muted">版本包 <code>@Model.PackId</code> · 域 <code>@Model.Kind</code></span>
+    @if (!Model.IsCreate)
+    {
+      <a class="btn" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@(d.IsMapFiles ? $"maps/{Model.EntityId}.json" : d.RelativePath)">JSON 兜底</a>
+      @if (Model.Kind == "monsters")
+      { <a class="btn" asp-page="/Assets/BindMonster" asp-route-packId="@Model.PackId" asp-route-id="@Model.EntityId">外观绑定</a> }
+      @if (Model.Kind == "items")
+      { <a class="btn" asp-page="/Assets/BindItem" asp-route-packId="@Model.PackId" asp-route-id="@Model.EntityId">外观绑定</a> }
+      @if (Model.Kind == "maps")
+      { <a class="btn" asp-page="/Assets/BindMap" asp-route-packId="@Model.PackId" asp-route-id="@Model.EntityId">外观绑定</a> }
+    }
+  </div>
+  @if (Model.ThumbUrl is not null)
+  {
+    <img class="thumb-lg lightbox-src" src="@Model.ThumbUrl" alt="preview" />
+  }
+</div>
+
+@if (Model.CanWrite)
+{
+<div class="card">
+  <h3>@(Model.IsCreate ? "新建" : "字段编辑")</h3>
+  <form method="post" asp-page-handler="Save">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="kind" value="@Model.Kind" />
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <input type="hidden" name="entityId" value="@Model.EntityId" />
+    <input type="hidden" name="isCreate" value="@(Model.IsCreate ? "true" : "false")" />
+    <div class="form-grid">
+    @foreach (var f in d.FormFields)
+    {
+      var val = Model.FormValues.GetValueOrDefault(f.Key) ?? "";
+      var disabled = !Model.IsCreate && f.Key == d.IdProperty;
+      <div>
+        <label>@f.Label @(f.Required ? "*" : "")</label>
+        @if (f.InputKind == "textarea" || f.InputKind == "json")
+        {
+          <textarea name="fields[@f.Key]" rows="@(f.InputKind=="json"?8:3)" @(disabled?"disabled":null)>@val</textarea>
+        }
+        else if (f.InputKind == "asset")
+        {
+          <select name="fields[@f.Key]" @(disabled?"disabled":null)>
+            <option value="">（无）</option>
+            @foreach (var a in Model.MediaChoices)
+            {
+              <option value="@a.Id" selected="@(val==a.Id)">@a.Id · @a.FileName (@a.Kind)</option>
+            }
+          </select>
+          @if (!string.IsNullOrEmpty(val))
+          {
+            <div class="tiny"><img class="thumb-sm lightbox-src" src="/Assets/File?id=@Uri.EscapeDataString(val)&thumb=1" alt="" /></div>
+          }
+        }
+        else if (f.InputKind == "select" && f.SelectOptionsCsv is not null)
+        {
+          <select name="fields[@f.Key]" @(disabled?"disabled":null)>
+            @foreach (var opt in f.SelectOptionsCsv.Split(','))
+            {
+              <option value="@opt" selected="@(val==opt)">@opt</option>
+            }
+          </select>
+        }
+        else if (f.InputKind == "number")
+        {
+          <input type="number" step="any" name="fields[@f.Key]" value="@val" @(disabled?"disabled":null) />
+        }
+        else
+        {
+          <input type="text" name="fields[@f.Key]" value="@val" @(disabled?"disabled":null) />
+        }
+        @if (disabled)
+        {
+          <input type="hidden" name="fields[@f.Key]" value="@val" />
+        }
+        @if (!string.IsNullOrEmpty(f.Hint))
+        { <div class="tiny muted">@f.Hint</div> }
+      </div>
+    }
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" type="submit" name="useAdvanced" value="false">保存</button>
+      <a class="btn" asp-page="@Legend.Admin.Pages.Entities.EditModel.ListPage(Model.Kind)" asp-route-packId="@Model.PackId">返回列表</a>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>高级 JSON（保留未知字段）</h3>
+  <form method="post" asp-page-handler="Save">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="kind" value="@Model.Kind" />
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <input type="hidden" name="entityId" value="@Model.EntityId" />
+    <input type="hidden" name="isCreate" value="@(Model.IsCreate ? "true" : "false")" />
+    <input type="hidden" name="useAdvanced" value="true" />
+    <textarea class="code" name="advancedJson">@Model.AdvancedJson</textarea>
+    <button class="btn btn-success" type="submit">用 JSON 保存整条</button>
+  </form>
+</div>
+
+@if (!Model.IsCreate)
+{
+<div class="card">
+  <h3>克隆</h3>
+  <form method="post" asp-page-handler="Clone" class="row">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="kind" value="@Model.Kind" />
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <input type="hidden" name="id" value="@Model.EntityId" />
+    <div>
+      <label>新 ID</label>
+      <input type="text" name="newId" required placeholder="@(Model.EntityId)_copy" />
+    </div>
+    <div><button class="btn" type="submit">克隆</button></div>
+  </form>
+</div>
+<div class="card">
+  <h3 class="text-danger">删除</h3>
+  <form method="post" asp-page-handler="Delete" onsubmit="return confirm('确认删除 @Model.EntityId ？此操作写入版本包 JSON。');">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="kind" value="@Model.Kind" />
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <input type="hidden" name="id" value="@Model.EntityId" />
+    <button class="btn btn-danger" type="submit">删除此条</button>
+  </form>
+</div>
+}
+}
+else
+{
+  <div class="card"><p class="muted">只读账号：可查看，不可保存。</p>
+    <pre class="code-block">@Model.AdvancedJson</pre>
+  </div>
+}
+}
