@@ -73,3 +73,4 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：引擎扩展 E11（#25 → `579b7f2`）。生肖容器与神器槽；装备位扩展与属性汇总。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎扩展 E12（#26 → `bd40255`）。英雄存档与合击；`AttackReq` skillId=`hero_combo`；`CombatSync.combo`；无新 MsgId。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎扩展 E13（#27 → `4849741`）。`client_assist.json` / `pickup_filters.json`；ClientCore 内挂状态机默认关；`map_no_hang` / `map_no_auto_pickup` 进世界同步。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：试玩服 `150.158.164.90:7100` 升至 tip `3462ee6`（含 E9–E13）；CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 对齐同 SHA。矩阵仍 100%。协议仍是 1.21.0。
