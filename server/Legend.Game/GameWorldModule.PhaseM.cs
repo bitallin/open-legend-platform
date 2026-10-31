@@ -53,7 +53,7 @@ public sealed partial class GameWorldModule
         if (weapon.Durability <= 0)
         {
             weapon.Durability = 0;
-            EquipmentHelper.RecalculateStats(attacker, _versionPack.Items, _versionPack.Buffs);
+            EquipmentHelper.RecalculateStats(attacker, _versionPack);
             await PersistEquipmentAsync(attacker, ct);
         }
     }
@@ -423,7 +423,7 @@ public sealed partial class GameWorldModule
         }
         player.Gold -= cost;
         piece.Identified = true;
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await PersistEconomyAsync(player, ct);
         await PersistEquipmentAsync(player, ct);
         var resp = new IdentifyResp

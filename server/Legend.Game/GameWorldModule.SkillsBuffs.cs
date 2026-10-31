@@ -255,7 +255,7 @@ public sealed partial class GameWorldModule
             });
         }
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         var ab = player.ActiveBuffs.First(b => string.Equals(b.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
         await player.Session.SendAsync(MsgId.BuffApplyNotify, 0, new BuffApplyNotify
         {
@@ -275,7 +275,7 @@ public sealed partial class GameWorldModule
             string.Equals(b.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
         if (removed == 0) return;
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await player.Session.SendAsync(MsgId.BuffRemoveNotify, 0, new BuffRemoveNotify
         {
             BuffId = buffId,

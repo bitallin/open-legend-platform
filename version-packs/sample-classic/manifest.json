@@ -58,5 +58,7 @@
   "currenciesConfigFile": "configs/currencies.json",
   "recycleConfigFile": "configs/recycle.json",
   "talentsConfigFile": "configs/talents.json",
-  "internalConfigFile": "configs/internal.json"
+  "internalConfigFile": "configs/internal.json",
+  "equipmentSlotsConfigFile": "configs/equipment_slots.json",
+  "artifactsConfigFile": "configs/artifacts.json"
 }

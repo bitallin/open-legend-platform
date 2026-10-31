@@ -162,6 +162,8 @@ public static class AppearanceJson
         public List<string> UnlockedMeridians { get; set; } = new();
         /// <summary>treeId → unlocked nodeIds.</summary>
         public Dictionary<string, List<string>> TalentUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Zodiac container slots (slot id + item). docs/site/07.</summary>
+        public List<EquippedItemState> ZodiacSlots { get; set; } = new();
     }
 
     public static State Parse(string? json)
@@ -184,6 +186,7 @@ public static class AppearanceJson
                 s.InternalLevel = 1;
             s.UnlockedMeridians ??= new();
             s.TalentUnlocked ??= new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            s.ZodiacSlots ??= new();
             if (string.IsNullOrWhiteSpace(s.AttackMode))
                 s.AttackMode = "peace";
             return s;
@@ -247,7 +250,20 @@ public static class AppearanceJson
                         .Where(x => !string.IsNullOrWhiteSpace(x))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList(),
-                    StringComparer.OrdinalIgnoreCase)
+                    StringComparer.OrdinalIgnoreCase),
+            ZodiacSlots = (state.ZodiacSlots ?? new())
+                .Where(z => !string.IsNullOrWhiteSpace(z.Slot) && !string.IsNullOrWhiteSpace(z.ItemId))
+                .Select(z => new EquippedItemState
+                {
+                    Slot = z.Slot,
+                    ItemId = z.ItemId,
+                    EnhanceLevel = z.EnhanceLevel,
+                    ArtifactLevel = z.ArtifactLevel,
+                    Durability = z.Durability,
+                    MaxDurability = z.MaxDurability,
+                    Identified = z.Identified
+                })
+                .ToList()
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

@@ -201,7 +201,7 @@ public sealed partial class GameWorldModule
                 piece.MaxDurability = PhaseMRules.DurabilityMax;
             piece.Durability = piece.MaxDurability;
         }
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await PersistEconomyAsync(player, ct);
         await PersistEquipmentAsync(player, ct);
         var resp = new RepairResp
@@ -217,26 +217,57 @@ public sealed partial class GameWorldModule
         await session.SendAsync(MsgId.RepairResp, frame.Seq, resp, ct);
     }
 
+    private static bool IsZodiacContainer(string? containerId)
+        => string.Equals(containerId, "zodiac", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsWarehouseContainer(string? containerId)
+        => string.IsNullOrWhiteSpace(containerId)
+           || string.Equals(containerId, "warehouse", StringComparison.OrdinalIgnoreCase);
+
     private async Task HandleStorageListAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
         var req = StorageListReq.Parser.ParseFrom(frame.Payload);
-        if (!TryStorageNpc(session, req.NpcEntityId, out var player, out var error))
+        if (IsZodiacContainer(req.ContainerId))
+        {
+            if (!TryGetPlayer(session, out var player, out _) || player is null)
+            {
+                await session.SendAsync(MsgId.StorageListResp, frame.Seq, new StorageListResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrInvalidToken,
+                    Message = "无法打开生肖盒",
+                    ContainerId = "zodiac"
+                }, ct);
+                return;
+            }
+            await session.SendAsync(MsgId.StorageListResp, frame.Seq, OkZodiacList(player), ct);
+            return;
+        }
+
+        if (!TryStorageNpc(session, req.NpcEntityId, out var warehousePlayer, out var error))
         {
             await session.SendAsync(MsgId.StorageListResp, frame.Seq, new StorageListResp
             {
                 Success = false,
                 ErrorCode = error,
-                Message = "无法打开仓库"
+                Message = "无法打开仓库",
+                ContainerId = "warehouse"
             }, ct);
             return;
         }
-        var resp = OkStorageList(player!);
+        var resp = OkStorageList(warehousePlayer!);
         await session.SendAsync(MsgId.StorageListResp, frame.Seq, resp, ct);
     }
 
     private async Task HandleStorageDepositAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
         var req = StorageDepositReq.Parser.ParseFrom(frame.Payload);
+        if (IsZodiacContainer(req.ContainerId))
+        {
+            await HandleZodiacDepositAsync(session, frame.Seq, req, ct);
+            return;
+        }
+
         if (!TryStorageNpc(session, req.NpcEntityId, out var player, out var error) || player is null)
         {
             await session.SendAsync(MsgId.StorageDepositResp, frame.Seq, FailDeposit(error, "无法打开仓库"), ct);
@@ -258,13 +289,19 @@ public sealed partial class GameWorldModule
         InventoryHelper.AddItem(player.Storage, req.ItemId, count);
         await PersistEconomyAsync(player, ct);
         await PersistAppearanceAsync(player, ct);
-        await session.SendAsync(MsgId.StorageDepositResp, frame.Seq, OkDeposit(player), ct);
+        await session.SendAsync(MsgId.StorageDepositResp, frame.Seq, OkDeposit(player, "warehouse"), ct);
         await PushInventoryAsync(session, player, "StorageDeposit", ct);
     }
 
     private async Task HandleStorageWithdrawAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
     {
         var req = StorageWithdrawReq.Parser.ParseFrom(frame.Payload);
+        if (IsZodiacContainer(req.ContainerId))
+        {
+            await HandleZodiacWithdrawAsync(session, frame.Seq, req, ct);
+            return;
+        }
+
         if (!TryStorageNpc(session, req.NpcEntityId, out var player, out var error) || player is null)
         {
             await session.SendAsync(MsgId.StorageWithdrawResp, frame.Seq, FailWithdraw(error, "无法打开仓库"), ct);
@@ -280,8 +317,139 @@ public sealed partial class GameWorldModule
         InventoryHelper.AddItem(player.Inventory, req.ItemId, count);
         await PersistEconomyAsync(player, ct);
         await PersistAppearanceAsync(player, ct);
-        await session.SendAsync(MsgId.StorageWithdrawResp, frame.Seq, OkWithdraw(player), ct);
+        await session.SendAsync(MsgId.StorageWithdrawResp, frame.Seq, OkWithdraw(player, "warehouse"), ct);
         await PushInventoryAsync(session, player, "StorageWithdraw", ct);
+    }
+
+    private async Task HandleZodiacDepositAsync(
+        IClientSession session, uint seq, StorageDepositReq req, CancellationToken ct)
+    {
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrInvalidToken, "无法打开生肖盒"), ct);
+            return;
+        }
+        if (!_versionPack.Items.TryGetValue(req.ItemId, out var tmpl))
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "未知物品"), ct);
+            return;
+        }
+        var allowed = tmpl.AllowedContainers ?? new List<string>();
+        if (!allowed.Any(c => string.Equals(c, "zodiac", StringComparison.OrdinalIgnoreCase)))
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "该物品不能放入生肖盒"), ct);
+            return;
+        }
+        int count = Math.Max(1, req.Count);
+        if (count != 1)
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "生肖格每次只能放入一件"), ct);
+            return;
+        }
+        var zodiac = _versionPack.EquipmentSlots.Zodiac ?? new ZodiacContainerConfig();
+        var slotIds = zodiac.SlotIds ?? new List<string>();
+        if (slotIds.Count == 0)
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "生肖盒未配置"), ct);
+            return;
+        }
+        player.ZodiacSlots ??= new();
+        var occupied = new HashSet<string>(
+            player.ZodiacSlots.Select(z => z.Slot), StringComparer.OrdinalIgnoreCase);
+        string? targetSlot = null;
+        if (!string.IsNullOrWhiteSpace(req.Slot))
+        {
+            if (!slotIds.Contains(req.Slot, StringComparer.OrdinalIgnoreCase))
+            {
+                await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "无效生肖槽"), ct);
+                return;
+            }
+            if (occupied.Contains(req.Slot))
+            {
+                await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "生肖槽已占用"), ct);
+                return;
+            }
+            targetSlot = slotIds.First(s => string.Equals(s, req.Slot, StringComparison.OrdinalIgnoreCase));
+        }
+        else if (!string.IsNullOrWhiteSpace(tmpl.PreferredSlot)
+                 && slotIds.Contains(tmpl.PreferredSlot, StringComparer.OrdinalIgnoreCase)
+                 && !occupied.Contains(tmpl.PreferredSlot))
+        {
+            targetSlot = slotIds.First(s => string.Equals(s, tmpl.PreferredSlot, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            var mask = tmpl.ZodiacSlotMask ?? new List<string>();
+            IEnumerable<string> candidates = slotIds;
+            if (mask.Count > 0)
+                candidates = slotIds.Where(s => mask.Any(m => string.Equals(m, s, StringComparison.OrdinalIgnoreCase)));
+            targetSlot = candidates.FirstOrDefault(s => !occupied.Contains(s));
+        }
+        if (string.IsNullOrWhiteSpace(targetSlot))
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "生肖盒已满"), ct);
+            return;
+        }
+        if (!InventoryHelper.TryRemoveItem(player.Inventory, req.ItemId, 1))
+        {
+            await session.SendAsync(MsgId.StorageDepositResp, seq, FailDeposit(ProtocolErrorCode.ErrShopDenied, "背包数量不足"), ct);
+            return;
+        }
+        player.ZodiacSlots.Add(new EquippedItemState
+        {
+            Slot = targetSlot,
+            ItemId = tmpl.ItemId,
+            EnhanceLevel = 0,
+            ArtifactLevel = 0,
+            Durability = PhaseMRules.DurabilityMax,
+            MaxDurability = PhaseMRules.DurabilityMax,
+            Identified = !tmpl.NeedsIdentify
+        });
+        EquipmentHelper.RecalculateStats(player, _versionPack);
+        await PersistEconomyAsync(player, ct);
+        await PersistAppearanceAsync(player, ct);
+        await session.SendAsync(MsgId.StorageDepositResp, seq, OkZodiacMutation(player), ct);
+        await PushInventoryAsync(session, player, "ZodiacDeposit", ct);
+    }
+
+    private async Task HandleZodiacWithdrawAsync(
+        IClientSession session, uint seq, StorageWithdrawReq req, CancellationToken ct)
+    {
+        if (!TryGetPlayer(session, out var player, out _) || player is null)
+        {
+            await session.SendAsync(MsgId.StorageWithdrawResp, seq, FailWithdraw(ProtocolErrorCode.ErrInvalidToken, "无法打开生肖盒"), ct);
+            return;
+        }
+        player.ZodiacSlots ??= new();
+        EquippedItemState? found = null;
+        if (!string.IsNullOrWhiteSpace(req.Slot))
+        {
+            found = player.ZodiacSlots.FirstOrDefault(z =>
+                string.Equals(z.Slot, req.Slot, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            found = player.ZodiacSlots.FirstOrDefault(z =>
+                string.Equals(z.ItemId, req.ItemId, StringComparison.OrdinalIgnoreCase));
+        }
+        if (found is null || string.IsNullOrWhiteSpace(found.ItemId))
+        {
+            await session.SendAsync(MsgId.StorageWithdrawResp, seq, FailWithdraw(ProtocolErrorCode.ErrShopDenied, "生肖槽没有该物品"), ct);
+            return;
+        }
+        int count = Math.Max(1, req.Count);
+        if (count != 1)
+        {
+            await session.SendAsync(MsgId.StorageWithdrawResp, seq, FailWithdraw(ProtocolErrorCode.ErrShopDenied, "生肖格每次只能取出一件"), ct);
+            return;
+        }
+        player.ZodiacSlots.Remove(found);
+        InventoryHelper.AddItem(player.Inventory, found.ItemId, 1);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
+        await PersistEconomyAsync(player, ct);
+        await PersistAppearanceAsync(player, ct);
+        await session.SendAsync(MsgId.StorageWithdrawResp, seq, OkZodiacWithdraw(player), ct);
+        await PushInventoryAsync(session, player, "ZodiacWithdraw", ct);
     }
 
     private bool TryStorageNpc(IClientSession session, string npcEntityId, out WorldPlayerEntity? player, out ProtocolErrorCode error)
@@ -334,20 +502,47 @@ public sealed partial class GameWorldModule
             Success = true,
             ErrorCode = ProtocolErrorCode.ErrNone,
             Message = "OK",
-            Capacity = PhaseLRules.StorageCapacity
+            Capacity = PhaseLRules.StorageCapacity,
+            ContainerId = "warehouse"
         };
         foreach (var slot in InventoryHelper.ToProto(player.Storage ?? new()))
             resp.Items.Add(slot);
         return resp;
     }
 
-    private static StorageDepositResp OkDeposit(WorldPlayerEntity player)
+    private StorageListResp OkZodiacList(WorldPlayerEntity player)
+    {
+        int cap = _versionPack.EquipmentSlots.Zodiac?.SlotIds?.Count
+                  ?? Math.Max(1, _versionPack.EquipmentSlots.Zodiac?.SlotCount ?? 12);
+        var resp = new StorageListResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            Capacity = cap,
+            ContainerId = "zodiac"
+        };
+        foreach (var z in player.ZodiacSlots ?? new())
+        {
+            if (string.IsNullOrWhiteSpace(z.ItemId))
+                continue;
+            resp.Items.Add(new InventoryItem
+            {
+                ItemId = z.ItemId,
+                Count = 1
+            });
+        }
+        return resp;
+    }
+
+    private static StorageDepositResp OkDeposit(WorldPlayerEntity player, string containerId = "warehouse")
     {
         var resp = new StorageDepositResp
         {
             Success = true,
             ErrorCode = ProtocolErrorCode.ErrNone,
-            Message = "OK"
+            Message = "OK",
+            ContainerId = containerId
         };
         foreach (var slot in InventoryHelper.ToProto(player.Inventory))
             resp.Inventory.Add(slot);
@@ -356,18 +551,59 @@ public sealed partial class GameWorldModule
         return resp;
     }
 
-    private static StorageWithdrawResp OkWithdraw(WorldPlayerEntity player)
+    private StorageDepositResp OkZodiacMutation(WorldPlayerEntity player)
+    {
+        var resp = new StorageDepositResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            ContainerId = "zodiac"
+        };
+        foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(slot);
+        foreach (var z in player.ZodiacSlots ?? new())
+        {
+            if (string.IsNullOrWhiteSpace(z.ItemId))
+                continue;
+            resp.Storage.Add(new InventoryItem { ItemId = z.ItemId, Count = 1 });
+        }
+        return resp;
+    }
+
+    private static StorageWithdrawResp OkWithdraw(WorldPlayerEntity player, string containerId = "warehouse")
     {
         var resp = new StorageWithdrawResp
         {
             Success = true,
             ErrorCode = ProtocolErrorCode.ErrNone,
-            Message = "OK"
+            Message = "OK",
+            ContainerId = containerId
         };
         foreach (var slot in InventoryHelper.ToProto(player.Inventory))
             resp.Inventory.Add(slot);
         foreach (var slot in InventoryHelper.ToProto(player.Storage))
             resp.Storage.Add(slot);
+        return resp;
+    }
+
+    private StorageWithdrawResp OkZodiacWithdraw(WorldPlayerEntity player)
+    {
+        var resp = new StorageWithdrawResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "OK",
+            ContainerId = "zodiac"
+        };
+        foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(slot);
+        foreach (var z in player.ZodiacSlots ?? new())
+        {
+            if (string.IsNullOrWhiteSpace(z.ItemId))
+                continue;
+            resp.Storage.Add(new InventoryItem { ItemId = z.ItemId, Count = 1 });
+        }
         return resp;
     }
 

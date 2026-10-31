@@ -89,6 +89,8 @@ public sealed class VersionPackManifest
     public string RecycleConfigFile { get; set; } = "";
     public string TalentsConfigFile { get; set; } = "";
     public string InternalConfigFile { get; set; } = "";
+    public string EquipmentSlotsConfigFile { get; set; } = "";
+    public string ArtifactsConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -428,6 +430,12 @@ public sealed class ItemTemplate
     /// <summary>When kind is recall, empty means the pack default town spawn.</summary>
     public string RecallMapId { get; set; } = "";
     public string SetId { get; set; } = "";
+    /// <summary>Containers that may hold this item (e.g. zodiac). Empty = bag/warehouse only.</summary>
+    public List<string> AllowedContainers { get; set; } = new();
+    /// <summary>Preferred slot id when depositing into a container (e.g. zodiac_01).</summary>
+    public string PreferredSlot { get; set; } = "";
+    /// <summary>Optional allow-list of zodiac slot ids; empty = any free zodiac slot.</summary>
+    public List<string> ZodiacSlotMask { get; set; } = new();
 }
 
 public sealed class LevelEntryConfig
@@ -706,6 +714,8 @@ public sealed class EquippedItemState
     public string Slot { get; set; } = string.Empty;
     public string ItemId { get; set; } = string.Empty;
     public int EnhanceLevel { get; set; }
+    /// <summary>Artifact instance level (docs/site/16). Not enhanceLevel.</summary>
+    public int ArtifactLevel { get; set; }
     public int Durability { get; set; }
     public int MaxDurability { get; set; }
     public bool Identified { get; set; } = true;
@@ -808,6 +818,58 @@ public sealed class InternalConfigFile
     public List<MeridianConfigItem> Meridians { get; set; } = new();
 }
 
+public sealed class EquipmentSlotDef
+{
+    public string Id { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public int MaxLevel { get; set; }
+    public bool Visible { get; set; } = true;
+}
+
+public sealed class ZodiacContainerConfig
+{
+    public string ContainerId { get; set; } = "zodiac";
+    public int SlotCount { get; set; } = 12;
+    public List<string> SlotIds { get; set; } = new();
+    public bool UnlockedByDefault { get; set; } = true;
+    public bool DeathDrop { get; set; }
+}
+
+/// <summary>configs/equipment_slots.json — extra equip slots + zodiac container (docs/site/07).</summary>
+public sealed class EquipmentSlotsConfigFile
+{
+    public List<EquipmentSlotDef> ExtraSlots { get; set; } = new();
+    public ZodiacContainerConfig Zodiac { get; set; } = new();
+}
+
+public sealed class ArtifactMaterialConfig
+{
+    public string ItemId { get; set; } = "";
+    public int Count { get; set; } = 1;
+}
+
+public sealed class ArtifactStatBonusConfig
+{
+    public string StatId { get; set; } = "";
+    public int Value { get; set; }
+}
+
+public sealed class ArtifactUpgradeConfig
+{
+    public string ArtifactItemId { get; set; } = "";
+    public int Level { get; set; } = 1;
+    public List<ArtifactMaterialConfig> Materials { get; set; } = new();
+    public List<ArtifactStatBonusConfig> StatBonuses { get; set; } = new();
+    public string FailMode { get; set; } = "";
+}
+
+/// <summary>configs/artifacts.json — artifact level table (docs/site/16). Not equip enhance.</summary>
+public sealed class ArtifactsConfigFile
+{
+    public List<ArtifactUpgradeConfig> Upgrades { get; set; } = new();
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -844,6 +906,10 @@ public sealed class LoadedVersionPack
         new Dictionary<string, RecycleConfigItem>(StringComparer.OrdinalIgnoreCase);
     public TalentsConfigFile Talents { get; init; } = new();
     public InternalConfigFile Internal { get; init; } = new();
+    public EquipmentSlotsConfigFile EquipmentSlots { get; init; } = new();
+    /// <summary>artifactItemId → (level → upgrade row).</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>> ArtifactUpgrades { get; init; } =
+        new Dictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>>(StringComparer.OrdinalIgnoreCase);
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 

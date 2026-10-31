@@ -114,7 +114,24 @@ public static class ConfigSemanticRules
                 ? slotEl.GetString() ?? ""
                 : "";
             if (kind == "equipment" && slot.Length == 0)
-                errors.Add($"$.items[{index}].slot: equipment '{itemId}' requires a slot.");
+            {
+                // Zodiac-box-only pieces may omit wear slot (docs/site/07).
+                bool zodiacOnly = false;
+                if (item.TryGetProperty("allowedContainers", out var containers)
+                    && containers.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var c in containers.EnumerateArray())
+                    {
+                        if (string.Equals(c.GetString(), "zodiac", StringComparison.OrdinalIgnoreCase))
+                        {
+                            zodiacOnly = true;
+                            break;
+                        }
+                    }
+                }
+                if (!zodiacOnly)
+                    errors.Add($"$.items[{index}].slot: equipment '{itemId}' requires a slot.");
+            }
             index++;
         }
 

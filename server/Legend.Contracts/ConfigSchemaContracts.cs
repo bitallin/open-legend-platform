@@ -21,6 +21,8 @@ public static class ConfigSchemaIds
     public const string Recycle = "recycle";
     public const string Talents = "talents";
     public const string Internal = "internal";
+    public const string EquipmentSlots = "equipmentSlots";
+    public const string Artifacts = "artifacts";
 }
 
 /// <summary>

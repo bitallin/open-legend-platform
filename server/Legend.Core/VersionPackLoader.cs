@@ -659,6 +659,88 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        var equipmentSlotsConfig = new EquipmentSlotsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.EquipmentSlotsConfigFile))
+        {
+            string slotsPath = Path.Combine(baseDir, manifest.EquipmentSlotsConfigFile);
+            if (!File.Exists(slotsPath))
+                throw new FileNotFoundException($"Equipment slots config not found: {slotsPath}");
+            string slotsJson = File.ReadAllText(slotsPath, Encoding.UTF8);
+            hashInput.Append(slotsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.EquipmentSlots, slotsJson, manifest.EquipmentSlotsConfigFile);
+            equipmentSlotsConfig = JsonSerializer.Deserialize<EquipmentSlotsConfigFile>(slotsJson, JsonOptions)
+                ?? new EquipmentSlotsConfigFile();
+            equipmentSlotsConfig.ExtraSlots ??= new();
+            equipmentSlotsConfig.Zodiac ??= new ZodiacContainerConfig();
+            var coreSlots = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "weapon", "armor", "helmet", "necklace", "bracelet", "bracelet2",
+                "ring", "ring2", "boots", "belt", "torch"
+            };
+            var extraIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var slot in equipmentSlotsConfig.ExtraSlots)
+            {
+                if (string.IsNullOrWhiteSpace(slot.Id))
+                    throw new InvalidDataException("equipment_slots extraSlots entry missing id.");
+                if (!extraIds.Add(slot.Id))
+                    throw new InvalidDataException($"Duplicate equipment slot id '{slot.Id}'.");
+                if (coreSlots.Contains(slot.Id))
+                    throw new InvalidDataException($"equipment_slots extraSlots id '{slot.Id}' collides with a core equip slot.");
+            }
+            if (equipmentSlotsConfig.Zodiac.SlotIds is null || equipmentSlotsConfig.Zodiac.SlotIds.Count == 0)
+            {
+                int n = Math.Max(1, equipmentSlotsConfig.Zodiac.SlotCount);
+                equipmentSlotsConfig.Zodiac.SlotIds = Enumerable.Range(1, n)
+                    .Select(i => $"zodiac_{i:00}")
+                    .ToList();
+            }
+            if (string.IsNullOrWhiteSpace(equipmentSlotsConfig.Zodiac.ContainerId))
+                equipmentSlotsConfig.Zodiac.ContainerId = "zodiac";
+        }
+
+        var artifactUpgradeDict = new Dictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.ArtifactsConfigFile))
+        {
+            string artPath = Path.Combine(baseDir, manifest.ArtifactsConfigFile);
+            if (!File.Exists(artPath))
+                throw new FileNotFoundException($"Artifacts config not found: {artPath}");
+            string artJson = File.ReadAllText(artPath, Encoding.UTF8);
+            hashInput.Append(artJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Artifacts, artJson, manifest.ArtifactsConfigFile);
+            var artFile = JsonSerializer.Deserialize<ArtifactsConfigFile>(artJson, JsonOptions)
+                ?? new ArtifactsConfigFile();
+            var byItem = new Dictionary<string, Dictionary<int, ArtifactUpgradeConfig>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var up in artFile.Upgrades ?? new List<ArtifactUpgradeConfig>())
+            {
+                if (string.IsNullOrWhiteSpace(up.ArtifactItemId))
+                    throw new InvalidDataException("artifacts upgrade missing artifactItemId.");
+                if (up.Level < 1)
+                    throw new InvalidDataException($"Artifact '{up.ArtifactItemId}' level must be >= 1.");
+                if (itemDict.Count > 0 && !itemDict.ContainsKey(up.ArtifactItemId))
+                    throw new InvalidDataException($"Artifact '{up.ArtifactItemId}' not in items.json.");
+                if (!byItem.TryGetValue(up.ArtifactItemId, out var levels))
+                {
+                    levels = new Dictionary<int, ArtifactUpgradeConfig>();
+                    byItem[up.ArtifactItemId] = levels;
+                }
+                if (!levels.TryAdd(up.Level, up))
+                    throw new InvalidDataException($"Duplicate artifact level {up.Level} for '{up.ArtifactItemId}'.");
+                foreach (var mat in up.Materials ?? new List<ArtifactMaterialConfig>())
+                {
+                    if (itemDict.Count > 0 && !itemDict.ContainsKey(mat.ItemId))
+                        throw new InvalidDataException($"Artifact '{up.ArtifactItemId}' material '{mat.ItemId}' not in items.json.");
+                }
+                foreach (var bonus in up.StatBonuses ?? new List<ArtifactStatBonusConfig>())
+                {
+                    if (!string.IsNullOrWhiteSpace(bonus.StatId) && !StatIdWhitelist.IsAllowed(bonus.StatId))
+                        throw new InvalidDataException($"Artifact '{up.ArtifactItemId}' L{up.Level} statId '{bonus.StatId}' not in whitelist.");
+                }
+            }
+            foreach (var kv in byItem)
+                artifactUpgradeDict[kv.Key] = kv.Value;
+        }
+
         string profanityPath = Path.Combine(baseDir, "configs", "profanity.txt");
         if (File.Exists(profanityPath))
             PhasePRules.UseWordList(File.ReadAllLines(profanityPath));
@@ -695,6 +777,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Recycle = recycleDict,
             Talents = talentsConfig,
             Internal = internalConfig,
+            EquipmentSlots = equipmentSlotsConfig,
+            ArtifactUpgrades = artifactUpgradeDict,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

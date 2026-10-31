@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/artifacts.schema.json",
+  "title": "Open Legend artifacts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["upgrades"],
+  "properties": {
+    "upgrades": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifactItemId", "level"],
+        "properties": {
+          "artifactItemId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "level": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "materials": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["itemId", "count"],
+              "properties": {
+                "itemId": { "type": "string", "minLength": 1, "maxLength": 64 },
+                "count": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+              }
+            }
+          },
+          "statBonuses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "statId": { "type": "string", "minLength": 1, "maxLength": 64 },
+                "value": { "type": "integer", "minimum": -1000000, "maximum": 1000000 }
+              }
+            }
+          },
+          "failMode": { "type": "string", "maxLength": 32 }
+        }
+      }
+    }
+  }
+}
