@@ -62,7 +62,7 @@ else
   <div class="slot-card">
     <div class="slot-frame">
       @if (!string.IsNullOrEmpty(aid))
-      { <img class="lightbox-src" src="/Assets/File?id=@aid&thumb=1" alt="@slot" /> }
+      { <img class="lightbox-src" src="/api/media/@aid?thumb=true" alt="@slot" /> }
       else
       { <div class="slot-empty">未绑定<br/><strong>@Zh(slot)</strong></div> }
     </div>
