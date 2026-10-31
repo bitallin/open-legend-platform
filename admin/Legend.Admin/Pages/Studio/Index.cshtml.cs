@@ -17,6 +17,8 @@ public class IndexModel(
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
     public string Q { get; set; } = "";
+    public string MediaKind { get; set; } = "all";
+    public bool MissingOnly { get; set; }
     public Dictionary<string, int> Counts { get; set; } = new();
     public List<MediaAsset> RecentMedia { get; set; } = new();
     public List<StudioEntityRow> MonsterRows { get; set; } = new();
@@ -27,45 +29,48 @@ public class IndexModel(
     public int UiSlotBound { get; set; }
     public int UiSlotTotal { get; set; }
     public int ConfigFileCount { get; set; }
+    public int MissingLookCount { get; set; }
 
-    public async Task OnGetAsync(string? packId, string? q, CancellationToken ct)
+    public async Task OnGetAsync(string? packId, string? q, string? mediaKind, bool missingOnly = false, CancellationToken ct = default)
     {
         Packs = packs.ListPacks().ToList();
         PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
         Q = q?.Trim() ?? "";
+        MediaKind = string.IsNullOrWhiteSpace(mediaKind) ? "all" : mediaKind;
+        MissingOnly = missingOnly;
         await media.EnsureDirsAsync(PackId, ct);
         await manifest.EnsureSeedFilesAsync(PackId, ct);
 
         var assetMap = await thumbs.LoadPackAssetsAsync(PackId, ct);
-        RecentMedia = (await media.QueryAsync(PackId, "all", null, ct: ct)).Take(24).ToList();
+        RecentMedia = (await media.QueryAsync(PackId, MediaKind, null, ct: ct)).Take(48).ToList();
 
         async Task<List<StudioEntityRow>> Load(EntityDescriptor d, int take)
         {
             var (ok, _, list) = await store.ListAsync(PackId, d, ct);
             Counts[d.Kind] = ok ? list.Count : 0;
             var rows = new List<StudioEntityRow>();
-            foreach (var e in list.Take(take))
+            foreach (var e in list)
             {
+                var thumb = thumbs.ThumbUrlForEntity(e, d, assetMap);
+                if (thumb is null) MissingLookCount++;
+                if (MissingOnly && thumb is not null) continue;
+                if (rows.Count >= take) continue;
                 rows.Add(new StudioEntityRow(
                     JsonEntityStore.GetStr(e, d.IdProperty),
                     JsonEntityStore.GetStr(e, d.DisplayProperty),
-                    thumbs.ThumbUrlForEntity(e, d, assetMap),
+                    thumb,
                     d.Kind));
             }
             return rows;
         }
 
-        MonsterRows = await Load(EntityCatalog.Monsters, 12);
-        ItemRows = await Load(EntityCatalog.Items, 12);
-        MapRows = await Load(EntityCatalog.Maps, 12);
-        NpcRows = await Load(EntityCatalog.Npcs, 12);
+        MonsterRows = await Load(EntityCatalog.Monsters, 16);
+        ItemRows = await Load(EntityCatalog.Items, 16);
+        MapRows = await Load(EntityCatalog.Maps, 16);
+        NpcRows = await Load(EntityCatalog.Npcs, 16);
         foreach (var d in new[] { EntityCatalog.Skills, EntityCatalog.Quests, EntityCatalog.Shops, EntityCatalog.Loot })
             _ = await Load(d, 0);
 
-        Counts["media"] = RecentMedia.Count > 0
-            ? (await media.QueryAsync(PackId, "all", null, ct: ct)).Count
-            : 0;
-        // recount media properly
         Counts["media"] = (await media.QueryAsync(PackId, "all", null, ct: ct)).Count;
 
         var skin = await manifest.ReadUiSkinAsync(PackId, ct);

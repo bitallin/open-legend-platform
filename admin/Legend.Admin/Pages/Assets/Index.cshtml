@@ -2,8 +2,9 @@
 @model Legend.Admin.Pages.Assets.IndexModel
 @{ ViewData["Title"] = "素材库"; }
 <nav class="crumbs"><a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> / <span>素材库</span></nav>
+
 <div class="card">
-  <p class="muted">上传 PNG/WebP/JPG（≤8MB）→ 预览/改标签/替换 → 绑定到怪物/物品/地图/UI。支持软删、恢复；超管可硬删。</p>
+  <p class="muted" style="margin-top:0">上传 PNG/WebP/JPG（≤8MB）→ 预览 / 改标签 / 替换 → 绑定到怪物、物品、地图、UI。支持软删、恢复；超管可硬删。</p>
   <form method="get" class="row">
     <div>
       <label>版本包</label>
@@ -24,18 +25,25 @@
         }
       </select>
     </div>
-    <div>
+    <div style="flex:1.5">
       <label>搜索</label>
       <input type="text" name="q" value="@Model.Q" placeholder="文件名 / 标签 / id" />
     </div>
     <div>
       <label>&nbsp;</label>
       <label class="tiny" style="display:flex;gap:.35rem;align-items:center;color:var(--text)">
-        <input type="checkbox" name="showDeleted" value="true" checked="@Model.ShowDeleted" onchange="this.form.submit()" /> 含已软删
+        <input type="checkbox" name="showDeleted" value="true" @(Model.ShowDeleted ? "checked" : null) onchange="this.form.submit()" /> 含已软删
       </label>
     </div>
     <div><button class="btn" type="submit">筛选</button></div>
   </form>
+  <div class="seg-tabs">
+    <a class="@(Model.Kind=="all"?"active":"")" href="?packId=@Model.PackId&kind=all&q=@Uri.EscapeDataString(Model.Q)&showDeleted=@Model.ShowDeleted.ToString().ToLowerInvariant()">全部</a>
+    @foreach (var k in Legend.Admin.Services.MediaLibraryService.Kinds)
+    {
+      <a class="@(Model.Kind==k?"active":"")" href="?packId=@Model.PackId&kind=@k&q=@Uri.EscapeDataString(Model.Q)&showDeleted=@Model.ShowDeleted.ToString().ToLowerInvariant()">@k</a>
+    }
+  </div>
   <div class="toolbar">
     <a class="btn" asp-page="/Assets/UiSkin" asp-route-packId="@Model.PackId">UI 皮肤槽位</a>
     <a class="btn" asp-page="/Assets/Guide">操作指南</a>
@@ -53,9 +61,9 @@
 
 @if (Model.CanWrite)
 {
-<div class="card">
-  <h3>上传素材</h3>
-  <form method="post" enctype="multipart/form-data" asp-page-handler="Upload">
+<div class="card" id="upload">
+  <div class="card-head"><h3>上传素材</h3></div>
+  <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" id="upload-form">
     <input type="hidden" name="packId" value="@Model.PackId" />
     <div class="row">
       <div>
@@ -71,12 +79,15 @@
         <label>标签（逗号分隔）</label>
         <input type="text" name="tags" placeholder="slime,idle" />
       </div>
-      <div>
-        <label>文件（可多选）</label>
-        <input type="file" name="files" accept=".png,.jpg,.jpeg,.webp,.gif,image/*" multiple required />
-      </div>
     </div>
-    <button class="btn btn-primary" type="submit">上传入库</button>
+    <div class="dropzone" data-autosubmit="0">
+      <div class="dz-title">拖拽图片到此处，或点击选择文件</div>
+      <div class="dz-hint">支持 PNG / JPG / WebP / GIF · 可多选 · 单文件 ≤ 8MB</div>
+      <input type="file" name="files" accept=".png,.jpg,.jpeg,.webp,.gif,image/*" multiple required />
+    </div>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="btn btn-primary" type="submit">上传入库</button>
+    </div>
   </form>
 </div>
 }
@@ -86,7 +97,10 @@
 <form method="post" asp-page-handler="BulkDelete" id="bulk-form">
   <input type="hidden" name="packId" value="@Model.PackId" />
   <input type="hidden" name="kind" value="@Model.Kind" />
-  <div class="toolbar"><button class="btn btn-danger" type="submit" onclick="return confirm('批量软删除勾选素材？');">批量软删勾选</button></div>
+  <div class="bulk-bar" id="bulk-bar">
+    <span id="bulk-count">已选 0 项</span>
+    <button class="btn btn-danger" type="submit" onclick="return confirm('批量软删除勾选素材？');">批量软删</button>
+  </div>
 </form>
 }
 
@@ -99,22 +113,25 @@
   @foreach (var a in Model.Items)
   {
     <div class="asset-card @(a.SoftDeleted ? "soft-deleted" : "")">
-      <img class="lightbox-src" src="/Assets/File?id=@a.Id&thumb=true" alt="@a.FileName" loading="lazy" />
+      <div class="preview">
+        <img class="lightbox-src" src="/Assets/File?id=@a.Id&thumb=true" alt="@a.FileName" loading="lazy" />
+        @if (Model.CanWrite)
+        {
+          <input class="select-box asset-select" type="checkbox" name="ids" value="@a.Id" form="bulk-form" />
+        }
+        <span class="chip badge kind kind-@a.Kind" style="position:absolute;left:8px;top:8px">@a.Kind</span>
+      </div>
       <div class="meta">
         <div>
-          <span class="badge">@a.Kind</span>
           @if (a.SoftDeleted){ <span class="badge warn">已软删</span> }
           <code class="tiny">@a.Id[..Math.Min(8,a.Id.Length)]</code>
         </div>
         <div class="name" title="@a.FileName">@a.FileName</div>
-        <div class="muted tiny">@(a.Width)x@(a.Height) · @(a.Bytes/1024)KB</div>
+        <div class="muted tiny">@(a.Width)×@(a.Height) · @(a.Bytes/1024)KB</div>
         @if (!string.IsNullOrEmpty(a.Tags))
         { <div class="muted tiny">@a.Tags</div> }
         @if (Model.CanWrite)
         {
-          <label class="tiny" style="display:flex;gap:.35rem;align-items:center;margin:.25rem 0">
-            <input type="checkbox" name="ids" value="@a.Id" form="bulk-form" /> 勾选
-          </label>
           <details>
             <summary class="tiny">改元数据 / 替换</summary>
             <form method="post" asp-page-handler="Meta" class="tiny">
