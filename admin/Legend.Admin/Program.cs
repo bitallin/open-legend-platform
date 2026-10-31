@@ -25,7 +25,15 @@ builder.Services.AddDbContext<AdminDbContext>((sp, opt) =>
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<VersionPackService>();
 builder.Services.AddScoped<RealmService>();
+builder.Services.AddScoped<MediaLibraryService>();
+builder.Services.AddScoped<AssetManifestService>();
+builder.Services.AddScoped<LookBindingService>();
 builder.Services.AddHttpClient<HostAdminClient>();
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 32 * 1024 * 1024;
+});
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 32 * 1024 * 1024);
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>

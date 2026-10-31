@@ -1,35 +1,113 @@
 @page
 @model Legend.Admin.Pages.Assets.IndexModel
-@{ ViewData["Title"] = "UI / 特效 / 音效索引"; }
+@{ ViewData["Title"] = "素材库"; }
 <div class="card">
-  <p class="muted">用户自行配置画面与素材：此处维护资源清单与版本号（对齐 docs/site 19/20），不绘制游戏画面。</p>
-  <form method="post">
-    <div class="row">
-      <div><label>名称</label><input asp-for="Name" /></div>
-      <div><label>类型</label>
-        <select asp-for="Kind"><option>ui</option><option>sfx</option><option>vfx</option><option>map_tile</option><option>other</option></select>
-      </div>
-      <div><label>版本</label><input asp-for="VersionTag" /></div>
+  <p class="muted">上传 PNG/WebP/JPG（单文件 ≤8MB）→ 入库预览 → 再到怪物/物品/地图/UI 皮肤页绑定外观。不绘制游戏画面；只接受运营上传的原创素材。</p>
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.Id</option>
+        }
+      </select>
     </div>
-    <label>条目 JSON 数组</label>
-    <textarea class="code" asp-for="EntriesJson" style="min-height:160px"></textarea>
-    <label>备注</label>
-    <input asp-for="Notes" />
-    <button class="btn btn-primary" type="submit">保存清单</button>
+    <div>
+      <label>类型</label>
+      <select name="kind" onchange="this.form.submit()">
+        <option value="all" selected="@(Model.Kind=="all")">全部</option>
+        @foreach (var k in Legend.Admin.Services.MediaLibraryService.Kinds)
+        {
+          <option value="@k" selected="@(Model.Kind==k)">@k</option>
+        }
+      </select>
+    </div>
+    <div>
+      <label>搜索</label>
+      <input type="text" name="q" value="@Model.Q" placeholder="文件名 / 标签 / id" />
+    </div>
+    <div><button class="btn" type="submit">筛选</button></div>
+  </form>
+  <div class="toolbar">
+    <a class="btn" asp-page="/Assets/UiSkin" asp-route-packId="@Model.PackId">UI 皮肤槽位</a>
+    <a class="btn" asp-page="/Assets/Guide">操作指南</a>
+    <a class="btn" asp-page="/Assets/Catalog">JSON 清单（旧）</a>
+    @if (Model.CanWrite)
+    {
+      <form method="post" asp-page-handler="Rebuild" style="display:inline">
+        <input type="hidden" name="packId" value="@Model.PackId" />
+        <button class="btn" type="submit">重建 manifest</button>
+      </form>
+    }
+    <span class="muted">共 @Model.Items.Count 条 · 磁盘 <code>version-packs/@Model.PackId/assets/</code></span>
+  </div>
+</div>
+
+@if (Model.CanWrite)
+{
+<div class="card">
+  <h3>上传素材</h3>
+  <form method="post" enctype="multipart/form-data" asp-page-handler="Upload">
+    <input type="hidden" name="packId" value="@Model.PackId" />
+    <div class="row">
+      <div>
+        <label>类型</label>
+        <select name="kind">
+          @foreach (var k in Legend.Admin.Services.MediaLibraryService.Kinds)
+          {
+            <option value="@k" selected="@(k==(Model.Kind=="all"?"other":Model.Kind))">@k</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label>标签（逗号分隔）</label>
+        <input type="text" name="tags" placeholder="slime,idle" />
+      </div>
+      <div>
+        <label>文件（可多选）</label>
+        <input type="file" name="files" accept=".png,.jpg,.jpeg,.webp,.gif,image/*" multiple required />
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit">上传入库</button>
   </form>
 </div>
+}
+
 <div class="card">
-  <table class="data">
-    <thead><tr><th>Id</th><th>名称</th><th>类型</th><th>版本</th><th>备注</th><th>更新</th><th></th></tr></thead>
-    <tbody>
-    @foreach (var a in Model.Items)
-    {
-      <tr>
-        <td>@a.Id</td><td>@a.Name</td><td><span class="badge">@a.Kind</span></td><td>@a.VersionTag</td>
-        <td class="muted">@a.Notes</td><td>@a.UpdatedAt.ToString("u")</td>
-        <td><a class="btn btn-sm" asp-page="/Assets/Edit" asp-route-id="@a.Id">编辑</a></td>
-      </tr>
-    }
-    </tbody>
-  </table>
+  <div class="asset-grid">
+  @foreach (var a in Model.Items)
+  {
+    <div class="asset-card">
+      <a asp-page="/Assets/File" asp-route-id="@a.Id" asp-route-thumb="false" target="_blank">
+        <img src="/Assets/File?id=@a.Id&thumb=true" alt="@a.FileName" loading="lazy" />
+      </a>
+      <div class="meta">
+        <div><span class="badge">@a.Kind</span> <code class="tiny">@a.Id[..8]</code></div>
+        <div class="name" title="@a.FileName">@a.FileName</div>
+        <div class="muted tiny">@(a.Width)x@(a.Height) · @(a.Bytes/1024)KB</div>
+        @if (!string.IsNullOrEmpty(a.Tags))
+        {
+          <div class="muted tiny">@a.Tags</div>
+        }
+        <div class="toolbar" style="margin:0.35rem 0 0">
+          <a class="btn btn-sm" asp-page="/Assets/File" asp-route-id="@a.Id" asp-route-download="true">下载</a>
+          @if (Model.CanWrite)
+          {
+            <form method="post" asp-page-handler="Delete" style="display:inline" onsubmit="return confirm('软删除该素材？');">
+              <input type="hidden" name="id" value="@a.Id" />
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="kind" value="@Model.Kind" />
+              <button class="btn btn-sm btn-danger" type="submit">删除</button>
+            </form>
+          }
+        </div>
+      </div>
+    </div>
+  }
+  @if (Model.Items.Count == 0)
+  {
+    <p class="muted">暂无素材。请先上传 PNG/WebP/JPG。</p>
+  }
+  </div>
 </div>

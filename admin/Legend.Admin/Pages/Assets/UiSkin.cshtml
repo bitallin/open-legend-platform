@@ -1,0 +1,60 @@
+@page
+@model Legend.Admin.Pages.Assets.UiSkinModel
+@{ ViewData["Title"] = "UI 皮肤槽位"; }
+<div class="card">
+  <p class="muted">把素材库中的图片绑定到命名 UI 槽位（login_bg、hp_orb…）。保存后写入 <code>configs/ui_skin.json</code>，并复制到 <code>assets/ui/</code>。</p>
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.Id</option>
+        }
+      </select>
+    </div>
+  </form>
+  <div class="toolbar">
+    <a class="btn" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-kind="ui">去素材库上传 UI 图</a>
+    <a class="btn" asp-page="/Assets/Guide">操作指南</a>
+  </div>
+</div>
+@foreach (var slot in Legend.Admin.Services.AssetManifestService.UiSlots)
+{
+  var cur = Model.SlotAssetId(slot);
+  <div class="card">
+    <div class="row" style="align-items:center">
+      <div style="flex:0 0 140px">
+        <strong>@slot</strong>
+        @if (!string.IsNullOrEmpty(cur))
+        {
+          <div><img class="thumb-sm" src="/Assets/File?id=@cur&thumb=true" alt="@slot" /></div>
+        }
+      </div>
+      <div style="flex:1">
+        @if (Model.CanWrite)
+        {
+          <form method="post">
+            <input type="hidden" name="packId" value="@Model.PackId" />
+            <input type="hidden" name="slot" value="@slot" />
+            <label>素材</label>
+            <select name="assetId">
+              <option value="">（清空）</option>
+              @foreach (var a in Model.UiAssets)
+              {
+                <option value="@a.Id" selected="@(a.Id==cur)">@a.FileName (@a.Id[..8]) @a.Width×@a.Height</option>
+              }
+            </select>
+            <label>备注</label>
+            <input type="text" name="note" value="@Model.SlotNote(slot)" />
+            <button class="btn btn-primary" type="submit">保存槽位</button>
+          </form>
+        }
+        else
+        {
+          <span class="muted">当前 assetId：<code>@(string.IsNullOrEmpty(cur)?"未绑定":cur)</code></span>
+        }
+      </div>
+    </div>
+  </div>
+}

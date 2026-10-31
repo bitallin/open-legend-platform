@@ -4,6 +4,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 
+using Legend.Playable.Data;
+
 namespace Legend.Playable.Ui;
 
 /// <summary>
@@ -201,6 +203,13 @@ public static class MirChrome
         int i = Math.Clamp(index1To16, 1, 16);
         return LoadBmp($"assets.chrome.items.item-{i:00}.png");
     }
+
+    /// <summary>Prefer admin-uploaded item icon; fallback to chrome atlas slot.</summary>
+    public static Bitmap? ItemIconFor(string? itemId, int fallbackIndex1To16 = 1)
+        => PackAssetOverrides.Current?.ItemIcon(itemId) ?? ItemIcon(fallbackIndex1To16);
+
+    public static Bitmap? UiOverride(string slot)
+        => PackAssetOverrides.Current?.UiSlot(slot);
 
     private static Image? StretchImg(Bitmap? bmp)
     {

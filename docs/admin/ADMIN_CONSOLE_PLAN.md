@@ -176,3 +176,19 @@
 3. 种子数据演示：改爆率 → 保存修订 →（可选）热重载；封禁/在线页可操作或清晰提示未连 Host。  
 4. 进度文档列出已完成与缺口。  
 5. PR 已合入 main。
+
+
+## 12. M9 画面与素材闭环（上传 → 绑定 → 热更）
+
+目标：运营可上传 PNG/WebP/JPG，在后台预览，并为怪物/装备/地图/UI 槽位绑定外观，无需手写 JSON。
+
+| 能力 | 落点 |
+|------|------|
+| 素材库 | `/Assets` · `MediaLibraryService` · `assets/library` + thumbs · `MediaAssets` 表 |
+| 清单 | `configs/assets_manifest.json`（磁盘真相源 + 管理台索引） |
+| UI 皮肤 | `/Assets/UiSkin` · `configs/ui_skin.json` · `assets/ui/{slot}` |
+| 怪/物/图外观 | `/Assets/BindMonster|BindItem|BindMap` · look / iconAssetId 字段 |
+| 客户端 | `PackAssetOverrides` + `--assets-pack`；缺省回退 MirSheet/MirChrome |
+| 指南 | `/Assets/Guide` · `docs/admin/ASSET_LOOK_GUIDE.md` |
+
+约束：不绘制游戏画面；不使用官方 WIL/WZL；每次上传/绑定审计。

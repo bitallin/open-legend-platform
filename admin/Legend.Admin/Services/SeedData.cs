@@ -9,6 +9,7 @@ public static class SeedData
     public static async Task EnsureSeedAsync(AdminDbContext db)
     {
         await db.Database.EnsureCreatedAsync();
+        await EnsureMediaAssetsTableAsync(db);
         if (!await db.Users.AnyAsync())
         {
             db.Users.Add(new AdminUser
@@ -102,5 +103,35 @@ public static class SeedData
         }
 
         await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureMediaAssetsTableAsync(AdminDbContext db)
+    {
+        // EnsureCreated does not add new tables to an existing SQLite file.
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "MediaAssets" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_MediaAssets" PRIMARY KEY,
+                "PackId" TEXT NOT NULL,
+                "Kind" TEXT NOT NULL,
+                "FileName" TEXT NOT NULL,
+                "RelPath" TEXT NOT NULL,
+                "ThumbRelPath" TEXT NOT NULL,
+                "ContentType" TEXT NOT NULL,
+                "Bytes" INTEGER NOT NULL,
+                "Width" INTEGER NOT NULL,
+                "Height" INTEGER NOT NULL,
+                "Sha256" TEXT NOT NULL,
+                "Tags" TEXT NOT NULL,
+                "SoftDeleted" INTEGER NOT NULL,
+                "CreatedBy" TEXT NOT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                "UpdatedAt" TEXT NOT NULL
+            );
+            """);
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_MediaAssets_PackId_Kind_SoftDeleted" ON "MediaAssets" ("PackId", "Kind", "SoftDeleted");""");
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_MediaAssets_Sha256" ON "MediaAssets" ("Sha256");""");
     }
 }

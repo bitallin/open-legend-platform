@@ -13,6 +13,9 @@
       </select>
     </div>
   </form>
+  <div class="toolbar">
+    <a class="btn" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-kind="map_tile">素材库（地图）</a>
+  </div>
 </div>
 <div class="card">
   <table class="data">
@@ -20,10 +23,14 @@
     <tbody>
     @foreach (var f in Model.Maps)
     {
+      var mapId = System.IO.Path.GetFileNameWithoutExtension(f.RelativePath);
       <tr>
         <td><code>@f.RelativePath</code></td>
         <td>@f.SizeBytes</td>
-        <td><a class="btn btn-sm" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@f.RelativePath">编辑</a></td>
+        <td>
+          <a class="btn btn-sm" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@f.RelativePath">编辑 JSON</a>
+          <a class="btn btn-sm btn-primary" asp-page="/Assets/BindMap" asp-route-packId="@Model.PackId" asp-route-id="@mapId">外观</a>
+        </td>
       </tr>
     }
     </tbody>

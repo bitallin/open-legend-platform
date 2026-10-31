@@ -15,12 +15,13 @@
   </form>
   <div class="toolbar">
     <a class="btn btn-primary" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="configs/monsters.json">打开 JSON 编辑器</a>
-    <span class="muted">文件 <code>configs/monsters.json</code> · 共 @Model.Rows.Count 条（列表为摘要，完整字段以 JSON 为准）</span>
+    <a class="btn" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-kind="monster">素材库（怪物）</a>
+    <span class="muted">文件 <code>configs/monsters.json</code> · 共 @Model.Rows.Count 条</span>
   </div>
 </div>
 <div class="card">
   <table class="data">
-    <thead><tr><th>monsterId</th><th>displayName</th><th>maxHp</th><th>atk</th><th>def</th><th>lootTableId</th><th>expReward</th><th>摘要</th></tr></thead>
+    <thead><tr><th>monsterId</th><th>displayName</th><th>maxHp</th><th>atk</th><th>def</th><th>lootTableId</th><th>expReward</th><th>外观</th><th>摘要</th></tr></thead>
     <tbody>
     @foreach (var row in Model.Rows)
     {
@@ -29,6 +30,11 @@
         {
           <td>@(row.ContainsKey(c) ? row[c] : "")</td>
         }
+        <td>
+          <a class="btn btn-sm" asp-page="/Assets/BindMonster" asp-route-packId="@Model.PackId" asp-route-id="@row.GetValueOrDefault("monsterId")">外观</a>
+          @if (!string.IsNullOrEmpty(row.GetValueOrDefault("_look")))
+          { <span class="badge ok">已绑</span> }
+        </td>
         <td class="muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@row.GetValueOrDefault("_preview")</td>
       </tr>
     }

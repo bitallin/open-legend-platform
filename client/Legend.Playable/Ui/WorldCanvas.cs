@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Legend.Contracts.Proto;
+using Legend.Playable.Data;
 using Legend.Playable.Session;
 using Legend.Playable.World;
 
@@ -219,7 +220,7 @@ public sealed class WorldCanvas : Control
         var (sx, sy) = IsoProjection.ToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h);
         if (actor.Kind == EntityKind.EntityLoot)
         {
-            DrawLoot(context, sx, sy);
+            DrawLoot(context, sx, sy, actor.TemplateId);
             DrawName(context, actor, sx, sy - 18);
             return;
         }
@@ -232,7 +233,17 @@ public sealed class WorldCanvas : Control
         string action = string.IsNullOrEmpty(actor.Pose) ? "idle" : actor.Pose;
         double dw = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 64 : 48;
         double dh = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 72 : 64;
-        if (!DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh))
+        bool drew = false;
+        if (actor.Kind == EntityKind.EntityMonster)
+        {
+            var ov = PackAssetOverrides.Current?.MonsterSprite(actor.TemplateId);
+            if (ov != null)
+            {
+                context.DrawImage(ov, new Rect(sx - dw / 2, sy - dh + 14 - lift, dw, dh));
+                drew = true;
+            }
+        }
+        if (!drew && !DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh))
             context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
         if (actor.IsSelf && actor.Kind == EntityKind.EntityPlayer)
             DrawGear(context, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
@@ -285,8 +296,14 @@ public sealed class WorldCanvas : Control
             DrawSprite(context, weapon, action, direction, phase, poseLock, sx, sy, dw, dh);
     }
 
-    private void DrawLoot(DrawingContext context, double sx, double sy)
+    private void DrawLoot(DrawingContext context, double sx, double sy, string? templateId = null)
     {
+        var ov = PackAssetOverrides.Current?.ItemDrop(templateId) ?? PackAssetOverrides.Current?.ItemIcon(templateId);
+        if (ov != null)
+        {
+            context.DrawImage(ov, new Rect(sx - 10, sy - 14, 20, 20));
+            return;
+        }
         if (Sheet != null && Sheet.TryTile("path", out var src))
             context.DrawImage(Sheet.Bitmap, src, new Rect(sx - 8, sy - 8, 16, 12));
         context.DrawEllipse(Brush("#F2C14E"), null, new Point(sx, sy - 2), 5, 4);

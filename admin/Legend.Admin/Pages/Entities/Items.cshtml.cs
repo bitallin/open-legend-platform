@@ -8,7 +8,7 @@ public class ItemsModel(VersionPackService packs) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
-    public List<string> Columns { get; } = new() { "itemId", "displayName", "type", "bindType" };
+    public List<string> Columns { get; } = new() { "itemId", "displayName", "kind", "slot", "paperdoll" };
     public List<Dictionary<string, string>> Rows { get; set; } = new();
 
     public async Task OnGetAsync(string? packId, CancellationToken ct)
@@ -29,6 +29,10 @@ public class ItemsModel(VersionPackService packs) : PageModel
             }
             dict["_preview"] = e.ToString();
             if (dict["_preview"].Length > 160) dict["_preview"] = dict["_preview"][..160] + "…";
+            var looks = new List<string>();
+            if (e.TryGetProperty("iconAssetId", out var ic) && ic.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(ic.GetString())) looks.Add("icon");
+            if (e.TryGetProperty("dropSpriteAssetId", out var ds) && ds.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(ds.GetString())) looks.Add("drop");
+            dict["_look"] = string.Join(",", looks);
             Rows.Add(dict);
         }
     }
