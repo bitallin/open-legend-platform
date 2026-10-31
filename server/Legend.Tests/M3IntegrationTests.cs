@@ -123,7 +123,7 @@ public class M3IntegrationTests
         Assert.Equal(100, enter.Gold);
 
         // NPC should be nearby at (12,12) — spawn is in safe zone near default spawn
-        var npc = enter.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc);
+        var npc = enter.NearbyEntities.FirstOrDefault(e => e.Kind == EntityKind.EntityNpc && e.TemplateId == "npc_village_merchant");
         if (npc is null)
         {
             await WalkToAsync(client, 12, 12);
@@ -131,7 +131,7 @@ public class M3IntegrationTests
             {
                 while (client.ReceivedEntitySpawns.TryDequeue(out var sp))
                 {
-                    if (sp.Entity.Kind == EntityKind.EntityNpc)
+                    if (sp.Entity.Kind == EntityKind.EntityNpc && sp.Entity.TemplateId == "npc_village_merchant")
                     {
                         npc = sp.Entity;
                         break;
@@ -240,7 +240,7 @@ public class M3IntegrationTests
         var enter = await client.EnterWorldAsync("realm-classic-01", create.Character.CharacterId);
         Assert.True(enter.Success);
 
-        var npc = enter.NearbyEntities.First(e => e.Kind == EntityKind.EntityNpc);
+        var npc = enter.NearbyEntities.First(e => e.Kind == EntityKind.EntityNpc && e.TemplateId == "npc_village_merchant");
         await WalkToAsync(client, npc.X, npc.Y);
 
         // Drain gold by buying dried meat (5g) until can't buy expensive stack

@@ -42,13 +42,13 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 ## 下一批（5）
 
-清单叶子条目已经全部是 Done。没有下一批 Partial。
+清单叶子条目已经全部是 Done（矩阵不计 DocOnly）。引擎 E0–E8 已合入。下一批为扩展规格实现排期（非本回合）：
 
-1. 无。
-2. 无。
-3. 无。
-4. 无。
-5. 无。
+1. E9 多货币与商城结算（文档站货币篇）。
+2. E10 生肖 / 神器槽与属性汇总。
+3. E11 天赋树与加点校验。
+4. E12 英雄出战与合击。
+5. E13 内挂状态机与拾取过滤（客户端 + 服务端门闩）。
 
 ## 日志
 
@@ -70,3 +70,4 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：引擎重构 E6。`ProtocolCatalogTests` 锁定 MsgId↔proto 消息、`ProtocolErrorCode` 不重复不回收；协议仍 1.21.0。矩阵仍 100%。
 - 2026-10-31：引擎重构 E7。进图/击杀/拾取/对话钩子异常隔离；`ScriptSandboxTests` 锁沙箱无 IO 与坏热更回滚后仍可移动。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎重构 E8。地图 Schema 增加可选 `mapFlags`；服务端执行 `noPk`（安全区外禁玩家互攻，`ERR_INVALID_TARGET`）。样例地图行为不变。其它 flag 仅 Schema。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：收尾。`Stall_OfflineSeller` / M3 商店路径误选 `npc_waygate`（无 shop）改为显式 `npc_village_merchant`；试玩服对齐 main；Windows `LegendClient.exe` 重打。矩阵仍 100%。协议仍是 1.21.0。
