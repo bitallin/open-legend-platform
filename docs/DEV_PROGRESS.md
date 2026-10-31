@@ -46,6 +46,8 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 协议仍 **1.21.0**；服务端无协议变更。矩阵仍 100%。
 - 进度对照 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
+- 2026-11-01：Avalonia 石金壳合入 #32 → `686e207`。试玩服 `150.158.164.90:7100` 无服务端增量（仍跑既有 tip）；CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 已按 `686e207` 重打并同步用户机。协议仍 1.21.0。
+
 
 画面对照另见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。Phase R 起是斜 45° 菱形地图、装备分层和贴图主界面。VISUAL_PARITY_COMPLETE=true。
 
