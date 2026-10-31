@@ -1,0 +1,35 @@
+@page
+@model Legend.Admin.Pages.Cdk.IndexModel
+@{ ViewData["Title"] = "CDK 卡密"; }
+<div class="card">
+  <form method="post" class="row">
+    <div><label>批次名</label><input asp-for="BatchName" /></div>
+    <div><label>生成数量</label><input asp-for="Count" type="number" value="10" /></div>
+    <div style="flex:2"><label>奖励 JSON</label><input asp-for="RewardsJson" placeholder='[{"itemId":"item_copper_coin","count":1000}]' /></div>
+    <div><button class="btn btn-primary" type="submit">生成批次</button></div>
+  </form>
+</div>
+<div class="card">
+  <h3>批次</h3>
+  <table class="data">
+    <thead><tr><th>Id</th><th>名称</th><th>奖励</th><th>操作者</th><th>时间</th></tr></thead>
+    <tbody>
+    @foreach (var b in Model.Batches)
+    {
+      <tr><td>@b.Id</td><td>@b.Name</td><td><code>@b.RewardsJson</code></td><td>@b.Actor</td><td>@b.CreatedAt.ToString("u")</td></tr>
+    }
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <h3>最近卡密</h3>
+  <table class="data">
+    <thead><tr><th>码</th><th>批次</th><th>已用</th><th>作废</th></tr></thead>
+    <tbody>
+    @foreach (var c in Model.Codes)
+    {
+      <tr><td><code>@c.Code</code></td><td>@c.BatchId</td><td>@c.Redeemed</td><td>@c.Voided</td></tr>
+    }
+    </tbody>
+  </table>
+</div>

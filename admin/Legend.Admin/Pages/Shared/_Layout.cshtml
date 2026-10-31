@@ -1,0 +1,90 @@
+@using global::System.Security.Claims
+@{
+    var path = Context.Request.Path.Value ?? "";
+    string A(string p) => path.StartsWith(p, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    var user = User.Identity?.Name ?? "";
+    var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@(ViewData["Title"] ?? "运营后台") · Open Legend Admin</title>
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+</head>
+<body>
+@if (User.Identity?.IsAuthenticated == true)
+{
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">Open Legend Admin<small>生产级传奇运营后台</small></div>
+    <nav class="nav">
+      <div class="nav-sec">总览</div>
+      <a class="@A("/Index")" asp-page="/Index">仪表盘</a>
+
+      <div class="nav-sec">内容配置</div>
+      <a class="@A("/Configs")" asp-page="/Configs/Index">配置目录</a>
+      <a class="@A("/Entities/Monsters")" asp-page="/Entities/Monsters">怪物</a>
+      <a class="@A("/Entities/Loot")" asp-page="/Entities/Loot">爆率/掉落</a>
+      <a class="@A("/Entities/Items")" asp-page="/Entities/Items">物品/装备</a>
+      <a class="@A("/Entities/Skills")" asp-page="/Entities/Skills">技能</a>
+      <a class="@A("/Entities/Maps")" asp-page="/Entities/Maps">地图</a>
+      <a class="@A("/Entities/Npcs")" asp-page="/Entities/Npcs">NPC</a>
+      <a class="@A("/Entities/Shops")" asp-page="/Entities/Shops">商店</a>
+      <a class="@A("/Entities/Quests")" asp-page="/Entities/Quests">任务</a>
+      <a class="@A("/Entities/Gameplay")" asp-page="/Entities/Gameplay">玩法数值合集</a>
+
+      <div class="nav-sec">画面与素材</div>
+      <a class="@A("/Assets")" asp-page="/Assets/Index">UI/特效/音效索引</a>
+
+      <div class="nav-sec">商城与经济</div>
+      <a class="@A("/Economy/Mall")" asp-page="/Economy/Mall">商城 SKU</a>
+      <a class="@A("/Economy/Currency")" asp-page="/Economy/Currency">货币与调账</a>
+      <a class="@A("/Economy/Orders")" asp-page="/Economy/Orders">充值/补单</a>
+
+      <div class="nav-sec">世界与区服</div>
+      <a class="@A("/Realms")" asp-page="/Realms/Index">区服</a>
+      <a class="@A("/Realms/Merge")" asp-page="/Realms/Merge">合区计划</a>
+      <a class="@A("/Ops/Reload")" asp-page="/Ops/Reload">热重载</a>
+
+      <div class="nav-sec">运营</div>
+      <a class="@A("/Players")" asp-page="/Players/Online">在线玩家</a>
+      <a class="@A("/Players/Moderation")" asp-page="/Players/Moderation">封禁/禁言</a>
+      <a class="@A("/Mail")" asp-page="/Mail/Index">邮件</a>
+      <a class="@A("/Announcements")" asp-page="/Announcements/Index">公告</a>
+      <a class="@A("/Ops/Siege")" asp-page="/Ops/Siege">沙巴克</a>
+      <a class="@A("/Cdk")" asp-page="/Cdk/Index">CDK 卡密</a>
+
+      <div class="nav-sec">记录</div>
+      <a class="@A("/Audit")" asp-page="/Audit/Index">操作审计</a>
+
+      <div class="nav-sec">系统</div>
+      <a class="@A("/SysAdmin/Users")" asp-page="/SysAdmin/Users">管理员</a>
+      <a class="@A("/SysAdmin/Settings")" asp-page="/SysAdmin/Settings">连接设置</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h1>@ViewData["Title"]</h1>
+      <div class="muted">@user · <span class="badge">@role</span> · <a asp-page="/Account/Logout">退出</a></div>
+    </div>
+    @if (TempData["Flash"] is string flash)
+    {
+      <div class="flash">@flash</div>
+    }
+    @if (TempData["Error"] is string err)
+    {
+      <div class="flash err">@err</div>
+    }
+    @RenderBody()
+  </main>
+</div>
+}
+else
+{
+  <main class="main">@RenderBody()</main>
+}
+@RenderSection("Scripts", required: false)
+</body>
+</html>

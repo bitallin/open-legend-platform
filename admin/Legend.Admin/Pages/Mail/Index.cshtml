@@ -1,0 +1,31 @@
+@page
+@model Legend.Admin.Pages.Mail.IndexModel
+@{ ViewData["Title"] = "邮件"; }
+<div class="card">
+  <form method="post" class="row">
+    <div>
+      <label>范围</label>
+      <select asp-for="Scope"><option>All</option><option>Account</option><option>Character</option></select>
+    </div>
+    <div><label>目标（全服可空）</label><input asp-for="Target" /></div>
+    <div><label>标题</label><input asp-for="Title" /></div>
+    <div style="flex:2"><label>正文</label><input asp-for="Body" /></div>
+    <div style="flex:2"><label>附件 JSON</label><input asp-for="AttachmentsJson" placeholder='[{"itemId":"item_copper_coin","count":100}]' /></div>
+    <div><button class="btn btn-primary" type="submit">入队</button></div>
+  </form>
+  <p class="muted">队列存 Admin 库；Host <code>/admin/mail</code> 接线后可一键推送。当前状态 Queued 可演示运营闭环。</p>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>Id</th><th>范围</th><th>目标</th><th>标题</th><th>状态</th><th>操作者</th><th>时间</th></tr></thead>
+    <tbody>
+    @foreach (var m in Model.Jobs)
+    {
+      <tr>
+        <td>@m.Id</td><td>@m.Scope</td><td>@m.Target</td><td>@m.Title</td>
+        <td><span class="badge">@m.Status</span></td><td>@m.Actor</td><td>@m.CreatedAt.ToString("u")</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

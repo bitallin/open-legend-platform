@@ -1,0 +1,26 @@
+@page
+@model Legend.Admin.Pages.SystemPages.UsersModel
+@{ ViewData["Title"] = "管理员"; }
+<div class="card">
+  <form method="post" class="row">
+    <div><label>用户名</label><input asp-for="Username" /></div>
+    <div><label>密码</label><input asp-for="Password" type="password" /></div>
+    <div><label>角色</label>
+      <select asp-for="Role">
+        <option>Support</option><option>Operator</option><option>SuperAdmin</option>
+      </select>
+    </div>
+    <div><button class="btn btn-primary" type="submit">创建</button></div>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>Id</th><th>用户名</th><th>角色</th><th>启用</th><th>创建</th></tr></thead>
+    <tbody>
+    @foreach (var u in Model.Users)
+    {
+      <tr><td>@u.Id</td><td>@u.Username</td><td>@u.Role</td><td>@u.IsActive</td><td>@u.CreatedAt.ToString("u")</td></tr>
+    }
+    </tbody>
+  </table>
+</div>

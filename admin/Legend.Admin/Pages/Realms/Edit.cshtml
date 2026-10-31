@@ -1,0 +1,13 @@
+@page
+@model Legend.Admin.Pages.Realms.EditModel
+@{ ViewData["Title"] = "编辑区服"; }
+<div class="card">
+  <form method="post">
+    <label>RealmId（写入文件名 realm-*.json）</label>
+    <input asp-for="RealmId" />
+    <label>JSON</label>
+    <textarea class="code" asp-for="Content"></textarea>
+    <button class="btn btn-primary" type="submit">保存并刷新 catalog</button>
+    <a class="btn" asp-page="/Realms/Index">返回</a>
+  </form>
+</div>

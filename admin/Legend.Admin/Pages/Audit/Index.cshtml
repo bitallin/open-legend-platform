@@ -1,0 +1,21 @@
+@page
+@model Legend.Admin.Pages.Audit.IndexModel
+@{ ViewData["Title"] = "操作审计"; }
+<div class="card">
+  <form method="get" class="row">
+    <div><label>动作包含</label><input name="q" value="@Model.Q" /></div>
+    <div><button class="btn" type="submit">筛选</button></div>
+  </form>
+  <table class="data">
+    <thead><tr><th>Id</th><th>时间(UTC)</th><th>操作者</th><th>动作</th><th>目标</th><th>IP</th><th>详情</th></tr></thead>
+    <tbody>
+    @foreach (var a in Model.Logs)
+    {
+      <tr>
+        <td>@a.Id</td><td>@a.CreatedAt.ToString("u")</td><td>@a.Actor</td><td>@a.Action</td><td>@a.Target</td><td>@a.Ip</td>
+        <td class="muted" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@a.DetailJson</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

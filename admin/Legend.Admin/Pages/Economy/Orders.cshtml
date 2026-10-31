@@ -1,0 +1,40 @@
+@page
+@model Legend.Admin.Pages.Economy.OrdersModel
+@{ ViewData["Title"] = "充值 / 补单"; }
+<div class="card">
+  <h3>人工补单 / 直充代理</h3>
+  <form method="post" asp-page-handler="Manual" class="row">
+    <div><label>订单号</label><input asp-for="OrderId" /></div>
+    <div><label>账号 Id</label><input asp-for="AccountId" /></div>
+    <div><label>角色名</label><input asp-for="CharacterName" /></div>
+    <div><label>金额(分)</label><input asp-for="AmountCents" type="number" /></div>
+    <div><label>发放货币</label><input asp-for="CurrencyId" /></div>
+    <div><label>发放数量</label><input asp-for="GrantAmount" type="number" /></div>
+    <div><label>备注</label><input asp-for="Note" /></div>
+    <div><button class="btn btn-primary" type="submit">记录补单</button></div>
+  </form>
+  <form method="post" asp-page-handler="HostRecharge" class="row" style="margin-top:0.75rem">
+    <div><label>Host 直充角色名</label><input name="characterName" /></div>
+    <div><label>SKU / productId</label><input name="productId" value="yuanbao_60" /></div>
+    <div><label>数量</label><input name="quantity" type="number" value="1" /></div>
+    <div><button class="btn btn-success" type="submit">调用 Host /admin/recharge</button></div>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>订单</th><th>账号</th><th>角色</th><th>金额分</th><th>发放</th><th>状态</th><th>操作者</th><th>时间</th></tr></thead>
+    <tbody>
+    @foreach (var o in Model.Orders)
+    {
+      <tr>
+        <td>@o.OrderId</td><td>@o.AccountId</td><td>@o.CharacterName</td><td>@o.AmountCents</td>
+        <td>@o.GrantAmount @o.CurrencyId</td><td>@o.Status</td><td>@o.Actor</td><td>@o.CreatedAt.ToString("u")</td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>
+@if (!string.IsNullOrEmpty(Model.HostResponse))
+{
+  <div class="card"><pre>@Model.HostResponse</pre></div>
+}

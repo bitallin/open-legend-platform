@@ -1,0 +1,31 @@
+@page
+@model Legend.Admin.Pages.Entities.MapsModel
+@{ ViewData["Title"] = "地图"; }
+<div class="card">
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.Id</option>
+        }
+      </select>
+    </div>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>地图文件</th><th>大小</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var f in Model.Maps)
+    {
+      <tr>
+        <td><code>@f.RelativePath</code></td>
+        <td>@f.SizeBytes</td>
+        <td><a class="btn btn-sm" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@f.RelativePath">编辑</a></td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,15 @@
+@page "{id:int}"
+@model Legend.Admin.Pages.Assets.EditModel
+@{ ViewData["Title"] = "编辑资源清单"; }
+<div class="card">
+  <form method="post">
+    <input type="hidden" asp-for="Id" />
+    <label>名称</label><input asp-for="Name" />
+    <label>类型</label><input asp-for="Kind" />
+    <label>版本</label><input asp-for="VersionTag" />
+    <label>条目 JSON</label><textarea class="code" asp-for="EntriesJson"></textarea>
+    <label>备注</label><input asp-for="Notes" />
+    <button class="btn btn-primary" type="submit">更新</button>
+    <a class="btn" asp-page="/Assets/Index">返回</a>
+  </form>
+</div>

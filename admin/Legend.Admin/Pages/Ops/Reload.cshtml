@@ -1,0 +1,15 @@
+@page
+@model Legend.Admin.Pages.Ops.ReloadModel
+@{ ViewData["Title"] = "热重载版本包"; }
+<div class="card">
+  <p class="muted">调用 Host <code>POST /admin/reload-pack</code>。失败应回滚；见 docs/site 18。</p>
+  <form method="post">
+    <label>Manifest 路径（相对仓库或绝对）</label>
+    <input asp-for="ManifestPath" />
+    <button class="btn btn-primary" type="submit">执行热重载</button>
+  </form>
+  @if (!string.IsNullOrEmpty(Model.Response))
+  {
+    <pre style="margin-top:1rem">@Model.Response</pre>
+  }
+</div>

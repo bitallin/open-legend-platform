@@ -1,0 +1,11 @@
+@page
+@model Legend.Admin.Pages.Economy.MallModel
+@{ ViewData["Title"] = "商城 SKU"; }
+<div class="card">
+  <p class="muted">商城货架对齐 docs/site 12；当前以 shops / 专用商城配置编辑为主。支付走 Host payment + 本后台补单页。</p>
+  <div class="toolbar">
+    <a class="btn btn-primary" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="configs/shops.json">编辑 shops.json</a>
+    <a class="btn" asp-page="/Economy/Orders">充值订单/补单</a>
+  </div>
+  <pre style="max-height:420px;overflow:auto">@Model.ShopsJson</pre>
+</div>

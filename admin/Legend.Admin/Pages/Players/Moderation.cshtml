@@ -1,0 +1,33 @@
+@page
+@model Legend.Admin.Pages.Players.ModerationModel
+@{ ViewData["Title"] = "封禁 / 禁言"; }
+<div class="card">
+  <h3>封禁</h3>
+  <form method="post" asp-page-handler="Ban" class="row">
+    <div><label>账号用户名</label><input name="username" /></div>
+    <div><label>或角色名</label><input name="characterName" /></div>
+    <div><label>时长秒（0=永久）</label><input name="durationSeconds" type="number" value="0" /></div>
+    <div><label>原因</label><input name="reason" value="违规" /></div>
+    <div><label>动作</label>
+      <select name="banned"><option value="true">封禁</option><option value="false">解封</option></select>
+    </div>
+    <div><button class="btn btn-danger" type="submit">提交封禁</button></div>
+  </form>
+</div>
+<div class="card">
+  <h3>禁言</h3>
+  <form method="post" asp-page-handler="Mute" class="row">
+    <div><label>账号用户名</label><input name="username" /></div>
+    <div><label>或角色名</label><input name="characterName" /></div>
+    <div><label>时长秒</label><input name="durationSeconds" type="number" value="3600" /></div>
+    <div><label>原因</label><input name="reason" value="禁言" /></div>
+    <div><label>动作</label>
+      <select name="muted"><option value="true">禁言</option><option value="false">解除</option></select>
+    </div>
+    <div><button class="btn btn-primary" type="submit">提交禁言</button></div>
+  </form>
+</div>
+@if (!string.IsNullOrEmpty(Model.LastResponse))
+{
+  <div class="card"><pre>@Model.LastResponse</pre></div>
+}
