@@ -264,7 +264,7 @@ Schema 文件：
 
 测试：`dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --filter "FullyQualifiedName~ProtocolCatalog"`。
 
-### E7 — 热更与脚本边界收紧
+### E7 — 热更与脚本边界收紧（已完成）
 
 范围：把“坏配置回滚、Lua 异常不打崩移动循环、沙箱没有 IO”收成一组聚焦测试。不增加 `legend_api` 方法，不做定时脚本。若 E1 已覆盖回滚，本里程碑只补脚本侧缺口。
 

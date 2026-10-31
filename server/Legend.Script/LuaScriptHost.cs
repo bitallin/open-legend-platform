@@ -184,28 +184,36 @@ public sealed class LuaScriptHost
 
     private async Task OnPlayerEnteredWorldAsync(PlayerEnteredWorldEvent evt, CancellationToken ct)
     {
-        List<ServerNotice> noticesToDeliver;
-        lock (_luaLock)
+        List<ServerNotice> noticesToDeliver = new();
+        try
         {
-            DynValue fn = _luaVm.Globals.Get("on_player_enter");
-            if (fn.Type != DataType.Function)
-                return;
-
-            _bridge.ClearPendingNotices();
-
-            var playerTable = new Table(_luaVm)
+            lock (_luaLock)
             {
-                ["entity_id"] = evt.EntityId,
-                ["name"] = evt.CharacterName,
-                ["class_id"] = evt.ClassId,
-                ["map_id"] = evt.MapId,
-                ["x"] = evt.X,
-                ["y"] = evt.Y
-            };
+                DynValue fn = _luaVm.Globals.Get("on_player_enter");
+                if (fn.Type != DataType.Function)
+                    return;
 
-            _luaVm.Call(fn, playerTable);
-            noticesToDeliver = _bridge.PendingNotices.ToList();
-            _bridge.ClearPendingNotices();
+                _bridge.ClearPendingNotices();
+
+                var playerTable = new Table(_luaVm)
+                {
+                    ["entity_id"] = evt.EntityId,
+                    ["name"] = evt.CharacterName,
+                    ["class_id"] = evt.ClassId,
+                    ["map_id"] = evt.MapId,
+                    ["x"] = evt.X,
+                    ["y"] = evt.Y
+                };
+
+                _luaVm.Call(fn, playerTable);
+                noticesToDeliver = _bridge.PendingNotices.ToList();
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_player_enter failed: {ex.Message}");
+            return;
         }
 
         foreach (var notice in noticesToDeliver)
@@ -214,29 +222,37 @@ public sealed class LuaScriptHost
 
     private async Task OnMonsterKilledAsync(MonsterKilledEvent evt, CancellationToken ct)
     {
-        List<ServerNotice> noticesToDeliver;
-        lock (_luaLock)
+        List<ServerNotice> noticesToDeliver = new();
+        try
         {
-            DynValue fn = _luaVm.Globals.Get("on_kill");
-            if (fn.Type != DataType.Function)
-                return;
-
-            _bridge.ClearPendingNotices();
-            var ctx = new Table(_luaVm)
+            lock (_luaLock)
             {
-                ["killer_entity_id"] = evt.KillerEntityId,
-                ["killer_name"] = evt.KillerName,
-                ["killer_character_id"] = evt.KillerCharacterId,
-                ["victim_entity_id"] = evt.VictimEntityId,
-                ["victim_name"] = evt.VictimName,
-                ["monster_id"] = evt.MonsterId,
-                ["map_id"] = evt.MapId,
-                ["x"] = evt.X,
-                ["y"] = evt.Y
-            };
-            _luaVm.Call(fn, ctx);
-            noticesToDeliver = _bridge.PendingNotices.ToList();
-            _bridge.ClearPendingNotices();
+                DynValue fn = _luaVm.Globals.Get("on_kill");
+                if (fn.Type != DataType.Function)
+                    return;
+
+                _bridge.ClearPendingNotices();
+                var ctx = new Table(_luaVm)
+                {
+                    ["killer_entity_id"] = evt.KillerEntityId,
+                    ["killer_name"] = evt.KillerName,
+                    ["killer_character_id"] = evt.KillerCharacterId,
+                    ["victim_entity_id"] = evt.VictimEntityId,
+                    ["victim_name"] = evt.VictimName,
+                    ["monster_id"] = evt.MonsterId,
+                    ["map_id"] = evt.MapId,
+                    ["x"] = evt.X,
+                    ["y"] = evt.Y
+                };
+                _luaVm.Call(fn, ctx);
+                noticesToDeliver = _bridge.PendingNotices.ToList();
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_kill failed: {ex.Message}");
+            return;
         }
 
         if (evt.KillerSession != null)
@@ -248,46 +264,60 @@ public sealed class LuaScriptHost
 
     private Task OnLootPickedAsync(LootPickedEvent evt, CancellationToken ct)
     {
-        lock (_luaLock)
+        try
         {
-            DynValue fn = _luaVm.Globals.Get("on_loot");
-            if (fn.Type != DataType.Function)
-                return Task.CompletedTask;
-
-            _bridge.ClearPendingNotices();
-            var ctx = new Table(_luaVm)
+            lock (_luaLock)
             {
-                ["picker_name"] = evt.PickerName,
-                ["character_id"] = evt.CharacterId,
-                ["item_id"] = evt.ItemId,
-                ["count"] = evt.Count,
-                ["loot_entity_id"] = evt.LootEntityId,
-                ["map_id"] = evt.MapId
-            };
-            _luaVm.Call(fn, ctx);
-            _bridge.ClearPendingNotices();
+                DynValue fn = _luaVm.Globals.Get("on_loot");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+
+                _bridge.ClearPendingNotices();
+                var ctx = new Table(_luaVm)
+                {
+                    ["picker_name"] = evt.PickerName,
+                    ["character_id"] = evt.CharacterId,
+                    ["item_id"] = evt.ItemId,
+                    ["count"] = evt.Count,
+                    ["loot_entity_id"] = evt.LootEntityId,
+                    ["map_id"] = evt.MapId
+                };
+                _luaVm.Call(fn, ctx);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_loot failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }
 
     private Task OnNpcTalkedAsync(NpcTalkedEvent evt, CancellationToken ct)
     {
-        lock (_luaLock)
+        try
         {
-            DynValue fn = _luaVm.Globals.Get("on_talk");
-            if (fn.Type != DataType.Function)
-                return Task.CompletedTask;
-            _bridge.ClearPendingNotices();
-            var ctx = new Table(_luaVm)
+            lock (_luaLock)
             {
-                ["player_name"] = evt.PlayerName,
-                ["character_id"] = evt.CharacterId,
-                ["npc_id"] = evt.NpcId,
-                ["npc_name"] = evt.NpcName,
-                ["map_id"] = evt.MapId
-            };
-            _luaVm.Call(fn, ctx);
-            _bridge.ClearPendingNotices();
+                DynValue fn = _luaVm.Globals.Get("on_talk");
+                if (fn.Type != DataType.Function)
+                    return Task.CompletedTask;
+                _bridge.ClearPendingNotices();
+                var ctx = new Table(_luaVm)
+                {
+                    ["player_name"] = evt.PlayerName,
+                    ["character_id"] = evt.CharacterId,
+                    ["npc_id"] = evt.NpcId,
+                    ["npc_name"] = evt.NpcName,
+                    ["map_id"] = evt.MapId
+                };
+                _luaVm.Call(fn, ctx);
+                _bridge.ClearPendingNotices();
+            }
+        }
+        catch (Exception ex)
+        {
+            StructuredLogger.Error("LuaSandbox", $"on_talk failed: {ex.Message}");
         }
         return Task.CompletedTask;
     }
