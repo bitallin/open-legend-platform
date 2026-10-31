@@ -185,6 +185,133 @@ public sealed class MediaLibraryService(VersionPackService packs, AdminDbContext
         catch { return null; }
     }
 
+
+    public async Task<(bool ok, string message)> RestoreAsync(string id, string actor, string ip, CancellationToken ct = default)
+    {
+        var row = await db.MediaAssets.FindAsync([id], ct);
+        if (row is null) return (false, "不存在");
+        row.SoftDeleted = false;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await audit.WriteAsync(actor, "media.restore", id, new { row.FileName }, ip, ct);
+        return (true, "已恢复");
+    }
+
+    public async Task<(bool ok, string message)> HardDeleteAsync(string id, string actor, string ip, CancellationToken ct = default)
+    {
+        var row = await db.MediaAssets.FindAsync([id], ct);
+        if (row is null) return (false, "不存在");
+        try
+        {
+            var abs = ResolveAbsolute(row);
+            if (abs is not null) File.Delete(abs);
+            var thumb = ResolveThumbAbsolute(row);
+            if (thumb is not null && thumb != abs) File.Delete(thumb);
+        }
+        catch { /* best effort */ }
+        db.MediaAssets.Remove(row);
+        await db.SaveChangesAsync(ct);
+        await audit.WriteAsync(actor, "media.hard_delete", id, new { row.FileName, row.RelPath }, ip, ct);
+        return (true, "已彻底删除（库记录+磁盘）");
+    }
+
+    public async Task<(bool ok, string message)> UpdateMetaAsync(string id, string? kind, string? tags, string actor, string ip, CancellationToken ct = default)
+    {
+        var row = await db.MediaAssets.FindAsync([id], ct);
+        if (row is null) return (false, "不存在");
+        if (!string.IsNullOrWhiteSpace(kind) && Kinds.Contains(kind)) row.Kind = kind;
+        if (tags is not null) row.Tags = tags;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await audit.WriteAsync(actor, "media.meta", id, new { row.Kind, row.Tags }, ip, ct);
+        return (true, "已更新元数据");
+    }
+
+    public async Task<(bool ok, string message)> ReplaceFileAsync(string id, IFormFile file, string actor, string ip, CancellationToken ct = default)
+    {
+        var row = await db.MediaAssets.FindAsync([id], ct);
+        if (row is null) return (false, "不存在");
+        if (file.Length <= 0) return (false, "空文件");
+        if (file.Length > MaxBytesPerFile) return (false, $"超过 {MaxBytesPerFile / 1024 / 1024}MB 限制");
+        var ext = Path.GetExtension(file.FileName);
+        if (string.IsNullOrEmpty(ext) || !AllowedExt.Contains(ext))
+            return (false, "仅支持 PNG/JPG/WebP/GIF");
+
+        await using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        var bytes = ms.ToArray();
+        if (!LooksLikeImage(bytes, ext)) return (false, "文件头不是合法图片");
+
+        var safeExt = ext.ToLowerInvariant();
+        if (safeExt == ".jpeg") safeExt = ".jpg";
+        var packRoot = packs.GetPackRoot(row.PackId);
+        // remove old file if extension changes
+        var oldAbs = ResolveAbsolute(row);
+        var newRel = $"assets/library/{row.Id}{safeExt}";
+        var newAbs = Path.Combine(packRoot, newRel.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(newAbs)!);
+        await File.WriteAllBytesAsync(newAbs, bytes, ct);
+        if (oldAbs is not null && !string.Equals(oldAbs, newAbs, StringComparison.Ordinal) && File.Exists(oldAbs))
+            File.Delete(oldAbs);
+
+        int w = 0, h = 0;
+        string thumbRel = row.ThumbRelPath;
+        try
+        {
+            using var bitmap = SKBitmap.Decode(bytes);
+            if (bitmap is not null)
+            {
+                w = bitmap.Width; h = bitmap.Height;
+                float scale = Math.Min(160f / w, 160f / h);
+                int nw = Math.Max(1, (int)(w * scale));
+                int nh = Math.Max(1, (int)(h * scale));
+                using var resized = bitmap.Resize(new SKImageInfo(nw, nh), SKFilterQuality.Medium);
+                if (resized is not null)
+                {
+                    using var image = SKImage.FromBitmap(resized);
+                    using var data = image.Encode(SKEncodedImageFormat.Png, 90);
+                    thumbRel = $"assets/thumbs/{row.Id}.png";
+                    var thumbAbs = Path.Combine(packRoot, thumbRel.Replace('/', Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(Path.GetDirectoryName(thumbAbs)!);
+                    await using var fs = File.OpenWrite(thumbAbs);
+                    data.SaveTo(fs);
+                }
+            }
+        }
+        catch { }
+
+        row.RelPath = newRel;
+        row.ThumbRelPath = thumbRel;
+        row.FileName = Path.GetFileName(file.FileName);
+        row.Bytes = bytes.LongLength;
+        row.Width = w; row.Height = h;
+        row.Sha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        row.ContentType = safeExt switch
+        {
+            ".png" => "image/png",
+            ".jpg" => "image/jpeg",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            _ => file.ContentType
+        };
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await audit.WriteAsync(actor, "media.replace", id, new { row.FileName, row.Bytes }, ip, ct);
+        return (true, "已替换文件");
+    }
+
+    public async Task<(int okCount, List<string> errors)> BulkSoftDeleteAsync(IEnumerable<string> ids, string actor, string ip, CancellationToken ct = default)
+    {
+        int okCount = 0;
+        var errors = new List<string>();
+        foreach (var id in ids)
+        {
+            var (ok, msg) = await SoftDeleteAsync(id, actor, ip, ct);
+            if (ok) okCount++; else errors.Add($"{id}: {msg}");
+        }
+        return (okCount, errors);
+    }
+
     private static bool LooksLikeImage(byte[] bytes, string ext)
     {
         if (bytes.Length < 12) return false;

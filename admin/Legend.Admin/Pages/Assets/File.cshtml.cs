@@ -11,7 +11,7 @@ public class FileModel(MediaLibraryService media) : PageModel
     public async Task<IActionResult> OnGetAsync(string id, bool thumb = true, bool download = false, CancellationToken ct = default)
     {
         var asset = await media.FindAsync(id, ct);
-        if (asset is null || asset.SoftDeleted) return NotFound();
+        if (asset is null) return NotFound();
         var path = thumb ? media.ResolveThumbAbsolute(asset) : media.ResolveAbsolute(asset);
         if (path is null) return NotFound();
         var contentType = thumb && path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)

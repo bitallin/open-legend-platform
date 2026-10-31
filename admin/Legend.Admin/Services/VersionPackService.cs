@@ -3,12 +3,13 @@ using System.Text;
 using System.Text.Json;
 using Legend.Admin.Data;
 using Legend.Admin.Models;
+using System.Text.Encodings.Web;
 
 namespace Legend.Admin.Services;
 
 public sealed class VersionPackService(RepoPaths paths, AdminDbContext db)
 {
-    private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public IReadOnlyList<PackInfo> ListPacks()
     {
@@ -136,6 +137,72 @@ public sealed class VersionPackService(RepoPaths paths, AdminDbContext db)
             }
         }
         return Array.Empty<JsonElement>();
+    }
+
+
+    public async Task<(bool ok, string message)> CreateConfigFileAsync(string packId, string relativePath, string initialJson, string actor, string note, CancellationToken ct = default)
+    {
+        relativePath = relativePath.Replace('\\', '/').TrimStart('/');
+        if (!(relativePath.StartsWith("configs/", StringComparison.Ordinal) || relativePath.StartsWith("maps/", StringComparison.Ordinal) || relativePath == "manifest.json"))
+            return (false, "仅允许在 configs/ 或 maps/ 下新建");
+        if (!relativePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            return (false, "仅支持 .json");
+        try
+        {
+            var path = ResolveSafe(packId, relativePath);
+            if (File.Exists(path)) return (false, "文件已存在");
+            if (string.IsNullOrWhiteSpace(initialJson)) initialJson = "{}\n";
+            var (wok, wmsg, _) = await WriteAsync(packId, relativePath, initialJson, actor, note ?? "create", ct);
+            return wok ? (true, "已创建") : (false, wmsg);
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    public async Task<(bool ok, string message)> DeleteConfigFileAsync(string packId, string relativePath, string actor, bool allowNonEmpty, CancellationToken ct = default)
+    {
+        relativePath = relativePath.Replace('\\', '/');
+        try
+        {
+            var path = ResolveSafe(packId, relativePath);
+            if (!File.Exists(path)) return (false, "不存在");
+            var text = await File.ReadAllTextAsync(path, ct);
+            var trimmed = text.Trim();
+            if (!allowNonEmpty && trimmed is not ("{}" or "[]" or ""))
+            {
+                // allow delete if only whitespace / empty object/array
+                try
+                {
+                    using var doc = JsonDocument.Parse(trimmed);
+                    var root = doc.RootElement;
+                    bool empty = root.ValueKind == JsonValueKind.Object && !root.EnumerateObject().Any()
+                                 || root.ValueKind == JsonValueKind.Array && root.GetArrayLength() == 0;
+                    if (!empty) return (false, "文件非空，删除需勾选「允许非空」或先清空");
+                }
+                catch { return (false, "非空或非法 JSON，拒绝删除"); }
+            }
+            File.Delete(path);
+            db.ConfigRevisions.Add(new ConfigRevision
+            {
+                PackId = packId,
+                RelativePath = relativePath,
+                ContentHash = "deleted",
+                Note = "delete",
+                Actor = actor,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await db.SaveChangesAsync(ct);
+            return (true, "已删除 " + relativePath);
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    public async Task<(bool ok, string message)> CopyConfigFileAsync(string packId, string fromRel, string toRel, string actor, CancellationToken ct = default)
+    {
+        fromRel = fromRel.Replace('\\', '/');
+        toRel = toRel.Replace('\\', '/');
+        var (ok, msg, content) = await ReadAsync(packId, fromRel, ct);
+        if (!ok || content is null) return (false, msg);
+        return await CreateConfigFileAsync(packId, toRel, content, actor, $"copy from {fromRel}", ct);
     }
 
     private string ResolveSafe(string packId, string relativePath)

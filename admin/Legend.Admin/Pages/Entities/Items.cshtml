@@ -1,6 +1,7 @@
 @page
 @model Legend.Admin.Pages.Entities.ItemsModel
 @{ ViewData["Title"] = "物品/装备"; }
+<nav class="crumbs"><a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> / <span>@Model.Desc.TitleZh</span></nav>
 <div class="card">
   <form method="get" class="row">
     <div>
@@ -12,32 +13,65 @@
         }
       </select>
     </div>
+    <div>
+      <label>搜索</label>
+      <input type="text" name="q" value="@Model.Q" placeholder="ID / 名称" />
+    </div>
+    <div><button class="btn" type="submit">筛选</button></div>
   </form>
   <div class="toolbar">
-    <a class="btn btn-primary" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="configs/items.json">打开 JSON 编辑器</a>
-    <a class="btn" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-kind="item">素材库（物品）</a>
-    <span class="muted">文件 <code>configs/items.json</code> · 共 @Model.Rows.Count 条</span>
+    @if (Model.CanWrite)
+    {
+      <a class="btn btn-primary" asp-page="/Entities/Edit" asp-route-kind="items" asp-route-packId="@Model.PackId">新建</a>
+    }
+    <a class="btn" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@(Model.Desc.IsMapFiles ? "maps/novice_plain.json" : Model.Desc.RelativePath)">JSON 兜底</a>
+    <span class="muted">共 @Model.Rows.Count 条</span>
   </div>
 </div>
 <div class="card">
+  @if (Model.Rows.Count == 0)
+  {
+    <div class="empty">暂无数据。@if (Model.CanWrite){<a asp-page="/Entities/Edit" asp-route-kind="items" asp-route-packId="@Model.PackId">新建一条</a>}</div>
+  }
+  else
+  {
+  <div class="table-scroll">
   <table class="data">
-    <thead><tr><th>itemId</th><th>displayName</th><th>kind</th><th>slot</th><th>paperdoll</th><th>外观</th><th>摘要</th></tr></thead>
+    <thead>
+      <tr>
+        <th>图</th>
+        @foreach (var c in Model.Desc.ListColumns)
+        {
+          <th>@c</th>
+        }
+        <th>操作</th>
+      </tr>
+    </thead>
     <tbody>
-    @foreach (var row in Model.Rows)
+    @foreach (var r in Model.Rows)
     {
       <tr>
-        @foreach (var c in Model.Columns)
+        <td>@if (r.ThumbUrl is not null){<img class="thumb-sm lightbox-src" src="@r.ThumbUrl" alt="" />}else{<span class="muted">—</span>}</td>
+        @foreach (var c in Model.Desc.ListColumns)
         {
-          <td>@(row.ContainsKey(c) ? row[c] : "")</td>
+          <td>@(r.Cols.GetValueOrDefault(c) ?? "")</td>
         }
-        <td>
-          <a class="btn btn-sm" asp-page="/Assets/BindItem" asp-route-packId="@Model.PackId" asp-route-id="@row.GetValueOrDefault("itemId")">外观</a>
-          @if (!string.IsNullOrEmpty(row.GetValueOrDefault("_look")))
-          { <span class="badge ok">已绑</span> }
+        <td class="nowrap">
+          <a class="btn btn-sm btn-primary" asp-page="/Entities/Edit" asp-route-kind="items" asp-route-packId="@Model.PackId" asp-route-id="@r.Id">编辑</a>
+          <a class="btn btn-sm" asp-page="/Assets/BindItem" asp-route-packId="@Model.PackId" asp-route-id="@r.Id">外观</a>
+          @if (Model.CanWrite)
+          {
+            <form method="post" asp-page-handler="Delete" style="display:inline" onsubmit="return confirm('删除 @r.Id ？');">
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="id" value="@r.Id" />
+              <button class="btn btn-sm btn-danger" type="submit">删</button>
+            </form>
+          }
         </td>
-        <td class="muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@row.GetValueOrDefault("_preview")</td>
       </tr>
     }
     </tbody>
   </table>
+  </div>
+  }
 </div>

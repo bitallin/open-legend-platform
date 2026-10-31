@@ -1,0 +1,37 @@
+@model (string PackId, string Title, string Kind, string ListPage, List<Legend.Admin.Pages.Studio.IndexModel.StudioEntityRow> Rows)
+@{
+  var packId = Model.PackId;
+  var title = Model.Title;
+  var kind = Model.Kind;
+  var listPage = Model.ListPage;
+  var rows = Model.Rows;
+}
+<div class="card">
+  <div class="toolbar">
+    <h3 style="margin:0;flex:1">@title</h3>
+    <a class="btn" href="@listPage?packId=@packId">全部</a>
+    <a class="btn btn-primary" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@packId">新建</a>
+  </div>
+  @if (rows.Count == 0)
+  {
+    <div class="empty">暂无数据。<a asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@packId">新建一条</a></div>
+  }
+  else
+  {
+    <div class="entity-grid">
+    @foreach (var r in rows)
+    {
+      <a class="entity-card" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@packId" asp-route-id="@r.Id">
+        @if (r.ThumbUrl is not null)
+        { <img class="lightbox-src" src="@r.ThumbUrl" alt="" /> }
+        else
+        { <div class="ph">无图</div> }
+        <div class="meta">
+          <div class="name">@r.Name</div>
+          <div class="tiny muted"><code>@r.Id</code></div>
+        </div>
+      </a>
+    }
+    </div>
+  }
+</div>

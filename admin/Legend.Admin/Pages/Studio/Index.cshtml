@@ -1,0 +1,107 @@
+@page "/Studio"
+@model Legend.Admin.Pages.Studio.IndexModel
+@{ ViewData["Title"] = "内容总览"; }
+<nav class="crumbs"><a asp-page="/Index">仪表盘</a> / <span>内容总览</span></nav>
+
+<div class="card">
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.Id</option>
+        }
+      </select>
+    </div>
+    <div style="flex:2">
+      <label>全局搜索（ID / 名称 / 素材）</label>
+      <input type="text" name="q" value="@Model.Q" placeholder="例如 slime、木刀、login_bg" />
+    </div>
+    <div><button class="btn btn-primary" type="submit">搜索</button></div>
+  </form>
+</div>
+
+@if (Model.SearchHits.Count > 0)
+{
+<div class="card">
+  <h3>搜索结果 · @Model.SearchHits.Count</h3>
+  <div class="table-scroll">
+  <table class="data">
+    <thead><tr><th>预览</th><th>域</th><th>ID</th><th>名称</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var h in Model.SearchHits.Take(80))
+    {
+      <tr>
+        <td>@if (h.ThumbUrl is not null){<img class="thumb-sm lightbox-src" src="@h.ThumbUrl" alt="" />}else{<span class="muted">—</span>}</td>
+        <td><span class="badge">@h.KindZh</span></td>
+        <td><code>@h.Id</code></td>
+        <td>@h.Name</td>
+        <td>
+          @if (h.Kind == "media")
+          { <a class="btn btn-sm" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-q="@h.Id">素材库</a> }
+          else
+          { <a class="btn btn-sm" asp-page="/Entities/Edit" asp-route-kind="@h.Kind" asp-route-packId="@Model.PackId" asp-route-id="@h.Id">编辑</a> }
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+  </div>
+</div>
+}
+
+<div class="grid studio-stats">
+  <a class="stat studio-stat" href="/Entities/Monsters?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("monsters")</div><div class="l">怪物</div></a>
+  <a class="stat studio-stat" href="/Entities/Items?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("items")</div><div class="l">物品</div></a>
+  <a class="stat studio-stat" href="/Entities/Maps?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("maps")</div><div class="l">地图</div></a>
+  <a class="stat studio-stat" href="/Entities/Npcs?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("npcs")</div><div class="l">NPC</div></a>
+  <a class="stat studio-stat" href="/Entities/Skills?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("skills")</div><div class="l">技能</div></a>
+  <a class="stat studio-stat" href="/Entities/Quests?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("quests")</div><div class="l">任务</div></a>
+  <a class="stat studio-stat" href="/Entities/Shops?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("shops")</div><div class="l">商店</div></a>
+  <a class="stat studio-stat" href="/Entities/Loot?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("loot")</div><div class="l">掉落</div></a>
+  <a class="stat studio-stat" href="/Assets/Index?packId=@Model.PackId"><div class="v">@Model.Counts.GetValueOrDefault("media")</div><div class="l">素材</div></a>
+  <a class="stat studio-stat" href="/Assets/UiSkin?packId=@Model.PackId"><div class="v">@Model.UiSlotBound/@Model.UiSlotTotal</div><div class="l">UI 槽位已绑</div></a>
+  <a class="stat studio-stat" href="/Configs?packId=@Model.PackId"><div class="v">@Model.ConfigFileCount</div><div class="l">配置文件</div></a>
+</div>
+
+<div class="card">
+  <div class="toolbar">
+    <h3 style="margin:0;flex:1">素材库图库</h3>
+    <a class="btn btn-primary" asp-page="/Assets/Index" asp-route-packId="@Model.PackId">管理素材</a>
+  </div>
+  @if (Model.RecentMedia.Count == 0)
+  {
+    <div class="empty">暂无素材。<a asp-page="/Assets/Index" asp-route-packId="@Model.PackId">去上传</a></div>
+  }
+  else
+  {
+    <div class="gallery-strip">
+      @foreach (var a in Model.RecentMedia)
+      {
+        <a class="gallery-item" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-q="@a.Id" title="@a.FileName">
+          <img class="lightbox-src" src="/Assets/File?id=@a.Id&thumb=1" alt="@a.FileName" />
+          <span>@a.Kind</span>
+        </a>
+      }
+    </div>
+  }
+</div>
+
+@await Html.PartialAsync("_StudioEntityStrip", (Model.PackId, "怪物", "monsters", "/Entities/Monsters", Model.MonsterRows))
+@await Html.PartialAsync("_StudioEntityStrip", (Model.PackId, "物品/装备", "items", "/Entities/Items", Model.ItemRows))
+@await Html.PartialAsync("_StudioEntityStrip", (Model.PackId, "地图", "maps", "/Entities/Maps", Model.MapRows))
+@await Html.PartialAsync("_StudioEntityStrip", (Model.PackId, "NPC", "npcs", "/Entities/Npcs", Model.NpcRows))
+
+<div class="card">
+  <h3>快捷入口</h3>
+  <div class="toolbar">
+    <a class="btn" asp-page="/Entities/Skills" asp-route-packId="@Model.PackId">技能 (@Model.Counts.GetValueOrDefault("skills"))</a>
+    <a class="btn" asp-page="/Entities/Quests" asp-route-packId="@Model.PackId">任务 (@Model.Counts.GetValueOrDefault("quests"))</a>
+    <a class="btn" asp-page="/Entities/Shops" asp-route-packId="@Model.PackId">商店 (@Model.Counts.GetValueOrDefault("shops"))</a>
+    <a class="btn" asp-page="/Entities/Loot" asp-route-packId="@Model.PackId">掉落 (@Model.Counts.GetValueOrDefault("loot"))</a>
+    <a class="btn" asp-page="/Entities/Gameplay" asp-route-packId="@Model.PackId">玩法开关</a>
+    <a class="btn" asp-page="/Assets/UiSkin" asp-route-packId="@Model.PackId">UI 皮肤</a>
+    <a class="btn" asp-page="/Configs/Index" asp-route-packId="@Model.PackId">配置目录</a>
+  </div>
+</div>

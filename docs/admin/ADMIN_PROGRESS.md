@@ -1,6 +1,6 @@
 # Admin Console 进度
 
-> 时区：Asia/Shanghai · 分支：`feat/admin-console-web` · 更新：2026-11-01
+> 时区：Asia/Shanghai · 分支：`feat/admin-m10-content-studio` · 更新：2026-11-01（M10）
 
 | 时间 | 里程碑 | 状态 | 备注 |
 |------|--------|------|------|
@@ -14,6 +14,7 @@
 | 2026-11-01 | M7 素材配置 | **完成** | Assets UI/特效/音效索引编辑 |
 | 2026-11-01 | M8 README/自检/合入 | **完成** | PR #44 → `e3e767b` |
 | 2026-11-01 | M9 素材上传与外观绑定 | **完成** | 素材库上传/缩略图、怪物/物品/地图/UI 绑定、assets_manifest/ui_skin、客户端 `--assets-pack` |
+| 2026-11-01 | M10 内容总览+全 CRUD | **完成** | Content Studio、结构化 CRUD/克隆、素材硬删恢复替换、UI 槽 CRUD、玩法开关、配置文件增删复制 |
 
 ## 已完成
 
@@ -48,6 +49,12 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 | UI/特效/音效索引 | Assets/Catalog | 完成 | JSON 清单（保留） |
 | 素材库上传 | Assets/Index·File | 完成 | multipart + 缩略图 + MediaAssets |
 | 外观绑定 | Assets/Bind*·UiSkin | 完成 | 怪/物/图/UI 槽位表单 |
+| 内容总览 Studio | Studio | 完成 | 计数卡片+图库+实体条+全局搜索 |
+| 实体结构化 CRUD | Entities/Edit + 列表 | 完成 | 怪/物/图/NPC/技能/任务/店/掉落 增删改查克隆+缩略图 |
+| 素材库增强 | Assets/Index | 完成 | 恢复/硬删/替换/元数据/批量软删 |
+| UI 皮肤槽 CRUD | Assets/UiSkin | 完成 | 增删自定义槽+预览 |
+| 配置文件 CRUD | Configs | 完成 | 新建/删除/复制 JSON |
+| 玩法开关 | Entities/Gameplay | 完成 | client_assist/internal/pickup 结构化开关 |
 | 操作指南 | Assets/Guide · ASSET_LOOK_GUIDE | 完成 | 中文闭环说明 |
 | 区服/维护状态 | Realms/* | 完成 | 读写 `realms/*.json` |
 | 合区计划 | Realms/Merge | 完成 | 本地 MergePlans 表 |
@@ -68,7 +75,7 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 1. Host 侧 `/admin/mail|kick|notice|currency-adjust|whitelist` 尚未加厚；网站已用本地队列/UI，页面标明待接线。
 2. 真实支付渠道未接；订单/补单为运营演示闭环。
 3. 合区执行为计划表，不自动搬迁角色库（需后续运维脚本）。
-4. 结构化数值表单可继续增强；**外观绑定表单（M9）已覆盖画面素材闭环**。
+4. 结构化表单已覆盖主内容域（M10）；高级 JSON 仍作兜底。八方向 sheet 裁剪器仍未做。
 7. 八方向 sheet 帧编辑器（可视化裁剪）未做；当前绑定整图 + 可选 frame 元数据。
 5. 试玩服直连 `http://150.158.164.90/`：Caddy 已反代 Admin，但轻量侧 **TCP/80 入站到不了虚机**（本机/公网 curl 均 SYN 后无包；`tcpdump` 空）。需在轻量控制台确认/放行 HTTP 80（或改用 8080 并放行）。临时公网：`legend-admin-tunnel`（cloudflared quick tunnel，URL 见服务器 `/opt/legend-admin/DEPLOYED.txt`，重启会变）。
 6. DataProtection 密钥未加密落盘（本地开发警告）；生产应配置密钥环。
@@ -88,3 +95,9 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 ## 是否建议父代理通知用户验收
 
 实现与文档齐备、本地可启动且主菜单点通、已合入 main（PR #44 / `e3e767b`）：**是** — 建议父代理通知用户验收。
+
+## M10 验收（2026-11-01 Asia/Shanghai）
+
+- 本地冒烟：登录后 `/Studio` `/Entities/*` `/Entities/Edit` `/Assets` `/Assets/UiSkin` `/Configs` `/Entities/Gameplay` 均 200；怪物创建→改→克隆→删闭环 OK。
+- 合入后更新 SHA / 试玩服部署见本节下方或 DEPLOYED.txt。
+- **建议父代理通知用户验收：是**

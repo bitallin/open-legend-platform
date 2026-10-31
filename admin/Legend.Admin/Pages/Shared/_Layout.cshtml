@@ -24,6 +24,7 @@
       <a class="@A("/Index")" asp-page="/Index">仪表盘</a>
 
       <div class="nav-sec">内容配置</div>
+      <a class="@A("/Studio")" asp-page="/Studio/Index">内容总览</a>
       <a class="@A("/Configs")" asp-page="/Configs/Index">配置目录</a>
       <a class="@A("/Entities/Monsters")" asp-page="/Entities/Monsters">怪物</a>
       <a class="@A("/Entities/Loot")" asp-page="/Entities/Loot">爆率/掉落</a>
@@ -88,6 +89,8 @@ else
 {
   <main class="main">@RenderBody()</main>
 }
+<div id="lightbox" class="lightbox" hidden><img alt="preview" /><button type="button" class="btn" id="lightbox-close">关闭</button></div>
+<script src="~/js/admin.js" asp-append-version="true"></script>
 @RenderSection("Scripts", required: false)
 </body>
 </html>

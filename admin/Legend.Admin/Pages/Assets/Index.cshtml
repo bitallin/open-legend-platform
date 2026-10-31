@@ -1,8 +1,9 @@
 @page
 @model Legend.Admin.Pages.Assets.IndexModel
 @{ ViewData["Title"] = "素材库"; }
+<nav class="crumbs"><a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> / <span>素材库</span></nav>
 <div class="card">
-  <p class="muted">上传 PNG/WebP/JPG（单文件 ≤8MB）→ 入库预览 → 再到怪物/物品/地图/UI 皮肤页绑定外观。不绘制游戏画面；只接受运营上传的原创素材。</p>
+  <p class="muted">上传 PNG/WebP/JPG（≤8MB）→ 预览/改标签/替换 → 绑定到怪物/物品/地图/UI。支持软删、恢复；超管可硬删。</p>
   <form method="get" class="row">
     <div>
       <label>版本包</label>
@@ -27,12 +28,18 @@
       <label>搜索</label>
       <input type="text" name="q" value="@Model.Q" placeholder="文件名 / 标签 / id" />
     </div>
+    <div>
+      <label>&nbsp;</label>
+      <label class="tiny" style="display:flex;gap:.35rem;align-items:center;color:var(--text)">
+        <input type="checkbox" name="showDeleted" value="true" checked="@Model.ShowDeleted" onchange="this.form.submit()" /> 含已软删
+      </label>
+    </div>
     <div><button class="btn" type="submit">筛选</button></div>
   </form>
   <div class="toolbar">
     <a class="btn" asp-page="/Assets/UiSkin" asp-route-packId="@Model.PackId">UI 皮肤槽位</a>
     <a class="btn" asp-page="/Assets/Guide">操作指南</a>
-    <a class="btn" asp-page="/Assets/Catalog">JSON 清单（旧）</a>
+    <a class="btn" asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a>
     @if (Model.CanWrite)
     {
       <form method="post" asp-page-handler="Rebuild" style="display:inline">
@@ -40,7 +47,7 @@
         <button class="btn" type="submit">重建 manifest</button>
       </form>
     }
-    <span class="muted">共 @Model.Items.Count 条 · 磁盘 <code>version-packs/@Model.PackId/assets/</code></span>
+    <span class="muted">共 @Model.Items.Count 条</span>
   </div>
 </div>
 
@@ -74,40 +81,94 @@
 </div>
 }
 
+@if (Model.CanWrite)
+{
+<form method="post" asp-page-handler="BulkDelete" id="bulk-form">
+  <input type="hidden" name="packId" value="@Model.PackId" />
+  <input type="hidden" name="kind" value="@Model.Kind" />
+  <div class="toolbar"><button class="btn btn-danger" type="submit" onclick="return confirm('批量软删除勾选素材？');">批量软删勾选</button></div>
+</form>
+}
+
 <div class="card">
+  @if (Model.Items.Count == 0)
+  {
+    <div class="empty">暂无素材。<a href="#upload">去上传</a></div>
+  }
   <div class="asset-grid">
   @foreach (var a in Model.Items)
   {
-    <div class="asset-card">
-      <a asp-page="/Assets/File" asp-route-id="@a.Id" asp-route-thumb="false" target="_blank">
-        <img src="/Assets/File?id=@a.Id&thumb=true" alt="@a.FileName" loading="lazy" />
-      </a>
+    <div class="asset-card @(a.SoftDeleted ? "soft-deleted" : "")">
+      <img class="lightbox-src" src="/Assets/File?id=@a.Id&thumb=true" alt="@a.FileName" loading="lazy" />
       <div class="meta">
-        <div><span class="badge">@a.Kind</span> <code class="tiny">@a.Id[..8]</code></div>
+        <div>
+          <span class="badge">@a.Kind</span>
+          @if (a.SoftDeleted){ <span class="badge warn">已软删</span> }
+          <code class="tiny">@a.Id[..Math.Min(8,a.Id.Length)]</code>
+        </div>
         <div class="name" title="@a.FileName">@a.FileName</div>
         <div class="muted tiny">@(a.Width)x@(a.Height) · @(a.Bytes/1024)KB</div>
         @if (!string.IsNullOrEmpty(a.Tags))
+        { <div class="muted tiny">@a.Tags</div> }
+        @if (Model.CanWrite)
         {
-          <div class="muted tiny">@a.Tags</div>
+          <label class="tiny" style="display:flex;gap:.35rem;align-items:center;margin:.25rem 0">
+            <input type="checkbox" name="ids" value="@a.Id" form="bulk-form" /> 勾选
+          </label>
+          <details>
+            <summary class="tiny">改元数据 / 替换</summary>
+            <form method="post" asp-page-handler="Meta" class="tiny">
+              <input type="hidden" name="id" value="@a.Id" />
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="kind" value="@Model.Kind" />
+              <select name="newKind">
+                @foreach (var k in Legend.Admin.Services.MediaLibraryService.Kinds)
+                { <option value="@k" selected="@(k==a.Kind)">@k</option> }
+              </select>
+              <input type="text" name="tags" value="@a.Tags" placeholder="标签" />
+              <button class="btn btn-sm" type="submit">保存元数据</button>
+            </form>
+            <form method="post" enctype="multipart/form-data" asp-page-handler="Replace" class="tiny">
+              <input type="hidden" name="id" value="@a.Id" />
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="kind" value="@Model.Kind" />
+              <input type="file" name="file" accept="image/*" required />
+              <button class="btn btn-sm" type="submit">替换文件</button>
+            </form>
+          </details>
         }
         <div class="toolbar" style="margin:0.35rem 0 0">
           <a class="btn btn-sm" asp-page="/Assets/File" asp-route-id="@a.Id" asp-route-download="true">下载</a>
-          @if (Model.CanWrite)
+          @if (Model.CanWrite && !a.SoftDeleted)
           {
             <form method="post" asp-page-handler="Delete" style="display:inline" onsubmit="return confirm('软删除该素材？');">
               <input type="hidden" name="id" value="@a.Id" />
               <input type="hidden" name="packId" value="@Model.PackId" />
               <input type="hidden" name="kind" value="@Model.Kind" />
-              <button class="btn btn-sm btn-danger" type="submit">删除</button>
+              <button class="btn btn-sm btn-danger" type="submit">软删</button>
+            </form>
+          }
+          @if (Model.CanWrite && a.SoftDeleted)
+          {
+            <form method="post" asp-page-handler="Restore" style="display:inline">
+              <input type="hidden" name="id" value="@a.Id" />
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="kind" value="@Model.Kind" />
+              <button class="btn btn-sm btn-success" type="submit">恢复</button>
+            </form>
+          }
+          @if (Model.IsSuper)
+          {
+            <form method="post" asp-page-handler="HardDelete" style="display:inline" onsubmit="return confirm('彻底删除磁盘文件与记录？不可恢复');">
+              <input type="hidden" name="id" value="@a.Id" />
+              <input type="hidden" name="packId" value="@Model.PackId" />
+              <input type="hidden" name="kind" value="@Model.Kind" />
+              <button class="btn btn-sm btn-danger" type="submit">硬删</button>
             </form>
           }
         </div>
       </div>
     </div>
-  }
-  @if (Model.Items.Count == 0)
-  {
-    <p class="muted">暂无素材。请先上传 PNG/WebP/JPG。</p>
   }
   </div>
 </div>

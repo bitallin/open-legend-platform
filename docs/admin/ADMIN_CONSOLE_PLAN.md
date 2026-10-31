@@ -192,3 +192,47 @@
 | 指南 | `/Assets/Guide` · `docs/admin/ASSET_LOOK_GUIDE.md` |
 
 约束：不绘制游戏画面；不使用官方 WIL/WZL；每次上传/绑定审计。
+
+## 13. M10 内容总览（Content Studio）+ 全量结构化 CRUD
+
+> **状态（2026-11-01 Asia/Shanghai）：已完成实现与本地冒烟。**
+
+> 日期：2026-11-01 Asia/Shanghai · 目标：前沿传奇私服运营台「看得见、改得动」
+
+### 13.1 信息架构增量
+
+```
+内容配置
+├── 内容总览 /Studio          ← NEW：包级卡片计数 + 图库条 + 实体网格缩略图 + 全局搜索
+├── 配置目录 /Configs         ← 增强：新建 JSON / 删除空文件 / 复制重命名
+├── 怪物 /Entities/Monsters   ← 全 CRUD + 缩略图列 + 克隆
+├── 掉落 /Entities/Loot
+├── 物品 /Entities/Items
+├── 技能 /Entities/Skills
+├── 地图 /Entities/Maps       ← 文件级 CRUD（maps/*.json）
+├── NPC /Entities/Npcs
+├── 商店 /Entities/Shops
+├── 任务 /Entities/Quests
+└── 玩法开关 /Entities/Gameplay ← 结构化 toggles（internal/client_assist/pickup）+ JSON 跳转
+
+画面与素材
+├── 素材库                    ← 硬删/恢复/替换/改标签/批量删
+├── UI 皮肤                   ← 自定义槽位增删 + 预览
+└── …
+```
+
+### 13.2 共享内核
+
+| 组件 | 职责 |
+|------|------|
+| `JsonEntityStore` | 安全读写版本包内数组/templates[]；保留未知字段；增删改查克隆 |
+| `EntityDescriptors` | 各域文件路径、id 字段、列表列、默认模板、外观字段映射 |
+| `LookThumbHelper` | 从 look/iconAssetId/minimap 解析素材缩略图 URL |
+
+### 13.3 UX 条
+
+- 侧栏「内容总览」置顶于内容配置；面包屑 + flash；空态 CTA「新建」；图片 lightbox；表格横向滚动。
+
+### 13.4 非本里程碑
+
+真实支付；Host API 加厚；八方向 sheet 可视化裁剪；Avalonia 画面重做。

@@ -16,6 +16,7 @@ public class UiSkinModel(
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
     public JsonObject Skin { get; set; } = new();
+    public List<string> SlotNames { get; set; } = new();
     public List<MediaAsset> UiAssets { get; set; } = new();
     public bool CanWrite => User.IsInRole(AdminRoles.SuperAdmin) || User.IsInRole(AdminRoles.Operator);
 
@@ -24,6 +25,8 @@ public class UiSkinModel(
         Packs = packs.ListPacks().ToList();
         PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
         Skin = await manifest.ReadUiSkinAsync(PackId, ct);
+        if (Skin["slots"] is JsonObject slots)
+            SlotNames = slots.Select(kv => kv.Key).OrderBy(k => k).ToList();
         UiAssets = (await media.QueryAsync(PackId, "ui", null, ct: ct)).ToList();
         if (UiAssets.Count == 0)
             UiAssets = (await media.QueryAsync(PackId, "all", null, ct: ct)).ToList();
@@ -31,12 +34,31 @@ public class UiSkinModel(
 
     public async Task<IActionResult> OnPostAsync(string packId, string slot, string assetId, string note, CancellationToken ct)
     {
-        if (!(User.IsInRole(AdminRoles.SuperAdmin) || User.IsInRole(AdminRoles.Operator)))
-            return Forbid();
+        if (!CanWrite) return Forbid();
         var actor = User.Identity?.Name ?? "?";
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         await manifest.SaveUiSkinSlotAsync(packId, slot, assetId ?? "", note ?? "", actor, ip, ct);
         TempData["Flash"] = $"已绑定 UI 槽位 {slot}";
+        return RedirectToPage(new { packId });
+    }
+
+    public async Task<IActionResult> OnPostAddSlotAsync(string packId, string newSlot, CancellationToken ct)
+    {
+        if (!CanWrite) return Forbid();
+        var actor = User.Identity?.Name ?? "?";
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var (ok, msg) = await manifest.AddUiSkinSlotAsync(packId, newSlot, actor, ip, ct);
+        if (ok) TempData["Flash"] = msg; else TempData["Error"] = msg;
+        return RedirectToPage(new { packId });
+    }
+
+    public async Task<IActionResult> OnPostRemoveSlotAsync(string packId, string slot, CancellationToken ct)
+    {
+        if (!CanWrite) return Forbid();
+        var actor = User.Identity?.Name ?? "?";
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var (ok, msg) = await manifest.RemoveUiSkinSlotAsync(packId, slot, actor, ip, ct);
+        if (ok) TempData["Flash"] = msg; else TempData["Error"] = msg;
         return RedirectToPage(new { packId });
     }
 
