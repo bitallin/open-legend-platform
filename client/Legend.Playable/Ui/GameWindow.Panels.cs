@@ -74,6 +74,7 @@ public sealed partial class GameWindow
     private TextBlock _siegeBannerText = null!;
     private Border _ctxHost = null!;
     private StackPanel _ctxBody = null!;
+    private StackPanel _chatChannels = null!;
 
     private void AttachPhaseL(Grid hud)
     {
@@ -159,7 +160,8 @@ public sealed partial class GameWindow
         hud.Children.Add(bar);
 
         MirChrome.StyleField(_whisperName);
-        var channels = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        _chatChannels = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        var channels = _chatChannels;
         channels.Children.Add(Sys("喊话", () => _chatChannel = ChatChannel.ChatWorld));
         channels.Children.Add(Sys("私聊", () => _chatChannel = ChatChannel.ChatWhisper));
         channels.Children.Add(Sys("组队", () => _chatChannel = ChatChannel.ChatParty));
@@ -173,6 +175,7 @@ public sealed partial class GameWindow
         _panelHost.VerticalAlignment = VerticalAlignment.Center;
         _panelHost.Margin = new Avalonia.Thickness(0, 36, 0, 80);
         _panelHost.IsVisible = false;
+        _panelHost.ZIndex = 25; // above chat 「私聊对象」 row (Z=2)
         hud.Children.Add(_panelHost);
 
         // OL-16-N: split 「挂」badge + 「点回内挂设置」 link (two controls)
@@ -197,11 +200,25 @@ public sealed partial class GameWindow
         dock.Children.Insert(Math.Min(4, dock.Children.Count), _assistBackLink);
 
         var assistFloatBody = new StackPanel { Spacing = 8 };
-        assistFloatBody.Children.Add(new TextBlock
+        // OL-16-N preview: titlechip 「扩展」 on stone-gold chrome header
+        var assistHead = new Grid { Margin = new Avalonia.Thickness(0, 0, 0, 2) };
+        assistHead.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Auto));
+        assistHead.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        assistHead.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Auto));
+        var extChip = new Button { Content = "扩展", MinWidth = 44, MinHeight = 22, FontSize = 11, Padding = new Avalonia.Thickness(6, 1) };
+        MirChrome.StyleSys(extChip);
+        extChip.Click += (_, _) => ShowPanel("assist");
+        Grid.SetColumn(extChip, 0);
+        assistHead.Children.Add(extChip);
+        var hangTitle = new TextBlock
         {
             Text = "挂机中", FontSize = 14, FontWeight = FontWeight.Bold,
-            Foreground = Brush("#E8C872"), HorizontalAlignment = HorizontalAlignment.Center
-        });
+            Foreground = Brush("#E8C872"), HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(hangTitle, 1);
+        assistHead.Children.Add(hangTitle);
+        assistFloatBody.Children.Add(assistHead);
         assistFloatBody.Children.Add(new TextBlock
         {
             Text = "自动战斗运行中，请遵守本服公告",
@@ -446,6 +463,7 @@ public sealed partial class GameWindow
         };
         hud.Children.Add(_ctxHost);
 
+        channels.ZIndex = 2; // below center modals / panelHost — 私聊对象 must not cover bottom buttons
         hud.Children.Add(channels);
         channels.HorizontalAlignment = HorizontalAlignment.Left;
         channels.VerticalAlignment = VerticalAlignment.Bottom;
@@ -566,6 +584,15 @@ public sealed partial class GameWindow
             _partyInviteHost.IsVisible = pending;
         }
         _panelHost.IsVisible = _openPanel.Length > 0 && _session.Fsm.Phase == SessionPhase.InWorld;
+        if (_chatChannels != null)
+        {
+            // Keep channel chips usable on clear HUD; hide under center modal/panel so 私聊对象 cannot cover底钮
+            bool centerChrome = _panelHost.IsVisible
+                || (_assistFloat?.IsVisible == true)
+                || (_partyInviteHost?.IsVisible == true)
+                || (_confirmHost?.IsVisible == true);
+            _chatChannels.IsVisible = !centerChrome;
+        }
         if (!_panelHost.IsVisible && _confirmHost != null)
             HideConfirm();
         // party invite modal is independent of panel host — do not early-return solely on panel
@@ -2082,7 +2109,18 @@ public sealed partial class GameWindow
                         empty.Children.Add(emptyBtns);
                         _panelBody.Children.Add(empty);
                     }
-                    var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
+                    // OL-08-J: keep hint above foot buttons — never side-by-side (was overlapping)
+                    if (shown == 0)
+                    {
+                        _panelBody.Children.Add(new TextBlock
+                        {
+                            Text = "无匹配结果可清空筛选，或自行上架",
+                            FontSize = 10, Foreground = Brush("#A09070"),
+                            Margin = new Avalonia.Thickness(0, 10, 0, 2),
+                            HorizontalAlignment = HorizontalAlignment.Left
+                        });
+                    }
+                    var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Avalonia.Thickness(0, 6, 0, 0) };
                     var listBtn = new Button { Content = "上架物品", MinWidth = 88 };
                     MirChrome.StylePrimary(listBtn);
                     listBtn.Click += (_, _) => { _stallTab = "list"; _panelFp = ""; RefreshPhaseL(); };
@@ -2090,12 +2128,6 @@ public sealed partial class GameWindow
                     MirChrome.StyleNormal(refresh);
                     refresh.Click += async (_, _) => { await _session.RefreshMarketAsync(); _panelFp = ""; RefreshPhaseL(); };
                     foot.Children.Add(listBtn); foot.Children.Add(refresh);
-                    if (shown == 0)
-                        foot.Children.Add(new TextBlock
-                        {
-                            Text = "无匹配结果可清空筛选，或自行上架",
-                            FontSize = 10, Foreground = Brush("#A09070"), VerticalAlignment = VerticalAlignment.Center
-                        });
                     _panelBody.Children.Add(foot);
                 }
                 break;
@@ -2687,7 +2719,7 @@ public sealed partial class GameWindow
                     rightCol.Children.Add(acts);
                     rightCol.Children.Add(new TextBlock
                     {
-                        Text = "负重充足时一键提取",
+                        Text = "负重充足可一键提取",
                         FontSize = 10, Foreground = Brush("#A09070"),
                         Margin = new Avalonia.Thickness(0, 4, 0, 0)
                     });

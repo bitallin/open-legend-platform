@@ -17,6 +17,9 @@ public sealed partial class PlayableSession
         World.SetMap("novice_plain");
         Level = 42;
         ClassId = "warrior";
+        Mp = 200;
+        MaxMp = 300;
+        ExpToNext = 10000;
         GuildName = "石金先锋";
         GuildRank = "leader";
         PendingPartyId = "party-capture-01";
@@ -47,14 +50,14 @@ public sealed partial class PlayableSession
 
         _mails.Clear();
         var attach = new MailAttachment { Gold = 50000 };
-        attach.Items.Add(new MailAttachmentItem { ItemId = "hp_potion_small", Count = 10 });
-        attach.Items.Add(new MailAttachmentItem { ItemId = "iron_sword", Count = 1 });
+        attach.Items.Add(new MailAttachmentItem { ItemId = "item_hp_potion", Count = 10 });
+        attach.Items.Add(new MailAttachmentItem { ItemId = "item_iron_sword", Count = 1 });
         var mail = new MailEntry
         {
             MailId = "mail-capture-1",
             FromName = "系统",
             Subject = "沙巴克战利补给",
-            Body = "负重充足时可一键提取附件。绑/非绑示意见格内 Caption。",
+            Body = "负重充足可一键提取附件。绑/非绑示意见格内 Caption。",
             CreatedAtUnixMs = DateTimeOffset.UtcNow.AddHours(-5).ToUnixTimeMilliseconds(),
             IsRead = false,
             Claimed = false,
