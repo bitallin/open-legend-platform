@@ -84,7 +84,7 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 
 | 项 | 值 |
 |----|-----|
-| SHA | `81ae76c` |
+| SHA | `aa80e19` |
 | 路径 | `/opt/legend-admin` |
 | systemd | `legend-admin`（`127.0.0.1:7200`）· `legend-admin-tunnel`（cloudflared）· Caddy `:80,:8080`→7200 |
 | Host 联调 | `Legend__HostAdmin__*` 自 `legend-host` 的 `LEGEND_ADMIN_TOKEN` 注入（不入库） |
@@ -101,3 +101,13 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 - 本地冒烟：登录后 `/Studio` `/Entities/*` `/Entities/Edit` `/Assets` `/Assets/UiSkin` `/Configs` `/Entities/Gameplay` 均 200；怪物创建→改→克隆→删闭环 OK。
 - 合入后更新 SHA / 试玩服部署见本节下方或 DEPLOYED.txt。
 - **建议父代理通知用户验收：是**
+
+
+## M10 试玩服部署（2026-11-01 Asia/Shanghai）
+
+| 项 | 值 |
+|----|-----|
+| SHA | `aa80e19`（PR #47 squash） |
+| 路径 | `/opt/legend-admin` |
+| 冒烟 | 本机 7200：`/Studio` `/Entities/Monsters` `/Assets` `/Entities/Edit` `/Configs` `/Entities/Gameplay` `/Assets/UiSkin` 200；怪物创建/删探针 OK |
+| 公网 | `http://150.158.164.90/`（需轻量放行 80）；隧道见 `legend-admin-tunnel` / `DEPLOYED.txt` |
