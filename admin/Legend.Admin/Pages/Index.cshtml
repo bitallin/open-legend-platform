@@ -3,30 +3,41 @@
 @{
     ViewData["Title"] = "仪表盘";
 }
-<div class="grid">
-  <div class="stat"><div class="v">@Model.PackCount</div><div class="l">版本包</div></div>
-  <div class="stat"><div class="v">@Model.RealmCount</div><div class="l">区服</div></div>
-  <div class="stat"><div class="v">@Model.ConfigFileCount</div><div class="l">配置文件</div></div>
-  <div class="stat"><div class="v">@Model.AuditCount</div><div class="l">审计条数</div></div>
-  <div class="stat"><div class="v">@Model.MailQueued</div><div class="l">邮件队列</div></div>
-  <div class="stat"><div class="v">@Model.OnlineHint</div><div class="l">Host 在线</div></div>
+<section class="studio-hero">
+  <h2>运营总览</h2>
+  <p class="muted" style="margin:0">Host、版本包与近期审计一览。内容配置请进入「内容总览」。</p>
+  <div class="chips">
+    <span class="badge gold">Host @Model.HostBase</span>
+    <span class="badge @(Model.HasToken ? "ok" : "warn")">Token @(Model.HasToken ? "已配置" : "未配置")</span>
+    <span class="badge info">@Model.HostStatus</span>
+  </div>
+</section>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="v">@Model.PackCount</div><div class="l">版本包</div></div>
+  <div class="kpi"><div class="v">@Model.RealmCount</div><div class="l">区服</div></div>
+  <div class="kpi"><div class="v">@Model.ConfigFileCount</div><div class="l">配置文件</div></div>
+  <div class="kpi"><div class="v">@Model.AuditCount</div><div class="l">审计条数</div></div>
+  <div class="kpi"><div class="v">@Model.MailQueued</div><div class="l">邮件队列</div></div>
+  <div class="kpi"><div class="v">@Model.OnlineHint</div><div class="l">Host 在线</div></div>
 </div>
 
 <div class="card">
-  <h2>快速入口</h2>
-  <div class="toolbar">
-    <a class="btn" asp-page="/Configs/Index">改爆率/怪物配置</a>
+  <div class="card-head"><h2>快速入口</h2></div>
+  <div class="toolbar" style="margin:0">
+    <a class="btn btn-primary" asp-page="/Studio/Index">内容总览</a>
+    <a class="btn" asp-page="/Assets/Index">素材库</a>
+    <a class="btn" asp-page="/Entities/Monsters">怪物</a>
     <a class="btn" asp-page="/Players/Online">在线玩家</a>
     <a class="btn" asp-page="/Realms/Index">区服开合</a>
     <a class="btn" asp-page="/Economy/Orders">充值补单</a>
-    <a class="btn" asp-page="/Assets/Index">画面素材索引</a>
-    <a class="btn" asp-page="/Ops/Reload">热重载版本包</a>
+    <a class="btn" asp-page="/Ops/Reload">热重载</a>
   </div>
-  <p class="muted">Host Admin：@Model.HostBase · Token @(Model.HasToken ? "已配置" : "未配置") · @Model.HostStatus</p>
 </div>
 
 <div class="card">
-  <h2>最近审计</h2>
+  <div class="card-head"><h2>最近审计</h2></div>
+  <div class="table-scroll">
   <table class="data">
     <thead><tr><th>时间(UTC)</th><th>操作者</th><th>动作</th><th>目标</th></tr></thead>
     <tbody>
@@ -36,4 +47,5 @@
     }
     </tbody>
   </table>
+  </div>
 </div>

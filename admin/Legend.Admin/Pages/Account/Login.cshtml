@@ -4,19 +4,27 @@
     ViewData["Title"] = "登录";
     Layout = "_Layout";
 }
-<div class="login-wrap card">
-  <h1 style="margin-top:0">Open Legend 运营后台</h1>
-  <p class="muted">生产级配置与运维控制台（非游戏画面）</p>
-  @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-  {
-    <div class="flash err">@Model.ErrorMessage</div>
-  }
-  <form method="post">
-    <label>用户名</label>
-    <input asp-for="Username" autocomplete="username" />
-    <label>密码</label>
-    <input asp-for="Password" type="password" autocomplete="current-password" />
-    <button class="btn btn-primary" type="submit">登录</button>
-  </form>
-  <p class="muted" style="margin-top:1rem;font-size:0.8rem">开发种子：admin / LegendAdmin!2026</p>
+<div class="login-page">
+  <div class="login-panel">
+    <div class="logo-row">
+      <div class="brand-mark" style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#c9a227,#8b6914);display:grid;place-items:center;font-weight:800;color:#1a1408">OL</div>
+      <div>
+        <h1>Open Legend</h1>
+        <div class="tiny muted">生产级传奇运营控制台</div>
+      </div>
+    </div>
+    <p class="sub">配置素材、地图、怪物、装备与运营能力 —— 非游戏画面客户端。</p>
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+      <div class="flash err">@Model.ErrorMessage</div>
+    }
+    <form method="post">
+      <label>用户名</label>
+      <input asp-for="Username" autocomplete="username" autofocus />
+      <label>密码</label>
+      <input asp-for="Password" type="password" autocomplete="current-password" />
+      <button class="btn btn-primary" type="submit">登录控制台</button>
+    </form>
+    <p class="muted" style="margin-top:16px;font-size:12px;text-align:center">开发种子：admin / LegendAdmin!2026</p>
+  </div>
 </div>

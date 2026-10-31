@@ -1,6 +1,23 @@
 @page
 @model Legend.Admin.Pages.Assets.UiSkinModel
-@{ ViewData["Title"] = "UI 皮肤"; }
+@{
+  ViewData["Title"] = "UI 皮肤";
+  string Zh(string slot) => slot switch
+  {
+    "login_bg" => "登录背景",
+    "hud_frame" => "HUD 外框",
+    "hp_orb" => "生命球",
+    "mp_orb" => "魔法球",
+    "menu_ring" => "环形菜单",
+    "window_frame" => "窗口边框",
+    "item_icon_atlas" => "物品图标图集",
+    "chat_panel" => "聊天面板",
+    "minimap_frame" => "小地图框",
+    "bag_panel" => "背包面板",
+    "skill_bar" => "技能栏",
+    _ => slot
+  };
+}
 <nav class="crumbs"><a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> / <span>UI 皮肤</span></nav>
 <div class="card">
   <form method="get" class="row">
@@ -14,13 +31,13 @@
       </select>
     </div>
   </form>
-  <p class="muted">为登录底、HUD、红蓝球等槽位绑定素材；可增删自定义槽位。</p>
+  <p class="muted" style="margin:0">为登录底、HUD、红蓝球等槽位绑定素材；每个槽位以预览框展示，空槽显示虚线占位。</p>
 </div>
 
 @if (Model.CanWrite)
 {
 <div class="card">
-  <h3>新增槽位</h3>
+  <div class="card-head"><h3>新增槽位</h3></div>
   <form method="post" asp-page-handler="AddSlot" class="row">
     <input type="hidden" name="packId" value="@Model.PackId" />
     <div>
@@ -32,65 +49,54 @@
 </div>
 }
 
-<div class="card">
-  <div class="table-scroll">
-  <table class="data">
-    <thead><tr><th>预览</th><th>槽位</th><th>素材</th><th>备注</th><th></th></tr></thead>
-    <tbody>
-    @foreach (var slot in Model.SlotNames)
-    {
-      var aid = Model.SlotAssetId(slot);
-      <tr>
-        <td>
-          @if (!string.IsNullOrEmpty(aid))
-          { <img class="thumb-sm lightbox-src" src="/Assets/File?id=@aid&thumb=1" alt="" /> }
-          else { <span class="muted">—</span> }
-        </td>
-        <td><code>@slot</code></td>
-        <td>
-          @if (Model.CanWrite)
-          {
-            <form method="post" class="row" style="margin:0">
-              <input type="hidden" name="packId" value="@Model.PackId" />
-              <input type="hidden" name="slot" value="@slot" />
-              <div style="min-width:220px">
-                <select name="assetId">
-                  <option value="">（清空）</option>
-                  @foreach (var a in Model.UiAssets)
-                  {
-                    <option value="@a.Id" selected="@(a.Id==aid)">@a.FileName (@a.Id[..8])</option>
-                  }
-                </select>
-              </div>
-              <div style="min-width:140px">
-                <input type="text" name="note" value="@Model.SlotNote(slot)" placeholder="备注" />
-              </div>
-              <div><button class="btn btn-sm btn-primary" type="submit">保存</button></div>
-            </form>
-          }
-          else
-          {
-            <code>@aid</code>
-          }
-        </td>
-        <td class="muted">@Model.SlotNote(slot)</td>
-        <td>
-          @if (Model.CanWrite)
-          {
-            <form method="post" asp-page-handler="RemoveSlot" onsubmit="return confirm('删除槽位 @slot？');">
-              <input type="hidden" name="packId" value="@Model.PackId" />
-              <input type="hidden" name="slot" value="@slot" />
-              <button class="btn btn-sm btn-danger" type="submit">删槽</button>
-            </form>
-          }
-        </td>
-      </tr>
-    }
-    </tbody>
-  </table>
+@if (Model.SlotNames.Count == 0)
+{
+  <div class="card"><div class="empty">暂无槽位，请先添加。</div></div>
+}
+else
+{
+<div class="slot-board">
+@foreach (var slot in Model.SlotNames)
+{
+  var aid = Model.SlotAssetId(slot);
+  <div class="slot-card">
+    <div class="slot-frame">
+      @if (!string.IsNullOrEmpty(aid))
+      { <img class="lightbox-src" src="/Assets/File?id=@aid&thumb=1" alt="@slot" /> }
+      else
+      { <div class="slot-empty">未绑定<br/><strong>@Zh(slot)</strong></div> }
+    </div>
+    <div class="slot-body">
+      <div class="slot-title">@Zh(slot)</div>
+      <div class="slot-key">@slot</div>
+      @if (Model.CanWrite)
+      {
+        <form method="post">
+          <input type="hidden" name="packId" value="@Model.PackId" />
+          <input type="hidden" name="slot" value="@slot" />
+          <label>素材</label>
+          <select name="assetId" data-preview-target="prev-@slot">
+            <option value="">（清空）</option>
+            @foreach (var a in Model.UiAssets)
+            {
+              <option value="@a.Id" selected="@(a.Id==aid)">@a.FileName (@a.Id[..Math.Min(8,a.Id.Length)])</option>
+            }
+          </select>
+          <label>备注</label>
+          <input type="text" name="note" value="@Model.SlotNote(slot)" placeholder="备注" />
+          <div class="toolbar" style="margin:0">
+            <button class="btn btn-sm btn-primary" type="submit">保存</button>
+            <button class="btn btn-sm btn-danger" type="submit" formaction="?handler=RemoveSlot" formmethod="post" onclick="return confirm('删除槽位 @slot？');">删槽</button>
+          </div>
+        </form>
+      }
+      else
+      {
+        <div class="muted tiny">@aid</div>
+        <div class="muted tiny">@Model.SlotNote(slot)</div>
+      }
+    </div>
   </div>
-  @if (Model.SlotNames.Count == 0)
-  {
-    <div class="empty">暂无槽位，请先添加。</div>
-  }
+}
 </div>
+}

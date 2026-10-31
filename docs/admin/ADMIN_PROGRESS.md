@@ -1,6 +1,6 @@
 # Admin Console 进度
 
-> 时区：Asia/Shanghai · 分支：`feat/admin-m10-content-studio` · 更新：2026-11-01（M10）
+> 时区：Asia/Shanghai · 分支：`feat/admin-m11-visual-redesign` · 更新：2026-11-01（M11）
 
 | 时间 | 里程碑 | 状态 | 备注 |
 |------|--------|------|------|
@@ -15,6 +15,7 @@
 | 2026-11-01 | M8 README/自检/合入 | **完成** | PR #44 → `e3e767b` |
 | 2026-11-01 | M9 素材上传与外观绑定 | **完成** | 素材库上传/缩略图、怪物/物品/地图/UI 绑定、assets_manifest/ui_skin、客户端 `--assets-pack` |
 | 2026-11-01 | M10 内容总览+全 CRUD | **完成** | Content Studio、结构化 CRUD/克隆、素材硬删恢复替换、UI 槽 CRUD、玩法开关、配置文件增删复制 |
+| 2026-11-01 | M11 视觉体系重做 | **完成** | Design tokens + 壳层、Studio 素材墙/实体板、卡片列表、素材拖拽、编辑双栏预览、UI 槽位板、登录面板；见 `ADMIN_UI_VISUAL.md` |
 
 ## 已完成
 
@@ -111,3 +112,11 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 | 路径 | `/opt/legend-admin` |
 | 冒烟 | 本机 7200：`/Studio` `/Entities/Monsters` `/Assets` `/Entities/Edit` `/Configs` `/Entities/Gameplay` `/Assets/UiSkin` 200；怪物创建/删探针 OK |
 | 公网 | `http://150.158.164.90/`（需轻量放行 80）；隧道见 `legend-admin-tunnel` / `DEPLOYED.txt` |
+
+
+## M11 验收（2026-11-01 Asia/Shanghai）
+
+- 视觉：生产级 ops-console（图像优先、卡片主视图、石金深色壳层）；规范见 `docs/admin/ADMIN_UI_VISUAL.md`
+- 冒烟：登录后 `/` `/Studio` `/Entities/Monsters` `/Assets` `/Assets/UiSkin` `/Entities/Edit` `/Account/Login` 200；怪物 CRUD 仍可用
+- 截图：`docs/admin/screenshots-m11/`
+- **建议父代理通知用户验收：是**

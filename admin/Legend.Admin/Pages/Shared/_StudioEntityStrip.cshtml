@@ -7,9 +7,10 @@
   var rows = Model.Rows;
 }
 <div class="card">
-  <div class="toolbar">
-    <h3 style="margin:0;flex:1">@title</h3>
+  <div class="card-head">
+    <h3>@title</h3>
     <a class="btn" href="@listPage?packId=@packId">全部</a>
+    <a class="btn" href="@listPage?packId=@packId&missingOnly=true">缺图</a>
     <a class="btn btn-primary" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@packId">新建</a>
   </div>
   @if (rows.Count == 0)
@@ -18,17 +19,24 @@
   }
   else
   {
-    <div class="entity-grid">
+    <div class="entity-board">
     @foreach (var r in rows)
     {
-      <a class="entity-card" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@packId" asp-route-id="@r.Id">
-        @if (r.ThumbUrl is not null)
-        { <img class="lightbox-src" src="@r.ThumbUrl" alt="" /> }
-        else
-        { <div class="ph">无图</div> }
-        <div class="meta">
-          <div class="name">@r.Name</div>
-          <div class="tiny muted"><code>@r.Id</code></div>
+      <a class="ecard @(r.ThumbUrl is null ? "missing" : "")" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@packId" asp-route-id="@r.Id">
+        <div class="ecard-preview">
+          @if (r.ThumbUrl is not null)
+          { <img class="lightbox-src" src="@r.ThumbUrl" alt="" loading="lazy" /> }
+          else
+          {
+            <div class="empty-art">
+              <strong>缺外观</strong>
+              <span>点此配置 / 上传</span>
+            </div>
+          }
+          <div class="ecard-overlay">
+            <div class="name">@r.Name</div>
+            <div class="id">@r.Id</div>
+          </div>
         </div>
       </a>
     }

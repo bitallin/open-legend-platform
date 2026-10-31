@@ -21,12 +21,16 @@ public abstract class EntityListModelBase(
     public List<Row> Rows { get; set; } = new();
     public EntityDescriptor Desc => Descriptor;
     public bool CanWrite => User.IsInRole(AdminRoles.SuperAdmin) || User.IsInRole(AdminRoles.Operator);
+    public string ViewMode { get; set; } = "cards";
+    public bool MissingOnly { get; set; }
 
-    public async Task OnGetAsync(string? packId, string? q, CancellationToken ct)
+    public async Task OnGetAsync(string? packId, string? q, string? view, bool missingOnly = false, CancellationToken ct = default)
     {
         Packs = packs.ListPacks().ToList();
         PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
         Q = q?.Trim() ?? "";
+        ViewMode = string.Equals(view, "table", StringComparison.OrdinalIgnoreCase) ? "table" : "cards";
+        MissingOnly = missingOnly;
         var assetMap = await thumbs.LoadPackAssetsAsync(PackId, ct);
         var (ok, _, list) = await store.ListAsync(PackId, Descriptor, ct);
         if (!ok) return;
@@ -45,7 +49,9 @@ public abstract class EntityListModelBase(
             var cols = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var c in Descriptor.ListColumns)
                 cols[c] = JsonEntityStore.GetStr(e, c);
-            Rows.Add(new Row(id, name, cols, thumbs.ThumbUrlForEntity(e, Descriptor, assetMap)));
+            var thumb = thumbs.ThumbUrlForEntity(e, Descriptor, assetMap);
+            if (MissingOnly && thumb is not null) continue;
+            Rows.Add(new Row(id, name, cols, thumb));
         }
     }
 
