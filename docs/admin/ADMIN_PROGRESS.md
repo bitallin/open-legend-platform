@@ -1,6 +1,6 @@
 # Admin Console 进度
 
-> 时区：Asia/Shanghai · 分支：`feat/admin-m11-visual-redesign` · 更新：2026-11-01（M11）
+> 时区：Asia/Shanghai · 分支：`main` tip `945c157` · 更新：2026-11-01（M11）
 
 | 时间 | 里程碑 | 状态 | 备注 |
 |------|--------|------|------|
@@ -15,7 +15,8 @@
 | 2026-11-01 | M8 README/自检/合入 | **完成** | PR #44 → `e3e767b` |
 | 2026-11-01 | M9 素材上传与外观绑定 | **完成** | 素材库上传/缩略图、怪物/物品/地图/UI 绑定、assets_manifest/ui_skin、客户端 `--assets-pack` |
 | 2026-11-01 | M10 内容总览+全 CRUD | **完成** | Content Studio、结构化 CRUD/克隆、素材硬删恢复替换、UI 槽 CRUD、玩法开关、配置文件增删复制 |
-| 2026-11-01 | M11 视觉体系重做 | **完成** | Design tokens + 壳层、Studio 素材墙/实体板、卡片列表、素材拖拽、编辑双栏预览、UI 槽位板、登录面板；见 `ADMIN_UI_VISUAL.md` |
+| 2026-11-01 | M11 视觉体系重做 | **完成** | Design tokens + 壳层、Studio 素材墙/实体板、卡片列表、素材拖拽、编辑双栏预览、UI 槽位板、登录面板；见 `ADMIN_UI_VISUAL.md`；PR #48 → `945c157` |
+| 2026-11-01 | M11 试玩服部署 | **完成** | `/opt/legend-admin` @ 150.158.164.90；Login 200；怪物 CRUD 探针 OK；截图 `docs/admin/screenshots-m11/` |
 
 ## 已完成
 
