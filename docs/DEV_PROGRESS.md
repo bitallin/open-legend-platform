@@ -89,3 +89,5 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 未做（产品化加深，非阻塞）：商城多货币履约、天赋战斗效果 MsgId、英雄 AI/完整 UI、内挂默认开、Avalonia 观感（仍等用户定稿）。
 
+- 2026-10-31：审查加固合入 #30 → `06defcc`。试玩服 `150.158.164.90:7100` 已升至该 tip；CliClient M3 冒烟通过。Windows `dist/windows-player` 已在本机构建对齐 `06defcc`（用户机暂不可达时包在仓库 `dist/windows-player` / `/tmp/windows-player-06defcc.tar.gz`）。矩阵仍 100%。协议仍是 1.21.0。
+
