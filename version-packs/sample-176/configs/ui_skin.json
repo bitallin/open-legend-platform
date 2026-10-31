@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "packId": "sample-176",
+  "slots": {
+    "login_bg": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "hud_frame": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "hp_orb": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "mp_orb": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "menu_ring": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "window_frame": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "item_icon_atlas": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "chat_panel": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "minimap_frame": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    },
+    "button_primary": {
+      "assetId": "",
+      "note": "",
+      "publishedPath": ""
+    }
+  }
+}

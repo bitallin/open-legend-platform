@@ -1,0 +1,53 @@
+@page "{packId}/{id}"
+@model Legend.Admin.Pages.Assets.BindMonsterModel
+@{ ViewData["Title"] = "怪物外观 · " + Model.DisplayName; }
+<div class="card">
+  <p><a asp-page="/Entities/Monsters" asp-route-packId="@Model.PackId">← 怪物列表</a>
+     · <code>@Model.MonsterId</code> · @Model.DisplayName</p>
+  <p class="muted">绑定后写入 <code>configs/monsters.json</code> 的 <code>look</code> 对象，并复制到 <code>assets/monsters/</code>。</p>
+</div>
+<div class="card">
+  <form method="post">
+    <div class="row">
+      <div>
+        <label>精灵 / Sheet（spriteAssetId）</label>
+        <select asp-for="SpriteAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets)
+          {
+            <option value="@a.Id">@a.FileName (@a.Kind) @a.Width×@a.Height</option>
+          }
+        </select>
+        @if (!string.IsNullOrEmpty(Model.SpriteAssetId))
+        { <img class="thumb-sm" src="/Assets/File?id=@Model.SpriteAssetId&thumb=true" /> }
+      </div>
+      <div>
+        <label>图标（iconAssetId）</label>
+        <select asp-for="IconAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets)
+          {
+            <option value="@a.Id">@a.FileName (@a.Kind)</option>
+          }
+        </select>
+        @if (!string.IsNullOrEmpty(Model.IconAssetId))
+        { <img class="thumb-sm" src="/Assets/File?id=@Model.IconAssetId&thumb=true" /> }
+      </div>
+    </div>
+    <div class="row">
+      <div><label>sheetKey（可选，对应内置 actor 名）</label><input asp-for="SheetKey" placeholder="slime / boar / bone…" /></div>
+      <div><label>frameW</label><input asp-for="FrameW" type="number" /></div>
+      <div><label>frameH</label><input asp-for="FrameH" type="number" /></div>
+      <div><label>directions</label><input asp-for="Directions" type="number" placeholder="5 或 8" /></div>
+      <div><label>framesPerDir</label><input asp-for="FramesPerDir" type="number" /></div>
+    </div>
+    @if (Model.CanWrite)
+    {
+      <button class="btn btn-primary" type="submit">保存外观</button>
+    }
+    else
+    {
+      <p class="muted">Support 只读</p>
+    }
+  </form>
+</div>

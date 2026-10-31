@@ -1,0 +1,33 @@
+@page "{packId}/{id}"
+@model Legend.Admin.Pages.Assets.BindItemModel
+@{ ViewData["Title"] = "物品外观 · " + Model.DisplayName; }
+<div class="card">
+  <p><a asp-page="/Entities/Items" asp-route-packId="@Model.PackId">← 物品列表</a>
+     · <code>@Model.ItemId</code> · @Model.DisplayName</p>
+</div>
+<div class="card">
+  <form method="post">
+    <div class="row">
+      <div>
+        <label>图标 iconAssetId</label>
+        <select asp-for="IconAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets) { <option value="@a.Id">@a.FileName (@a.Kind)</option> }
+        </select>
+        @if (!string.IsNullOrEmpty(Model.IconAssetId)) { <img class="thumb-sm" src="/Assets/File?id=@Model.IconAssetId&thumb=true" /> }
+      </div>
+      <div>
+        <label>地面掉落 dropSpriteAssetId</label>
+        <select asp-for="DropSpriteAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets) { <option value="@a.Id">@a.FileName (@a.Kind)</option> }
+        </select>
+      </div>
+      <div>
+        <label>paperdoll 层 id</label>
+        <input asp-for="Paperdoll" placeholder="wep_sword / arm_plate / helm_iron…" />
+      </div>
+    </div>
+    @if (Model.CanWrite) { <button class="btn btn-primary" type="submit">保存外观</button> }
+  </form>
+</div>

@@ -55,3 +55,17 @@ data/admin/
 
 admin/**/bin/
 admin/**/obj/
+
+# Admin media library uploads (keep .gitkeep)
+version-packs/*/assets/library/*
+!version-packs/*/assets/library/.gitkeep
+version-packs/*/assets/thumbs/*
+!version-packs/*/assets/thumbs/.gitkeep
+version-packs/*/assets/ui/*
+!version-packs/*/assets/ui/.gitkeep
+version-packs/*/assets/monsters/*
+!version-packs/*/assets/monsters/.gitkeep
+version-packs/*/assets/items/*
+!version-packs/*/assets/items/.gitkeep
+version-packs/*/assets/maps/**
+!version-packs/*/assets/maps/.gitkeep

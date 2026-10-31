@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Avalonia;
+using Legend.Playable.Data;
 using Legend.Playable.Ui;
 
 namespace Legend.Playable;
@@ -30,6 +31,9 @@ public static class Program
         }
 
         AppHost.Options = options;
+        PackAssetOverrides.TryInitialize(string.IsNullOrWhiteSpace(options.AssetsPack)
+            ? Environment.GetEnvironmentVariable("LEGEND_ASSETS_PACK")
+            : options.AssetsPack);
         if (options.ShowHelp)
         {
             AttachParentConsole();

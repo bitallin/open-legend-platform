@@ -137,3 +137,24 @@ public sealed class RechargeOrderNote
     public string Note { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+/// <summary>Uploaded media file index. Disk under version-packs/.../assets is source of truth.</summary>
+public sealed class MediaAsset
+{
+    public string Id { get; set; } = ""; // guid hex
+    public string PackId { get; set; } = "sample-classic";
+    public string Kind { get; set; } = "other"; // ui|monster|item|map_tile|sfx_placeholder|vfx|other
+    public string FileName { get; set; } = "";
+    public string RelPath { get; set; } = ""; // relative to pack root, e.g. assets/library/{id}.png
+    public string ThumbRelPath { get; set; } = "";
+    public string ContentType { get; set; } = "application/octet-stream";
+    public long Bytes { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public string Sha256 { get; set; } = "";
+    public string Tags { get; set; } = "";
+    public bool SoftDeleted { get; set; }
+    public string CreatedBy { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

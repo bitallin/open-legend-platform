@@ -1,0 +1,23 @@
+@page
+@model Legend.Admin.Pages.Assets.GuideModel
+@{ ViewData["Title"] = "画面与素材 · 操作指南"; }
+<div class="card">
+  <h2>如何配置地图 / 界面 / 怪物 / 装备模样</h2>
+  <ol class="guide">
+    <li><strong>上传</strong>：打开 <a asp-page="/Assets/Index">素材库</a>，选择类型（ui / monster / item / map_tile），多选 PNG/WebP/JPG 上传（≤8MB）。系统校验文件头、生成缩略图、按 SHA256 去重，写入 <code>version-packs/&lt;包&gt;/assets/library/</code>。</li>
+    <li><strong>入库索引</strong>：上传后自动重建 <code>configs/assets_manifest.json</code>；也可点「重建 manifest」。</li>
+    <li><strong>绑定外观</strong>：
+      <ul>
+        <li>怪物 → <a asp-page="/Entities/Monsters">怪物列表</a>点「外观」：精灵图 / 图标 / 可选帧宽高与方向数</li>
+        <li>物品装备 → <a asp-page="/Entities/Items">物品列表</a>点「外观」：图标、掉落外观、paperdoll 层 id</li>
+        <li>地图 → <a asp-page="/Entities/Maps">地图列表</a>点「外观」：地砖图集、小地图、远景</li>
+        <li>界面 → <a asp-page="/Assets/UiSkin">UI 皮肤槽位</a>：login_bg、hp_orb、hud_frame…</li>
+      </ul>
+    </li>
+    <li><strong>持久化</strong>：绑定写入版本包 JSON（保留未知字段），并把选用文件复制到 <code>assets/monsters|items|maps|ui/</code> 便于客户端按路径加载。</li>
+    <li><strong>热更</strong>：到 <a asp-page="/Ops/Reload">热重载</a> 通知 Host 重载版本包（需 Host Admin 可达）。客户端用 <code>--assets-pack &lt;版本包目录&gt;</code> 加载覆盖；未绑定时回退内置 MirSheet/MirChrome。</li>
+    <li><strong>审计</strong>：每次上传/删除/绑定都会写入 <a asp-page="/Audit/Index">操作审计</a>。</li>
+  </ol>
+  <p class="muted">权限：Operator+ 可上传与绑定；Support 只读浏览。禁止使用官方传奇 WIL/WZL 资源；请使用原创或已获授权素材。</p>
+  <p>完整说明见仓库 <code>docs/admin/ASSET_LOOK_GUIDE.md</code>。</p>
+</div>

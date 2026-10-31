@@ -1,0 +1,36 @@
+@page "{packId}/{id}"
+@model Legend.Admin.Pages.Assets.BindMapModel
+@{ ViewData["Title"] = "地图外观 · " + Model.MapName; }
+<div class="card">
+  <p><a asp-page="/Entities/Maps" asp-route-packId="@Model.PackId">← 地图列表</a>
+     · <code>@Model.MapId</code> · @Model.MapName</p>
+</div>
+<div class="card">
+  <form method="post">
+    <div class="row">
+      <div>
+        <label>地砖 / 图集 tileAssetId</label>
+        <select asp-for="TileAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets) { <option value="@a.Id">@a.FileName (@a.Kind)</option> }
+        </select>
+        @if (!string.IsNullOrEmpty(Model.TileAssetId)) { <img class="thumb-sm" src="/Assets/File?id=@Model.TileAssetId&thumb=true" /> }
+      </div>
+      <div>
+        <label>小地图 minimapAssetId</label>
+        <select asp-for="MinimapAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets) { <option value="@a.Id">@a.FileName</option> }
+        </select>
+      </div>
+      <div>
+        <label>远景 / 天空 backdropAssetId</label>
+        <select asp-for="BackdropAssetId">
+          <option value="">（不绑定）</option>
+          @foreach (var a in Model.Assets) { <option value="@a.Id">@a.FileName</option> }
+        </select>
+      </div>
+    </div>
+    @if (Model.CanWrite) { <button class="btn btn-primary" type="submit">保存外观</button> }
+  </form>
+</div>

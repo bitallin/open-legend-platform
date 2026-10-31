@@ -18,6 +18,7 @@ public sealed class AdminDbContext : DbContext
     public DbSet<CurrencyAdjustment> CurrencyAdjustments => Set<CurrencyAdjustment>();
     public DbSet<AssetManifestRecord> AssetManifests => Set<AssetManifestRecord>();
     public DbSet<RechargeOrderNote> RechargeOrders => Set<RechargeOrderNote>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,5 +27,8 @@ public sealed class AdminDbContext : DbContext
         modelBuilder.Entity<CdkCode>().HasOne(x => x.Batch).WithMany(x => x.Codes).HasForeignKey(x => x.BatchId);
         modelBuilder.Entity<AuditLog>().HasIndex(x => x.CreatedAt);
         modelBuilder.Entity<ConfigRevision>().HasIndex(x => new { x.PackId, x.RelativePath, x.CreatedAt });
+        modelBuilder.Entity<MediaAsset>().HasKey(x => x.Id);
+        modelBuilder.Entity<MediaAsset>().HasIndex(x => new { x.PackId, x.Kind, x.SoftDeleted });
+        modelBuilder.Entity<MediaAsset>().HasIndex(x => x.Sha256);
     }
 }

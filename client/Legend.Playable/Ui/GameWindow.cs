@@ -873,7 +873,7 @@ public sealed partial class GameWindow : Window
         foreach (var item in _session.Inventory.Items)
         {
             var id = item.ItemId;
-            var icon = MirChrome.ItemIcon(((iconIndex - 1) % 16) + 1);
+            var icon = MirChrome.ItemIconFor(id, ((iconIndex - 1) % 16) + 1);
             iconIndex++;
             var cell = new Grid { Width = 40, Height = 40 };
             if (MirChrome.SlotEmpty != null)

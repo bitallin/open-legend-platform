@@ -18,6 +18,8 @@ public sealed class LaunchOptions
     public bool ShowHelp { get; set; }
     /// <summary>When set, seed local InWorld chrome and dump key OL panel PNGs then exit.</summary>
     public string UiCaptureDir { get; set; } = "";
+    /// <summary>Optional version-pack root for admin-uploaded asset overrides.</summary>
+    public string AssetsPack { get; set; } = "";
 
     public static string HelpText =>
         """
@@ -35,6 +37,7 @@ public sealed class LaunchOptions
         --probe      只做握手（连上 --host/--port 后退出）
         --ui-smoke   打开窗口后立即退出（需显示器）
         --ui-capture <dir>  本地种子进世界并截关键 OL 窗到目录后退出（离线）
+        --assets-pack <dir> 加载版本包 assets/ 外观覆盖（后台上传）；缺省回退内置图
         --help
         """;
 
@@ -74,6 +77,9 @@ public sealed class LaunchOptions
                     break;
                 case "--ui-capture":
                     opt.UiCaptureDir = Next(args, ref i, a);
+                    break;
+                case "--assets-pack":
+                    opt.AssetsPack = Next(args, ref i, a);
                     break;
                 case "--help":
                 case "-h":

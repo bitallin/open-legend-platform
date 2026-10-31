@@ -29,6 +29,14 @@ public class MonstersModel(VersionPackService packs) : PageModel
             }
             dict["_preview"] = e.ToString();
             if (dict["_preview"].Length > 160) dict["_preview"] = dict["_preview"][..160] + "…";
+            if (e.ValueKind == JsonValueKind.Object && e.TryGetProperty("look", out var look) && look.ValueKind == JsonValueKind.Object)
+            {
+                var bits = new List<string>();
+                if (look.TryGetProperty("spriteAssetId", out var s) && s.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(s.GetString())) bits.Add("sprite");
+                if (look.TryGetProperty("iconAssetId", out var ic) && ic.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(ic.GetString())) bits.Add("icon");
+                dict["_look"] = string.Join(",", bits);
+            }
+            else dict["_look"] = "";
             Rows.Add(dict);
         }
     }
