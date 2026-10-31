@@ -87,6 +87,8 @@ public sealed class VersionPackManifest
     public string PetsConfigFile { get; set; } = "";
     public string CurrenciesConfigFile { get; set; } = "";
     public string RecycleConfigFile { get; set; } = "";
+    public string TalentsConfigFile { get; set; } = "";
+    public string InternalConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -733,6 +735,79 @@ public sealed class RecycleConfigItem
     public bool DestroyItem { get; set; } = true;
 }
 
+/// <summary>One talent effect: whitelist statId or skillModifierId (docs/site/03).</summary>
+public sealed class TalentEffectConfig
+{
+    public string StatId { get; set; } = "";
+    public string SkillModifierId { get; set; } = "";
+    public int Value { get; set; }
+}
+
+public sealed class TalentNodeConfig
+{
+    public string NodeId { get; set; } = "";
+    public List<string> Requires { get; set; } = new();
+    public int CostPoints { get; set; } = 1;
+    public List<TalentEffectConfig> Effects { get; set; } = new();
+}
+
+public sealed class TalentTreeConfig
+{
+    public string TreeId { get; set; } = "";
+    public string ClassId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public List<TalentNodeConfig> Nodes { get; set; } = new();
+}
+
+public sealed class TalentResetCostConfig
+{
+    public string CurrencyId { get; set; } = "gold";
+    public int Amount { get; set; }
+}
+
+/// <summary>configs/talents.json — trees only; no MsgId handlers in E10.</summary>
+public sealed class TalentsConfigFile
+{
+    public int PointsPerLevel { get; set; } = 1;
+    public TalentResetCostConfig ResetCost { get; set; } = new();
+    public List<TalentTreeConfig> Trees { get; set; } = new();
+}
+
+public sealed class InternalLevelEntry
+{
+    public int Level { get; set; }
+    public int ExpToNext { get; set; }
+    public int AtkBonus { get; set; }
+    public int DefBonus { get; set; }
+    public int MaxHpBonus { get; set; }
+    public int MaxMpBonus { get; set; }
+    /// <summary>Optional MP tax while internal level is active (percent of max MP reserved).</summary>
+    public int MpCostPercent { get; set; }
+}
+
+public sealed class MeridianMaterialConfig
+{
+    public string ItemId { get; set; } = "";
+    public int Count { get; set; } = 1;
+}
+
+public sealed class MeridianConfigItem
+{
+    public string MeridianId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public int RequiresInternalLevel { get; set; }
+    public List<MeridianMaterialConfig> Materials { get; set; } = new();
+    public List<TalentEffectConfig> Effects { get; set; } = new();
+}
+
+/// <summary>configs/internal.json — second XP pool + optional meridians (docs/site/03).</summary>
+public sealed class InternalConfigFile
+{
+    public int MaxLevel { get; set; } = 1;
+    public List<InternalLevelEntry> Entries { get; set; } = new();
+    public List<MeridianConfigItem> Meridians { get; set; } = new();
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -767,6 +842,8 @@ public sealed class LoadedVersionPack
     /// <summary>NPC recycle table keyed by itemId.</summary>
     public IReadOnlyDictionary<string, RecycleConfigItem> Recycle { get; init; } =
         new Dictionary<string, RecycleConfigItem>(StringComparer.OrdinalIgnoreCase);
+    public TalentsConfigFile Talents { get; init; } = new();
+    public InternalConfigFile Internal { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 

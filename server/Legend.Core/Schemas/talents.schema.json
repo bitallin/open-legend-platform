@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/talents.schema.json",
+  "title": "Open Legend talents",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trees"],
+  "properties": {
+    "pointsPerLevel": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "resetCost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currencyId", "amount"],
+      "properties": {
+        "currencyId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "amount": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "trees": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["treeId", "nodes"],
+        "properties": {
+          "treeId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "classId": { "type": "string", "maxLength": 64 },
+          "displayName": { "type": "string", "maxLength": 64 },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["nodeId", "costPoints"],
+              "properties": {
+                "nodeId": { "type": "string", "minLength": 1, "maxLength": 64 },
+                "requires": {
+                  "type": "array",
+                  "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+                },
+                "costPoints": { "type": "integer", "minimum": 0, "maximum": 1000 },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "statId": { "type": "string", "minLength": 1, "maxLength": 64 },
+                      "skillModifierId": { "type": "string", "maxLength": 64 },
+                      "value": { "type": "integer", "minimum": -1000000, "maximum": 1000000 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

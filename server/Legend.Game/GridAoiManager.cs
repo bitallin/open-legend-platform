@@ -39,6 +39,10 @@ public sealed class WorldPlayerEntity
     public Dictionary<string, long> Wallet { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Recycle daily counters keyed by itemId.</summary>
     public Dictionary<string, RecycleDailyJson.Entry> RecycleDaily { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public int InternalLevel { get; set; } = 1;
+    public long InternalExp { get; set; }
+    public List<string> UnlockedMeridians { get; set; } = new();
+    public Dictionary<string, List<string>> TalentUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<QuestProgressState> Quests { get; set; } = new();
     public List<EquippedItemState> Equipment { get; set; } = new();
     public string GuildId { get; set; } = string.Empty;
