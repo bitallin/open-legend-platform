@@ -145,5 +145,11 @@ public class MovementRulesTests
             reason = Allow ? "" : Reason;
             return Allow;
         }
+
+        public bool ValidateAttackInterval(string playerId, string skillId, long nowUnixMs, long readyAtUnixMs, out string reason)
+        {
+            reason = "";
+            return true;
+        }
     }
 }

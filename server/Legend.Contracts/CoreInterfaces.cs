@@ -25,6 +25,11 @@ public interface IAntiCheatProbe
 {
     string ProbeName { get; }
     bool ValidateMove(string playerId, int fromX, int fromY, int toX, int toY, out string reason);
+    /// <summary>
+    /// Attack / skill interval probe. Default rejects when <paramref name="nowUnixMs"/> is before
+    /// <paramref name="readyAtUnixMs"/> (readyAt 0 means never cast — always allow).
+    /// </summary>
+    bool ValidateAttackInterval(string playerId, string skillId, long nowUnixMs, long readyAtUnixMs, out string reason);
 }
 
 public interface IClientSession
