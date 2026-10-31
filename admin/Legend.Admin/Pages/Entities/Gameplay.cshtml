@@ -1,0 +1,42 @@
+@page
+@model Legend.Admin.Pages.Entities.GameplayModel
+@{ ViewData["Title"] = "玩法数值合集"; }
+<div class="card">
+  <p class="muted">版本包 <code>@Model.PackId</code> · 一站式跳转到各类数值/玩法 JSON（对齐 docs/site 与私服常见后台模块）</p>
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.Id</option>
+        }
+      </select>
+    </div>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>模块</th><th>文件</th><th>说明</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var m in Model.Modules)
+    {
+      <tr>
+        <td>@m.Title</td>
+        <td><code>@m.Path</code></td>
+        <td class="muted">@m.Hint</td>
+        <td>
+          @if (m.Exists)
+          {
+            <a class="btn btn-sm" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@m.Path">编辑</a>
+          }
+          else
+          {
+            <span class="badge warn">缺失</span>
+          }
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

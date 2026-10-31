@@ -1,0 +1,22 @@
+@page
+@model Legend.Admin.Pages.Announcements.IndexModel
+@{ ViewData["Title"] = "公告"; }
+<div class="card">
+  <form method="post">
+    <label>标题</label><input asp-for="Title" />
+    <label>正文</label><textarea asp-for="Body" rows="4"></textarea>
+    <label><input asp-for="IsActive" type="checkbox" /> 启用</label>
+    <button class="btn btn-primary" type="submit">发布</button>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>Id</th><th>标题</th><th>启用</th><th>操作者</th><th>时间</th></tr></thead>
+    <tbody>
+    @foreach (var a in Model.Items)
+    {
+      <tr><td>@a.Id</td><td>@a.Title</td><td>@a.IsActive</td><td>@a.Actor</td><td>@a.CreatedAt.ToString("u")</td></tr>
+    }
+    </tbody>
+  </table>
+</div>

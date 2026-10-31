@@ -1,0 +1,13 @@
+@page
+@model Legend.Admin.Pages.Ops.SiegeModel
+@{ ViewData["Title"] = "沙巴克 / 攻城"; }
+<div class="card">
+  <form method="post" class="toolbar">
+    <button class="btn btn-primary" name="action" value="start" type="submit">开始攻城</button>
+    <button class="btn btn-danger" name="action" value="stop" type="submit">结束攻城</button>
+  </form>
+  @if (!string.IsNullOrEmpty(Model.Response))
+  {
+    <pre>@Model.Response</pre>
+  }
+</div>

@@ -1,0 +1,33 @@
+@page
+@model Legend.Admin.Pages.Configs.IndexModel
+@{ ViewData["Title"] = "配置目录"; }
+<div class="card">
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.DisplayName (@p.Id)</option>
+        }
+      </select>
+    </div>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>相对路径</th><th>类型</th><th>大小</th><th>修改(UTC)</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var f in Model.Files)
+    {
+      <tr>
+        <td><code>@f.RelativePath</code></td>
+        <td><span class="badge">@f.Kind</span></td>
+        <td>@f.SizeBytes</td>
+        <td>@f.LastWriteUtc.ToString("u")</td>
+        <td><a class="btn btn-sm" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@f.RelativePath">编辑</a></td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

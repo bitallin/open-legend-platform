@@ -1,0 +1,29 @@
+@page
+@model Legend.Admin.Pages.Economy.CurrencyModel
+@{ ViewData["Title"] = "货币与调账"; }
+<div class="card">
+  <h3>版本包货币定义</h3>
+  <a class="btn" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="configs/currencies.json">编辑 currencies.json</a>
+  <pre style="margin-top:0.75rem;max-height:240px;overflow:auto">@Model.CurrenciesJson</pre>
+</div>
+<div class="card">
+  <h3>人工调账（记流水；Host 接线后可真正入账）</h3>
+  <form method="post" class="row">
+    <div><label>账号或角色</label><input asp-for="AccountOrCharacter" /></div>
+    <div><label>货币 Id</label><input asp-for="CurrencyId" value="yuanbao" /></div>
+    <div><label>增量（可为负）</label><input asp-for="Delta" type="number" /></div>
+    <div><label>原因</label><input asp-for="Reason" /></div>
+    <div><button class="btn btn-primary" type="submit">记录调账</button></div>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>时间</th><th>目标</th><th>货币</th><th>增量</th><th>原因</th><th>操作者</th></tr></thead>
+    <tbody>
+    @foreach (var a in Model.Adjustments)
+    {
+      <tr><td>@a.CreatedAt.ToString("u")</td><td>@a.AccountOrCharacter</td><td>@a.CurrencyId</td><td>@a.Delta</td><td>@a.Reason</td><td>@a.Actor</td></tr>
+    }
+    </tbody>
+  </table>
+</div>

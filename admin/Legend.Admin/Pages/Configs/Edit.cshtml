@@ -1,0 +1,19 @@
+@page
+@model Legend.Admin.Pages.Configs.EditModel
+@{ ViewData["Title"] = "编辑配置 · " + Model.RelativePath; }
+<div class="card">
+  <p class="muted">包 <code>@Model.PackId</code> · 路径 <code>@Model.RelativePath</code> · 保存前校验 JSON · 写入修订历史</p>
+  <form method="post">
+    <input type="hidden" asp-for="PackId" />
+    <input type="hidden" asp-for="RelativePath" />
+    <label>修订说明</label>
+    <input asp-for="Note" placeholder="例如：下调史莱姆铜币爆率" />
+    <label>JSON 内容</label>
+    <textarea class="code" asp-for="Content" spellcheck="false"></textarea>
+    <div class="toolbar">
+      <button class="btn btn-primary" type="submit">保存</button>
+      <a class="btn" asp-page="/Configs/Index" asp-route-packId="@Model.PackId">返回目录</a>
+      <a class="btn" asp-page="/Ops/Reload">去热重载</a>
+    </div>
+  </form>
+</div>

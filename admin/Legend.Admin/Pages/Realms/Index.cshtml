@@ -1,0 +1,38 @@
+@page
+@model Legend.Admin.Pages.Realms.IndexModel
+@{ ViewData["Title"] = "区服"; }
+<div class="card">
+  <div class="toolbar">
+    <a class="btn btn-primary" asp-page="/Realms/Edit">新建/编辑区服 JSON</a>
+    <a class="btn" asp-page="/Realms/Merge">合区计划</a>
+  </div>
+  <table class="data">
+    <thead><tr><th>RealmId</th><th>名称</th><th>Host:Port</th><th>Admin</th><th>状态</th><th>Manifest</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var r in Model.Realms)
+    {
+      <tr>
+        <td><code>@r.RealmId</code></td>
+        <td>@r.RealmName</td>
+        <td>@r.Host:@r.Port</td>
+        <td>@r.AdminPort</td>
+        <td><span class="badge">@r.Status</span></td>
+        <td class="muted">@r.ManifestPath</td>
+        <td>
+          <a class="btn btn-sm" asp-page="/Realms/Edit" asp-route-file="@r.FileName">编辑</a>
+          <form method="post" asp-page-handler="Status" style="display:inline">
+            <input type="hidden" name="fileName" value="@r.FileName" />
+            <input type="hidden" name="status" value="MAINTENANCE" />
+            <button class="btn btn-sm" type="submit">维护</button>
+          </form>
+          <form method="post" asp-page-handler="Status" style="display:inline">
+            <input type="hidden" name="fileName" value="@r.FileName" />
+            <input type="hidden" name="status" value="OPEN" />
+            <button class="btn btn-sm btn-success" type="submit">开放</button>
+          </form>
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

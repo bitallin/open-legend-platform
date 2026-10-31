@@ -1,0 +1,35 @@
+@page
+@model Legend.Admin.Pages.Assets.IndexModel
+@{ ViewData["Title"] = "UI / 特效 / 音效索引"; }
+<div class="card">
+  <p class="muted">用户自行配置画面与素材：此处维护资源清单与版本号（对齐 docs/site 19/20），不绘制游戏画面。</p>
+  <form method="post">
+    <div class="row">
+      <div><label>名称</label><input asp-for="Name" /></div>
+      <div><label>类型</label>
+        <select asp-for="Kind"><option>ui</option><option>sfx</option><option>vfx</option><option>map_tile</option><option>other</option></select>
+      </div>
+      <div><label>版本</label><input asp-for="VersionTag" /></div>
+    </div>
+    <label>条目 JSON 数组</label>
+    <textarea class="code" asp-for="EntriesJson" style="min-height:160px"></textarea>
+    <label>备注</label>
+    <input asp-for="Notes" />
+    <button class="btn btn-primary" type="submit">保存清单</button>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>Id</th><th>名称</th><th>类型</th><th>版本</th><th>备注</th><th>更新</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var a in Model.Items)
+    {
+      <tr>
+        <td>@a.Id</td><td>@a.Name</td><td><span class="badge">@a.Kind</span></td><td>@a.VersionTag</td>
+        <td class="muted">@a.Notes</td><td>@a.UpdatedAt.ToString("u")</td>
+        <td><a class="btn btn-sm" asp-page="/Assets/Edit" asp-route-id="@a.Id">编辑</a></td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

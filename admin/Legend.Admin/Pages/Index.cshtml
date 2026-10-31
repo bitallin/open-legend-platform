@@ -1,0 +1,39 @@
+@page
+@model Legend.Admin.Pages.IndexModel
+@{
+    ViewData["Title"] = "仪表盘";
+}
+<div class="grid">
+  <div class="stat"><div class="v">@Model.PackCount</div><div class="l">版本包</div></div>
+  <div class="stat"><div class="v">@Model.RealmCount</div><div class="l">区服</div></div>
+  <div class="stat"><div class="v">@Model.ConfigFileCount</div><div class="l">配置文件</div></div>
+  <div class="stat"><div class="v">@Model.AuditCount</div><div class="l">审计条数</div></div>
+  <div class="stat"><div class="v">@Model.MailQueued</div><div class="l">邮件队列</div></div>
+  <div class="stat"><div class="v">@Model.OnlineHint</div><div class="l">Host 在线</div></div>
+</div>
+
+<div class="card">
+  <h2>快速入口</h2>
+  <div class="toolbar">
+    <a class="btn" asp-page="/Configs/Index">改爆率/怪物配置</a>
+    <a class="btn" asp-page="/Players/Online">在线玩家</a>
+    <a class="btn" asp-page="/Realms/Index">区服开合</a>
+    <a class="btn" asp-page="/Economy/Orders">充值补单</a>
+    <a class="btn" asp-page="/Assets/Index">画面素材索引</a>
+    <a class="btn" asp-page="/Ops/Reload">热重载版本包</a>
+  </div>
+  <p class="muted">Host Admin：@Model.HostBase · Token @(Model.HasToken ? "已配置" : "未配置") · @Model.HostStatus</p>
+</div>
+
+<div class="card">
+  <h2>最近审计</h2>
+  <table class="data">
+    <thead><tr><th>时间(UTC)</th><th>操作者</th><th>动作</th><th>目标</th></tr></thead>
+    <tbody>
+    @foreach (var a in Model.RecentAudits)
+    {
+      <tr><td>@a.CreatedAt.ToString("u")</td><td>@a.Actor</td><td>@a.Action</td><td>@a.Target</td></tr>
+    }
+    </tbody>
+  </table>
+</div>

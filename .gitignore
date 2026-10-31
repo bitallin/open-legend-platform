@@ -48,3 +48,10 @@ dist/windows-player/**
 *.jks
 client/unity-mvp/AndroidBuild/keystore.properties
 client/unity-mvp/AndroidBuild/local.properties
+
+# Admin console local DB
+data/admin/
+**/admin.db
+
+admin/**/bin/
+admin/**/obj/

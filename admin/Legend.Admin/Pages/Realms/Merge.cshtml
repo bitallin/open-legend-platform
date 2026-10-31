@@ -1,0 +1,51 @@
+@page
+@model Legend.Admin.Pages.Realms.MergeModel
+@{ ViewData["Title"] = "合区计划"; }
+<div class="card">
+  <form method="post" class="row">
+    <div>
+      <label>源区服（逗号分隔 realmId）</label>
+      <input asp-for="SourceRealmIds" placeholder="realm-classic-01,realm-classic-02" />
+    </div>
+    <div>
+      <label>目标区服</label>
+      <input asp-for="TargetRealmId" />
+    </div>
+    <div>
+      <label>备注</label>
+      <input asp-for="Notes" />
+    </div>
+    <div>
+      <button class="btn btn-primary" type="submit">创建计划</button>
+    </div>
+  </form>
+  <p class="muted">合区执行需停服备份；本页记录计划与状态。实际数据合并对接 Host/脚本（见 docs/site 17）。</p>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>Id</th><th>源</th><th>目标</th><th>状态</th><th>备注</th><th>创建者</th><th>时间</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var p in Model.Plans)
+    {
+      <tr>
+        <td>@p.Id</td>
+        <td><code>@p.SourceRealmIdsJson</code></td>
+        <td>@p.TargetRealmId</td>
+        <td><span class="badge">@p.Status</span></td>
+        <td>@p.Notes</td>
+        <td>@p.Actor</td>
+        <td>@p.CreatedAt.ToString("u")</td>
+        <td>
+          <form method="post" asp-page-handler="Status">
+            <input type="hidden" name="id" value="@p.Id" />
+            <select name="status">
+              <option>Draft</option><option>Scheduled</option><option>Running</option><option>Done</option><option>Cancelled</option>
+            </select>
+            <button class="btn btn-sm" type="submit">更新</button>
+          </form>
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table>
+</div>

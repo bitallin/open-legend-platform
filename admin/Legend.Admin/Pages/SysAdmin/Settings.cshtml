@@ -1,0 +1,15 @@
+@page
+@model Legend.Admin.Pages.SystemPages.SettingsModel
+@{ ViewData["Title"] = "连接设置"; }
+<div class="card">
+  <h3>当前运行配置（只读展示）</h3>
+  <table class="data">
+    <tr><th>RepoRoot</th><td><code>@Model.RepoRoot</code></td></tr>
+    <tr><th>VersionPacks</th><td><code>@Model.VersionPacks</code></td></tr>
+    <tr><th>Realms</th><td><code>@Model.Realms</code></td></tr>
+    <tr><th>Admin DB</th><td><code>@Model.AdminDb</code></td></tr>
+    <tr><th>Host Admin BaseUrl</th><td><code>@Model.HostBase</code></td></tr>
+    <tr><th>Host Token</th><td>@(Model.HasToken ? "已配置" : "未配置（可设 Legend:HostAdmin:Token 或 LEGEND_ADMIN_TOKEN）")</td></tr>
+  </table>
+  <p class="muted">修改请编辑 <code>admin/Legend.Admin/appsettings*.json</code> 或环境变量后重启网站。</p>
+</div>

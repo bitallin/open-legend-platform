@@ -1,0 +1,15 @@
+@page
+@model Legend.Admin.Pages.Players.OnlineModel
+@{ ViewData["Title"] = "在线玩家"; }
+<div class="card">
+  <p class="muted">数据来自 Host <code>GET /admin/online</code> · @Model.Status</p>
+  <pre style="white-space:pre-wrap;background:#0c1118;padding:0.75rem;border-radius:8px;border:1px solid var(--border);max-height:480px;overflow:auto">@Model.RawJson</pre>
+</div>
+<div class="card">
+  <h3>快捷踢人（需 Host 支持；当前走 ban 短时或文档扩展 kick）</h3>
+  <form method="post" asp-page-handler="Kick" class="row">
+    <div><label>角色名或账号</label><input name="characterName" /></div>
+    <div><label>原因</label><input name="reason" value="admin kick" /></div>
+    <div><button class="btn btn-danger" type="submit">封禁并踢下线</button></div>
+  </form>
+</div>
