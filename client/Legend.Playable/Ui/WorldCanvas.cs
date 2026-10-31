@@ -315,8 +315,9 @@ public sealed class WorldCanvas : Control
 
     private static string NameHex(string? color) => color switch
     {
-        "red" => "#FF5A5A",
-        "yellow" => "#F0D060",
+        "red" => "#FF1744",
+        "yellow" => "#FDD835",
+        "gray" or "grey" => "#9E9E9E",
         "green" => "#7DDE8A",
         _ => "#FFFFFF"
     };

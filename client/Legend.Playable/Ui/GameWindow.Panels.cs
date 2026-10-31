@@ -31,6 +31,19 @@ public sealed partial class GameWindow
     private string _shopTab = "buy";
     private string _settingsTab = "volume";
     private string _selectedShopItem = "";
+    private string _friendsTab = "friends";
+    private string _stallTab = "browse";
+    private string _mallTab = "hot";
+    private string _looksTab = "pets";
+    private string _ctxName = "";
+    private Border _questTracker = null!;
+    private StackPanel _questTrackerBody = null!;
+    private Border _zoneBanner = null!;
+    private TextBlock _zoneBannerText = null!;
+    private Border _siegeBanner = null!;
+    private TextBlock _siegeBannerText = null!;
+    private Border _ctxHost = null!;
+    private StackPanel _ctxBody = null!;
 
     private void AttachPhaseL(Grid hud)
     {
@@ -78,11 +91,14 @@ public sealed partial class GameWindow
         AddSys("行会", () => ShowPanel("guild"));
         AddSys("好友", () => ShowPanel("friends"));
         AddSys("摆摊", () => ShowPanel("stall"));
+        AddSys("商城", () => ShowPanel("mall"));
         AddSys("外观", () => ShowPanel("looks"));
+        AddSys("英雄", () => ShowPanel("hero"));
         AddSys("地图", () => ShowPanel("map"));
         AddSys("世界", () => ShowPanel("world"));
         AddSys("交易", () => ShowPanel("trade"));
         AddSys("攻城", () => { ShowPanel("siege"); _ = Safe(async () => { await _session.SiegeStatusAsync(); }); });
+        AddSys("名色", () => ShowPanel("names"));
         AddSys("设置", () => ShowPanel("settings"));
 
         var dock = new StackPanel { Spacing = 4, Width = 210 };
@@ -128,6 +144,93 @@ public sealed partial class GameWindow
         hud.Children.Add(_panelHost);
         DragDrop.SetAllowDrop(_panelHost, true);
         _panelHost.AddHandler(DragDrop.DropEvent, OnItemDropped);
+
+        _questTrackerBody = new StackPanel { Spacing = 3 };
+        _questTracker = new Border
+        {
+            Background = Brush("#CC1C1612"),
+            BorderBrush = Brush("#8A6A38"),
+            BorderThickness = new Avalonia.Thickness(1),
+            Padding = new Avalonia.Thickness(8, 6),
+            Width = 220,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Avalonia.Thickness(12, 48, 0, 0),
+            Child = new StackPanel
+            {
+                Spacing = 4,
+                Children =
+                {
+                    new TextBlock { Text = "任务追踪", FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") },
+                    _questTrackerBody
+                }
+            },
+            IsVisible = false
+        };
+        hud.Children.Add(_questTracker);
+
+        _zoneBannerText = new TextBlock
+        {
+            FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        _zoneBanner = new Border
+        {
+            Background = Brush("#CC2A1C10"),
+            BorderBrush = Brush("#E8C872"),
+            BorderThickness = new Avalonia.Thickness(1),
+            Padding = new Avalonia.Thickness(16, 6),
+            Child = _zoneBannerText,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Avalonia.Thickness(0, 36, 0, 0),
+            IsVisible = false
+        };
+        hud.Children.Add(_zoneBanner);
+
+        _siegeBannerText = new TextBlock
+        {
+            FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#FDD835"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        _siegeBanner = new Border
+        {
+            Background = Brush("#CC1A1008"),
+            BorderBrush = Brush("#C08030"),
+            BorderThickness = new Avalonia.Thickness(1),
+            Padding = new Avalonia.Thickness(18, 6),
+            Child = _siegeBannerText,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Avalonia.Thickness(0, 8, 0, 0),
+            IsVisible = false
+        };
+        hud.Children.Add(_siegeBanner);
+
+        _ctxBody = new StackPanel { Spacing = 2 };
+        _ctxHost = new Border
+        {
+            Background = Brush("#EE1C1612"),
+            BorderBrush = Brush("#E8C872"),
+            BorderThickness = new Avalonia.Thickness(1),
+            Padding = new Avalonia.Thickness(6, 6),
+            Width = 160,
+            Child = new StackPanel
+            {
+                Spacing = 4,
+                Children =
+                {
+                    new TextBlock { Text = "玩家菜单", FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872"), HorizontalAlignment = HorizontalAlignment.Center },
+                    _ctxBody
+                }
+            },
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Avalonia.Thickness(180, 0, 0, 40),
+            IsVisible = false
+        };
+        hud.Children.Add(_ctxHost);
+
         hud.Children.Add(channels);
         channels.HorizontalAlignment = HorizontalAlignment.Left;
         channels.VerticalAlignment = VerticalAlignment.Bottom;
@@ -158,6 +261,7 @@ public sealed partial class GameWindow
             _openPanel = id;
             _panelFp = "";
             _audio.PlayOpen();
+            HidePlayerContext();
             if (id == "char")
                 _bagOpen = true;
             if (id == "guild")
@@ -175,11 +279,14 @@ public sealed partial class GameWindow
     {
         _openPanel = "";
         _mouseRun = false;
+        HidePlayerContext();
     }
 
     private void RefreshPhaseL()
     {
         EnsureBarForClass();
+        RefreshQuestTracker();
+        RefreshSiegeBanner();
         _modeLabel.Text = "攻击模式 " + AttackModes.Label(_attackMode) + "  ·  Ctrl+H";
         int expMax = Math.Max(1, _session.ExpToNext);
         _expBar.Maximum = expMax;
@@ -205,7 +312,7 @@ public sealed partial class GameWindow
         if (!_panelHost.IsVisible)
             return;
         var trade = _session.TradeState;
-        string fp = _openPanel + "|" + _shopTab + "|" + _settingsTab + "|" + _selectedShopItem + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote + "|" + _session.SocialRevision + "|" + _session.Friends.Count + "|" + _session.Market.Count;
+        string fp = _openPanel + "|" + _shopTab + "|" + _settingsTab + "|" + _friendsTab + "|" + _stallTab + "|" + _mallTab + "|" + _looksTab + "|" + _selectedShopItem + "|" + _session.Inventory.Gold + "|" + _session.Quests.Count + "|" + _session.Skills.Count + "|" + _session.Storage.Count + "|" + _session.Party.Count + "|" + _session.PendingPartyId + "|" + _session.TradeId + "|" + (trade?.SelfLocked == true) + (trade?.PeerLocked == true) + trade?.PeerGold + "|" + _session.SiegeNote + "|" + _session.SocialRevision + "|" + _session.Friends.Count + "|" + _session.Market.Count;
         if (fp == _panelFp)
             return;
         _panelFp = fp;
@@ -556,11 +663,41 @@ public sealed partial class GameWindow
                 break;
             }
             case "quest":
+            {
                 _panelTitle.Text = "任务";
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "进行中 / 可交付 · 追踪显示在左上角",
+                    FontSize = 11, Foreground = Brush("#C8B48A"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                });
                 if (_session.Quests.Count == 0 && (_session.LastTalk?.Quests.Count ?? 0) == 0)
-                    _panelBody.Children.Add(Block("还没有任务。去找镇上的阿福。"));
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("还没有任务。去找镇上的阿福。")));
                 foreach (var quest in _session.Quests)
-                    _panelBody.Children.Add(Block($"{quest.Title}  {quest.Progress}/{quest.TargetCount}  {quest.Status}"));
+                {
+                    string badge = quest.Status == QuestStatus.QuestReady ? "可交付" :
+                        quest.Status == QuestStatus.QuestActive ? "进行中" : quest.Status.ToString();
+                    string badgeColor = quest.Status == QuestStatus.QuestReady ? "#70D070" : "#E8C872";
+                    var row = new StackPanel { Spacing = 2 };
+                    var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    head.Children.Add(new TextBlock { Text = quest.Title, FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0"), Width = 220 });
+                    head.Children.Add(new TextBlock { Text = badge, FontSize = 11, Foreground = Brush(badgeColor), VerticalAlignment = VerticalAlignment.Center });
+                    row.Children.Add(head);
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = string.IsNullOrWhiteSpace(quest.Description) ? $"{quest.Progress}/{quest.TargetCount}" : quest.Description,
+                        FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap
+                    });
+                    row.Children.Add(MirChrome.ThinBar("#C08030", quest.Progress, Math.Max(1, quest.TargetCount)));
+                    if (quest.Status == QuestStatus.QuestReady)
+                    {
+                        string id = quest.QuestId;
+                        var turn = new Button { Content = "交付", MinWidth = 64, HorizontalAlignment = HorizontalAlignment.Left };
+                        MirChrome.StylePrimary(turn);
+                        turn.Click += async (_, _) => Toast(await _session.TurnInQuestAsync(id) ?? "已交付");
+                        row.Children.Add(turn);
+                    }
+                    _panelBody.Children.Add(MirChrome.ListRow(row));
+                }
                 if (_session.LastTalk != null)
                 {
                     foreach (var quest in _session.LastTalk.Quests)
@@ -569,42 +706,116 @@ public sealed partial class GameWindow
                         if (quest.Status == QuestStatus.QuestNone)
                         {
                             var button = new Button { Content = $"接取 {quest.Title}", HorizontalAlignment = HorizontalAlignment.Stretch };
+                            MirChrome.StylePrimary(button);
                             button.Click += async (_, _) => Toast(await _session.AcceptQuestAsync(id) ?? "已接取");
                             _panelBody.Children.Add(button);
                         }
-                        else if (quest.Status == QuestStatus.QuestReady)
+                        else if (quest.Status == QuestStatus.QuestReady && !_session.Quests.Any(q => q.QuestId == id))
                         {
                             var button = new Button { Content = $"交付 {quest.Title}", HorizontalAlignment = HorizontalAlignment.Stretch };
+                            MirChrome.StylePrimary(button);
                             button.Click += async (_, _) => Toast(await _session.TurnInQuestAsync(id) ?? "已交付");
                             _panelBody.Children.Add(button);
                         }
                     }
                 }
                 break;
+            }
+
             case "party":
+            {
                 _panelTitle.Text = "组队";
-                var nameBox = new TextBox { Watermark = "对方角色名" };
-                var invite = new Button { Content = "邀请", HorizontalAlignment = HorizontalAlignment.Stretch };
-                invite.Click += async (_, _) => Toast(await _session.InvitePartyAsync(nameBox.Text ?? "") ?? "已邀请");
-                _panelBody.Children.Add(nameBox);
-                _panelBody.Children.Add(invite);
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "Alt+W 开窗 · Ctrl+H 切攻击模式 · 同图组队击杀分享经验",
+                    FontSize = 11, Foreground = Brush("#C8B48A"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                });
                 if (_session.PendingPartyId.Length > 0)
                 {
-                    var yes = new Button { Content = $"接受 {_session.PendingInviter}", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    var inviteRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    inviteRow.Children.Add(new TextBlock
+                    {
+                        Text = $"{_session.PendingInviter} 邀请入队",
+                        Foreground = Brush("#F6E6C0"), VerticalAlignment = VerticalAlignment.Center, Width = 200
+                    });
+                    var yes = new Button { Content = "接受", MinWidth = 64 };
+                    MirChrome.StylePrimary(yes);
                     yes.Click += async (_, _) => Toast(await _session.AcceptPartyAsync(true) ?? "已入队");
-                    var no = new Button { Content = "拒绝", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    var no = new Button { Content = "拒绝", MinWidth = 64 };
+                    MirChrome.StyleDanger(no);
                     no.Click += async (_, _) => Toast(await _session.AcceptPartyAsync(false) ?? "已拒绝");
-                    _panelBody.Children.Add(yes);
-                    _panelBody.Children.Add(no);
+                    inviteRow.Children.Add(yes); inviteRow.Children.Add(no);
+                    _panelBody.Children.Add(MirChrome.ListRow(inviteRow));
                 }
+                _panelBody.Children.Add(new TextBlock { Text = "成员", FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
                 if (_session.Party.Count == 0)
-                    _panelBody.Children.Add(Block("当前没有队伍。同图组队击杀会分享经验。"));
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("当前没有队伍。")));
                 foreach (var member in _session.Party)
-                    _panelBody.Children.Add(Block($"{member.Name}  Lv{member.Level}  {(member.IsLeader ? "队长" : "队员")}"));
-                var leave = new Button { Content = "离开队伍", HorizontalAlignment = HorizontalAlignment.Stretch };
+                {
+                    var actor = _session.World.Actors.Values.FirstOrDefault(a =>
+                        string.Equals(a.Name, member.Name, StringComparison.OrdinalIgnoreCase));
+                    double hp = actor?.Hp ?? (member.Online ? 1 : 0);
+                    double maxHp = actor?.MaxHp ?? 1;
+                    var col = new StackPanel { Spacing = 2 };
+                    var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    head.Children.Add(new TextBlock
+                    {
+                        Text = (member.IsLeader ? "★ " : "") + member.Name,
+                        FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush("#F6E6C0"), Width = 140
+                    });
+                    head.Children.Add(new TextBlock { Text = $"Lv{member.Level}", FontSize = 11, Foreground = Brush("#E8C872"), Width = 48, VerticalAlignment = VerticalAlignment.Center });
+                    head.Children.Add(new TextBlock
+                    {
+                        Text = member.Online ? "在线" : "离线",
+                        FontSize = 11, Foreground = Brush(member.Online ? "#70D070" : "#9E9E9E"),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    col.Children.Add(head);
+                    col.Children.Add(MirChrome.ThinBar("#C04040", hp, maxHp));
+                    col.Children.Add(new TextBlock { Text = member.MapId, FontSize = 10, Foreground = Brush("#A09070") });
+                    _panelBody.Children.Add(MirChrome.ListRow(col));
+                }
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "附近可邀请", FontSize = 12, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872"),
+                    Margin = new Avalonia.Thickness(0, 8, 0, 4)
+                });
+                var nearby = _session.World.Actors.Values
+                    .Where(a => !a.IsSelf && a.Kind == EntityKind.EntityPlayer)
+                    .Take(8)
+                    .ToList();
+                if (nearby.Count == 0)
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("附近没有其他玩家。")));
+                foreach (var actor in nearby)
+                {
+                    string nm = actor.Name;
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = $"{nm}  HP {actor.Hp}/{actor.MaxHp}",
+                        Foreground = Brush("#F6E6C0"), Width = 220, VerticalAlignment = VerticalAlignment.Center
+                    });
+                    var inv = new Button { Content = "邀请", MinWidth = 64 };
+                    MirChrome.StylePrimary(inv);
+                    inv.Click += async (_, _) => Toast(await _session.InvitePartyAsync(nm) ?? "已邀请");
+                    row.Children.Add(inv);
+                    _panelBody.Children.Add(MirChrome.ListRow(row));
+                }
+                var nameBox = new TextBox { Watermark = "对方角色名", Margin = new Avalonia.Thickness(0, 8, 0, 4) };
+                MirChrome.StyleField(nameBox);
+                var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                var invite = new Button { Content = "邀请", MinWidth = 72 };
+                MirChrome.StylePrimary(invite);
+                invite.Click += async (_, _) => Toast(await _session.InvitePartyAsync(nameBox.Text ?? "") ?? "已邀请");
+                var leave = new Button { Content = "离队", MinWidth = 72 };
+                MirChrome.StyleDanger(leave);
                 leave.Click += async (_, _) => Toast(await _session.LeavePartyAsync() ?? "已离队");
-                _panelBody.Children.Add(leave);
+                actions.Children.Add(invite); actions.Children.Add(leave);
+                _panelBody.Children.Add(nameBox);
+                _panelBody.Children.Add(actions);
                 break;
+            }
+
             case "guild":
             {
                 _panelTitle.Text = "行会";
@@ -899,19 +1110,50 @@ public sealed partial class GameWindow
             }
 
             case "siege":
-                _panelTitle.Text = "沙巴克";
-                _panelBody.Children.Add(Block("沙门关城墙挡住直路，城门格传送进皇宫区。旗帜在幽影林 (20,20)。"));
-                _panelBody.Children.Add(Block(string.IsNullOrWhiteSpace(_session.SiegeNote) ? "打开面板时会向服务器要状态。" : _session.SiegeNote));
-                var refreshSiege = new Button { Content = "刷新状态", HorizontalAlignment = HorizontalAlignment.Stretch };
+            {
+                _panelTitle.Text = "攻城信息";
+                string note = string.IsNullOrWhiteSpace(_session.SiegeNote) ? "打开面板时会向服务器要状态。" : _session.SiegeNote;
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "沙巴克战场 · 顶栏同步显示剩余时间",
+                    FontSize = 11, Foreground = Brush("#C8B48A"), Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                });
+                foreach (var (k, v) in new[]
+                {
+                    ("阶段", note.Contains("进行") || note.Contains("攻") ? "进行中" : "待命"),
+                    ("说明", note),
+                    ("城门", "完好（示意）"),
+                    ("旗帜", "幽影林 (20,20)"),
+                    ("入口", "沙门关城墙挡住直路，城门格传送进皇宫区")
+                })
+                {
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    row.Children.Add(new TextBlock { Text = k, FontSize = 12, Foreground = Brush("#E8C872"), Width = 56 });
+                    row.Children.Add(new TextBlock { Text = v, FontSize = 12, Foreground = Brush("#F6E6C0"), TextWrapping = TextWrapping.Wrap, Width = 340 });
+                    _panelBody.Children.Add(MirChrome.ListRow(row));
+                }
+                var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
+                var refreshSiege = new Button { Content = "刷新状态", MinWidth = 88 };
+                MirChrome.StyleNormal(refreshSiege);
                 refreshSiege.Click += async (_, _) => Toast(await _session.SiegeStatusAsync() ?? "已刷新");
-                var declare = new Button { Content = "行会宣战", HorizontalAlignment = HorizontalAlignment.Stretch };
+                var declare = new Button { Content = "行会宣战", MinWidth = 88 };
+                MirChrome.StylePrimary(declare);
                 declare.Click += async (_, _) => Toast(await _session.SiegeDeclareAsync() ?? "已宣战");
-                var capture = new Button { Content = "占领旗帜", HorizontalAlignment = HorizontalAlignment.Stretch };
+                var capture = new Button { Content = "占领旗帜", MinWidth = 88 };
+                MirChrome.StyleDanger(capture);
                 capture.Click += async (_, _) => Toast(await _session.SiegeCaptureAsync() ?? "已占领");
-                _panelBody.Children.Add(refreshSiege);
-                _panelBody.Children.Add(declare);
-                _panelBody.Children.Add(capture);
+                var guild = new Button { Content = "行会面板", MinWidth = 88 };
+                MirChrome.StyleSys(guild);
+                guild.Click += (_, _) => ShowPanel("guild");
+                var map = new Button { Content = "大地图", MinWidth = 72 };
+                MirChrome.StyleSys(map);
+                map.Click += (_, _) => ShowPanel("map");
+                actions.Children.Add(refreshSiege); actions.Children.Add(declare); actions.Children.Add(capture);
+                actions.Children.Add(guild); actions.Children.Add(map);
+                _panelBody.Children.Add(actions);
                 break;
+            }
+
             case "world":
                 _panelTitle.Text = "世界地图";
                 _panelBody.Children.Add(Block("安全区内点相邻地图传送。当前：" + _session.World.Map.MapName));
@@ -955,8 +1197,8 @@ public sealed partial class GameWindow
                 {
                     _panelBody.Children.Add(Block("WASD 移动 · 鼠标右键跑步"));
                     _panelBody.Children.Add(Block("F1–F8 技能 · 1–6 喝药 · Tab 大地图"));
-                    _panelBody.Children.Add(Block("` 切目标 · F9 背包 · F10 人物 · F11 技能"));
-                    _panelBody.Children.Add(Block("Ctrl+H 攻击模式 · Alt+X 小退选角 · Esc 关窗"));
+                    _panelBody.Children.Add(Block("` 切目标 · F9 背包 · F10 人物 · F11 技能 · O/F12 设置"));
+                    _panelBody.Children.Add(Block("Alt+W 组队 · Ctrl+E 英雄 · Ctrl+H 攻击模式 · Alt+X 小退 · Esc 关窗/菜单"));
                     _panelBody.Children.Add(Block("聊天会按本地脏词表替换。"));
                 }
                 else
@@ -1024,99 +1266,392 @@ public sealed partial class GameWindow
             }
 
             case "friends":
+            {
                 _panelTitle.Text = "好友";
-                var fname = new TextBox { Watermark = "角色名" };
-                var add = new Button { Content = "添加", HorizontalAlignment = HorizontalAlignment.Stretch };
-                add.Click += async (_, _) => Toast(await _session.AddFriendAsync(fname.Text ?? "") ?? "已添加");
-                _panelBody.Children.Add(fname);
-                _panelBody.Children.Add(add);
-                if (_session.Friends.Count == 0)
-                    _panelBody.Children.Add(Block("还没有好友。"));
-                foreach (var friend in _session.Friends)
+                var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 0, 0, 8) };
+                foreach (var (id, label) in new[] { ("friends", "好友"), ("black", "黑名单"), ("mentor", "师徒") })
                 {
-                    string id = friend.CharacterId;
-                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-                    row.Children.Add(new TextBlock
+                    string tabId = id;
+                    var tab = MirChrome.MakeTab(label, _friendsTab == tabId);
+                    tab.Click += (_, _) => { _friendsTab = tabId; _panelFp = ""; RefreshPhaseL(); };
+                    tabs.Children.Add(tab);
+                }
+                _panelBody.Children.Add(tabs);
+                if (_friendsTab == "friends")
+                {
+                    var fname = new TextBox { Watermark = "角色名" };
+                    MirChrome.StyleField(fname);
+                    var add = new Button { Content = "添加好友", MinWidth = 88 };
+                    MirChrome.StylePrimary(add);
+                    add.Click += async (_, _) => Toast(await _session.AddFriendAsync(fname.Text ?? "") ?? "已添加");
+                    var addRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    addRow.Children.Add(fname); addRow.Children.Add(add);
+                    _panelBody.Children.Add(addRow);
+                    if (_session.Friends.Count == 0)
+                        _panelBody.Children.Add(MirChrome.ListRow(Block("还没有好友。")));
+                    foreach (var friend in _session.Friends)
                     {
-                        Text = $"{friend.Name}  {(friend.Online ? "在线" : "离线")}",
-                        Foreground = Brushes.White,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Width = 180
-                    });
-                    var remove = new Button { Content = "删除" };
-                    remove.Click += async (_, _) => Toast(await _session.RemoveFriendAsync(id) ?? "已删除");
-                    row.Children.Add(remove);
-                    _panelBody.Children.Add(row);
+                        string id = friend.CharacterId;
+                        string nm = friend.Name;
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                        row.Children.Add(new TextBlock
+                        {
+                            Text = nm, FontSize = 13, Foreground = Brush("#F6E6C0"), Width = 120,
+                            VerticalAlignment = VerticalAlignment.Center
+                        });
+                        row.Children.Add(new TextBlock
+                        {
+                            Text = friend.Online ? "在线" : "离线",
+                            FontSize = 11, Foreground = Brush(friend.Online ? "#70D070" : "#9E9E9E"), Width = 40,
+                            VerticalAlignment = VerticalAlignment.Center
+                        });
+                        var whisper = new Button { Content = "私聊", MinWidth = 48 };
+                        MirChrome.StyleSys(whisper);
+                        whisper.Click += (_, _) => { _whisperName.Text = nm; _chatChannel = ChatChannel.ChatWhisper; Toast("私聊对象 " + nm); };
+                        var party = new Button { Content = "组队", MinWidth = 48 };
+                        MirChrome.StyleSys(party);
+                        party.Click += async (_, _) => Toast(await _session.InvitePartyAsync(nm) ?? "已邀请");
+                        var remove = new Button { Content = "删除", MinWidth = 48 };
+                        MirChrome.StyleDanger(remove);
+                        remove.Click += async (_, _) => Toast(await _session.RemoveFriendAsync(id) ?? "已删除");
+                        row.Children.Add(whisper); row.Children.Add(party); row.Children.Add(remove);
+                        _panelBody.Children.Add(MirChrome.ListRow(row));
+                    }
+                }
+                else if (_friendsTab == "black")
+                {
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("黑名单占位（本地示意）。右键玩家菜单可拉黑。")));
+                    _panelBody.Children.Add(new TextBlock { Text = "拉黑后屏蔽私聊与附近喊话（客户端过滤占位）。", FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap });
+                }
+                else
+                {
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("师徒占位：拜师徒弟 +10% 经验，在线师父获 20%。")));
+                    _panelBody.Children.Add(new TextBlock { Text = "协议未接线前仅展示说明，不升协议。", FontSize = 11, Foreground = Brush("#C8B48A") });
                 }
                 break;
+            }
+
             case "stall":
-                _panelTitle.Text = "摆摊";
-                _panelBody.Children.Add(Block("只能在安全区上架。单价 1–100000。"));
-                var priceBox = new TextBox { Watermark = "单价", Text = "10" };
-                var countBox = new TextBox { Watermark = "数量", Text = "1" };
-                _panelBody.Children.Add(priceBox);
-                _panelBody.Children.Add(countBox);
-                foreach (var item in _session.Inventory.Items)
+            {
+                _panelTitle.Text = "交易行 · 寄售";
+                var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 0, 0, 6) };
+                foreach (var (id, label) in new[] { ("browse", "浏览"), ("mine", "我的"), ("list", "上架") })
                 {
-                    string id = item.ItemId;
-                    var list = new Button
-                    {
-                        Content = "上架 " + ContentCatalog.ItemName(id) + " x" + item.Count,
-                        HorizontalAlignment = HorizontalAlignment.Stretch
-                    };
-                    list.Click += async (_, _) =>
-                    {
-                        int.TryParse(priceBox.Text, out int price);
-                        int.TryParse(countBox.Text, out int count);
-                        Toast(await _session.StallListAsync(id, Math.Max(1, count), Math.Max(1, price)) ?? "已上架");
-                    };
-                    _panelBody.Children.Add(list);
+                    string tabId = id;
+                    var tab = MirChrome.MakeTab(label, _stallTab == tabId);
+                    tab.Click += (_, _) => { _stallTab = tabId; _panelFp = ""; RefreshPhaseL(); };
+                    tabs.Children.Add(tab);
                 }
-                foreach (var listing in _session.Market)
+                _panelBody.Children.Add(tabs);
+                _panelBody.Children.Add(new TextBlock
                 {
-                    bool mine = string.Equals(listing.SellerCharacterId, _session.CharacterId, StringComparison.Ordinal);
-                    string line = $"{ContentCatalog.ItemName(listing.ItemId)} x{listing.Count}  {listing.UnitPriceGold}金  {listing.SellerName}";
-                    _panelBody.Children.Add(Block(line));
-                    string listingId = listing.ListingId;
-                    var act = new Button
+                    Text = "浏览成交无手续费 · 上架扣 1%（示意）· 仅安全区可上架 · 单价 1–100000",
+                    FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                });
+                if (_stallTab == "list")
+                {
+                    var priceBox = new TextBox { Watermark = "单价", Text = "10", Width = 100 };
+                    var countBox = new TextBox { Watermark = "数量", Text = "1", Width = 80 };
+                    MirChrome.StyleField(priceBox); MirChrome.StyleField(countBox);
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    row.Children.Add(priceBox); row.Children.Add(countBox);
+                    _panelBody.Children.Add(row);
+                    foreach (var item in _session.Inventory.Items)
                     {
-                        Content = mine ? "下架" : "购买",
-                        HorizontalAlignment = HorizontalAlignment.Stretch
-                    };
-                    act.Click += async (_, _) =>
+                        string id = item.ItemId;
+                        var list = new Button
+                        {
+                            Content = "上架 " + ContentCatalog.ItemName(id) + " x" + item.Count,
+                            HorizontalAlignment = HorizontalAlignment.Stretch
+                        };
+                        MirChrome.StyleNormal(list);
+                        list.Click += async (_, _) =>
+                        {
+                            int.TryParse(priceBox.Text, out int price);
+                            int.TryParse(countBox.Text, out int count);
+                            Toast(await _session.StallListAsync(id, Math.Max(1, count), Math.Max(1, price)) ?? "已上架");
+                        };
+                        _panelBody.Children.Add(list);
+                    }
+                }
+                else
+                {
+                    bool mineOnly = _stallTab == "mine";
+                    int shown = 0;
+                    foreach (var listing in _session.Market)
                     {
-                        Toast(mine
-                            ? await _session.StallCancelAsync(listingId) ?? "已下架"
-                            : await _session.StallBuyAsync(listingId) ?? "已购买");
-                    };
-                    _panelBody.Children.Add(act);
+                        bool mine = string.Equals(listing.SellerCharacterId, _session.CharacterId, StringComparison.Ordinal);
+                        if (mineOnly && !mine) continue;
+                        if (!mineOnly && mine) continue; // browse shows others; mine shows mine. If browse and empty others, show all?
+                        shown++;
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                        row.Children.Add(MirChrome.SlotCell(new TextBlock
+                        {
+                            Text = Short(ContentCatalog.ItemName(listing.ItemId)),
+                            FontSize = 9, Foreground = Brush("#F6E6C0"),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }, 36));
+                        var info = new StackPanel { Spacing = 1, Width = 240 };
+                        info.Children.Add(new TextBlock { Text = $"{ContentCatalog.ItemName(listing.ItemId)} x{listing.Count}", FontSize = 12, Foreground = Brush("#F6E6C0") });
+                        info.Children.Add(new TextBlock { Text = $"{listing.UnitPriceGold:N0} 金 · {listing.SellerName}", FontSize = 11, Foreground = Brush("#E8C872") });
+                        row.Children.Add(info);
+                        string listingId = listing.ListingId;
+                        var act = new Button { Content = mine ? "下架" : "购买", MinWidth = 64 };
+                        if (mine) MirChrome.StyleDanger(act); else MirChrome.StylePrimary(act);
+                        act.Click += async (_, _) =>
+                        {
+                            Toast(mine
+                                ? await _session.StallCancelAsync(listingId) ?? "已下架"
+                                : await _session.StallBuyAsync(listingId) ?? "已购买");
+                        };
+                        row.Children.Add(act);
+                        _panelBody.Children.Add(MirChrome.ListRow(row));
+                    }
+                    if (shown == 0 && _stallTab == "browse")
+                    {
+                        // fallback: show all market
+                        foreach (var listing in _session.Market)
+                        {
+                            shown++;
+                            bool mine = string.Equals(listing.SellerCharacterId, _session.CharacterId, StringComparison.Ordinal);
+                            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                            row.Children.Add(new TextBlock
+                            {
+                                Text = $"{ContentCatalog.ItemName(listing.ItemId)} x{listing.Count}",
+                                FontSize = 12, Foreground = Brush("#F6E6C0"), Width = 160, VerticalAlignment = VerticalAlignment.Center
+                            });
+                            row.Children.Add(new TextBlock
+                            {
+                                Text = $"{listing.UnitPriceGold:N0}金",
+                                FontSize = 11, Foreground = Brush("#E8C872"), Width = 80, VerticalAlignment = VerticalAlignment.Center
+                            });
+                            row.Children.Add(new TextBlock
+                            {
+                                Text = listing.SellerName, FontSize = 11, Foreground = Brush("#C8B48A"), Width = 80,
+                                VerticalAlignment = VerticalAlignment.Center
+                            });
+                            string listingId = listing.ListingId;
+                            var act = new Button { Content = mine ? "下架" : "购买", MinWidth = 64 };
+                            if (mine) MirChrome.StyleDanger(act); else MirChrome.StylePrimary(act);
+                            act.Click += async (_, _) =>
+                            {
+                                Toast(mine
+                                    ? await _session.StallCancelAsync(listingId) ?? "已下架"
+                                    : await _session.StallBuyAsync(listingId) ?? "已购买");
+                            };
+                            row.Children.Add(act);
+                            _panelBody.Children.Add(MirChrome.ListRow(row));
+                        }
+                    }
+                    if (shown == 0)
+                        _panelBody.Children.Add(MirChrome.ListRow(Block(_stallTab == "mine" ? "你还没有寄售。" : "暂无寄售商品。")));
+                    var refresh = new Button { Content = "刷新", MinWidth = 72, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
+                    MirChrome.StyleNormal(refresh);
+                    refresh.Click += async (_, _) => { await _session.RefreshMarketAsync(); _panelFp = ""; RefreshPhaseL(); };
+                    _panelBody.Children.Add(refresh);
                 }
                 break;
+            }
+
             case "looks":
-                _panelTitle.Text = "外观";
-                _panelBody.Children.Add(Block("商店可买缰绳、法袍礼盒和幼狼契约。解锁后在这里召唤或穿上。"));
-                if (_session.Mounts != null)
+            {
+                _panelTitle.Text = "外观 / 宝宝";
+                var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 0, 0, 6) };
+                foreach (var (id, label) in new[] { ("pets", "宝宝"), ("mounts", "坐骑"), ("fashions", "时装") })
+                {
+                    string tabId = id;
+                    var tab = MirChrome.MakeTab(label, _looksTab == tabId);
+                    tab.Click += (_, _) => { _looksTab = tabId; _panelFp = ""; RefreshPhaseL(); };
+                    tabs.Children.Add(tab);
+                }
+                _panelBody.Children.Add(tabs);
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "商店可买缰绳、法袍礼盒和幼狼契约。解锁后在这里召唤或穿上。",
+                    FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(0, 0, 0, 6)
+                });
+                if (_looksTab == "mounts" && _session.Mounts != null)
                 {
                     foreach (var mount in _session.Mounts.Mounts)
                         AddLookRow(mount.DisplayName, mount.Owned, mount.Active, mount.MountId, "召唤", "下马",
                             () => _session.SummonMountAsync(mount.MountId),
                             () => _session.DismissMountAsync());
                 }
-                if (_session.Fashions != null)
+                else if (_looksTab == "fashions" && _session.Fashions != null)
                 {
                     foreach (var fashion in _session.Fashions.Fashions)
                         AddLookRow(fashion.DisplayName, fashion.Owned, fashion.Equipped, fashion.FashionId, "穿上", "脱下",
                             () => _session.EquipFashionAsync(fashion.FashionId),
                             () => _session.EquipFashionAsync(""));
                 }
-                if (_session.Pets != null)
+                else if (_session.Pets != null)
                 {
                     foreach (var pet in _session.Pets.Pets)
                         AddLookRow(pet.DisplayName + $" 助战{pet.AssistDamagePercent}%", pet.Owned, pet.Active, pet.PetId, "召唤", "收回",
                             () => _session.SummonPetAsync(pet.PetId),
                             () => _session.DismissPetAsync());
                 }
+                else
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("外观数据加载中… 重新打开面板刷新。")));
                 break;
+            }
+
+            case "mall":
+            {
+                _panelTitle.Text = "商城";
+                var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Avalonia.Thickness(0, 0, 0, 6) };
+                foreach (var (id, label) in new[] { ("hot", "热销"), ("consumable", "消耗"), ("fashion", "时装"), ("material", "材料"), ("pack", "礼包"), ("pay", "充值") })
+                {
+                    string tabId = id;
+                    var tab = MirChrome.MakeTab(label, _mallTab == tabId);
+                    tab.Click += (_, _) => { _mallTab = tabId; _panelFp = ""; RefreshPhaseL(); };
+                    tabs.Children.Add(tab);
+                }
+                _panelBody.Children.Add(tabs);
+                var currency = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Avalonia.Thickness(0, 0, 0, 8) };
+                currency.Children.Add(new TextBlock { Text = $"金币 {_session.Inventory.Gold:N0}", FontSize = 12, Foreground = Brush("#E8C872") });
+                currency.Children.Add(new TextBlock { Text = "元宝 0（占位）", FontSize = 12, Foreground = Brush("#70B0F0") });
+                currency.Children.Add(new TextBlock { Text = "绑元 0（占位）", FontSize = 12, Foreground = Brush("#C070F0") });
+                _panelBody.Children.Add(currency);
+                if (_mallTab == "pay")
+                {
+                    _panelBody.Children.Add(MirChrome.ListRow(Block("充值入口占位。试玩服不接线支付，不升协议。")));
+                    break;
+                }
+                var offers = MallOffers(_mallTab);
+                var grid = new WrapPanel { Width = 440 };
+                string? selected = _selectedShopItem;
+                foreach (var (id, name, price, tag) in offers)
+                {
+                    bool sel = selected == id;
+                    var cell = new StackPanel { Spacing = 2, Width = 100 };
+                    cell.Children.Add(MirChrome.SlotCell(new TextBlock
+                    {
+                        Text = Short(name), FontSize = 9, Foreground = Brush("#F6E6C0"),
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                    }, 40));
+                    cell.Children.Add(new TextBlock { Text = name, FontSize = 11, Foreground = Brush("#F6E6C0"), TextWrapping = TextWrapping.Wrap });
+                    cell.Children.Add(new TextBlock { Text = price, FontSize = 10, Foreground = Brush("#E8C872") });
+                    if (tag.Length > 0)
+                        cell.Children.Add(new TextBlock { Text = tag, FontSize = 10, Foreground = Brush("#F0D060") });
+                    string itemId = id;
+                    var border = MirChrome.ListRow(cell, sel);
+                    border.Width = 108;
+                    border.PointerPressed += (_, _) => { _selectedShopItem = itemId; _panelFp = ""; RefreshPhaseL(); };
+                    grid.Children.Add(border);
+                }
+                _panelBody.Children.Add(grid);
+                var buy = new Button { Content = "购买选中", MinWidth = 100, Margin = new Avalonia.Thickness(0, 8, 0, 0) };
+                MirChrome.StylePrimary(buy);
+                buy.Click += (_, _) =>
+                {
+                    if (string.IsNullOrEmpty(_selectedShopItem) || !_selectedShopItem.StartsWith("mall:", StringComparison.Ordinal))
+                        Toast("先点选一件商品");
+                    else
+                        Toast("试玩服商城占位，元宝购买未接线");
+                };
+                var recharge = new Button { Content = "充值", MinWidth = 72, Margin = new Avalonia.Thickness(8, 8, 0, 0) };
+                MirChrome.StyleNormal(recharge);
+                recharge.Click += (_, _) => { _mallTab = "pay"; _panelFp = ""; RefreshPhaseL(); };
+                var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                foot.Children.Add(buy); foot.Children.Add(recharge);
+                _panelBody.Children.Add(foot);
+                break;
+            }
+            case "hero":
+            {
+                _panelTitle.Text = "英雄【扩展】";
+                var pet = _session.Pets?.Pets.FirstOrDefault(p => p.Active) ?? _session.Pets?.Pets.FirstOrDefault(p => p.Owned);
+                string heroName = pet?.DisplayName ?? "战将 · 战士";
+                bool outNow = pet?.Active == true;
+                _panelBody.Children.Add(new TextBlock { Text = heroName, FontSize = 16, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = outNow ? "状态：跟随 · 合击就绪" : "状态：休息中",
+                    FontSize = 12, Foreground = Brush("#F6E6C0"), Margin = new Avalonia.Thickness(0, 2, 0, 8)
+                });
+                int hp = _session.World.Self?.Hp ?? 0;
+                int maxHp = Math.Max(1, _session.World.Self?.MaxHp ?? 1);
+                _panelBody.Children.Add(new TextBlock { Text = $"HP  {Math.Max(1, hp * 9 / 10)}/{Math.Max(1, maxHp * 9 / 10)}（示意）", FontSize = 12, Foreground = Brush("#F6A0A0") });
+                _panelBody.Children.Add(MirChrome.ThinBar("#C060A0", hp * 0.9, maxHp * 0.9));
+                _panelBody.Children.Add(new TextBlock { Text = $"MP  {_session.Mp * 2 / 3}/{Math.Max(1, _session.MaxMp * 2 / 3)}（示意）", FontSize = 12, Foreground = Brush("#70D0F0"), Margin = new Avalonia.Thickness(0, 6, 0, 0) });
+                _panelBody.Children.Add(MirChrome.ThinBar("#40A0C0", _session.Mp * 2 / 3.0, Math.Max(1, _session.MaxMp * 2 / 3.0)));
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = $"攻击 {_session.Atk}-{_session.Atk + 30}   防御 {_session.Def}-{_session.Def + 15}",
+                    FontSize = 12, Foreground = Brush("#C8B48A"), Margin = new Avalonia.Thickness(0, 8, 0, 8)
+                });
+                var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                var summon = new Button { Content = outNow ? "休息" : "召唤", MinWidth = 72 };
+                MirChrome.StylePrimary(summon);
+                summon.Click += async (_, _) =>
+                {
+                    if (pet == null) { Toast("先在外观解锁宝宝/英雄契约"); return; }
+                    Toast(outNow
+                        ? await _session.DismissPetAsync() ?? "已休息"
+                        : await _session.SummonPetAsync(pet.PetId) ?? "已召唤");
+                    await _session.RefreshLooksAsync();
+                    _panelFp = "";
+                };
+                var combo = new Button { Content = "合击", MinWidth = 72 };
+                MirChrome.StyleNormal(combo);
+                combo.Click += (_, _) => Toast(outNow ? "合击条件满足（示意 Ctrl+S）" : "先召唤英雄");
+                var bag = new Button { Content = "包裹", MinWidth = 72 };
+                MirChrome.StyleSys(bag);
+                bag.Click += (_, _) => { _bagOpen = true; Toast("英雄包裹占位"); };
+                var looks = new Button { Content = "宝宝", MinWidth = 72 };
+                MirChrome.StyleSys(looks);
+                looks.Click += (_, _) => { _looksTab = "pets"; ShowPanel("looks"); };
+                actions.Children.Add(summon); actions.Children.Add(combo); actions.Children.Add(bag); actions.Children.Add(looks);
+                _panelBody.Children.Add(actions);
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "Ctrl+E 跟随/休息 · Ctrl+Q 护卫 · Ctrl+W 锁定 · Ctrl+S 合击（占位）",
+                    FontSize = 10, Foreground = Brush("#A09070"), Margin = new Avalonia.Thickness(0, 10, 0, 0), TextWrapping = TextWrapping.Wrap
+                });
+                break;
+            }
+            case "names":
+            {
+                _panelTitle.Text = "名色阶对照";
+                string self = _session.NameColor switch
+                {
+                    "red" => "红名",
+                    "yellow" => "黄名",
+                    "gray" or "grey" => "灰名",
+                    _ => "白名"
+                };
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = $"当前：{self}  ·  世界名板已按色显示",
+                    FontSize = 12, Foreground = Brush("#E8C872"), Margin = new Avalonia.Thickness(0, 0, 0, 8)
+                });
+                foreach (var (label, hex, tip) in new[]
+                {
+                    ("白名", "#FFFFFF", "正常"),
+                    ("灰名", "#9E9E9E", "临时 PK"),
+                    ("黄名", "#FDD835", "有 PK 值"),
+                    ("红名", "#FF1744", "高 PK · 进城高风险 · 守卫敌对")
+                })
+                {
+                    var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+                    row.Children.Add(new TextBlock { Text = "■", FontSize = 16, Foreground = Brush(hex), Width = 24 });
+                    row.Children.Add(new TextBlock { Text = label, FontSize = 13, FontWeight = FontWeight.Bold, Foreground = Brush(hex), Width = 48 });
+                    row.Children.Add(new TextBlock { Text = tip, FontSize = 12, Foreground = Brush("#F6E6C0"), VerticalAlignment = VerticalAlignment.Center });
+                    _panelBody.Children.Add(MirChrome.ListRow(row));
+                }
+                _panelBody.Children.Add(new TextBlock
+                {
+                    Text = "杀白名→灰；累计 PK→黄→红。红名掉落率上升。宝宝名色勿与玩家混淆。",
+                    FontSize = 11, Foreground = Brush("#C8B48A"), TextWrapping = TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(0, 8, 0, 0)
+                });
+                break;
+            }
+
         }
     }
 
@@ -1236,6 +1771,30 @@ public sealed partial class GameWindow
             e.Handled = true;
             return true;
         }
+        if (e.Key is Key.O or Key.F12)
+        {
+            ShowPanel("settings");
+            e.Handled = true;
+            return true;
+        }
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Alt) && e.Key == Key.W)
+        {
+            ShowPanel("party");
+            e.Handled = true;
+            return true;
+        }
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.E)
+        {
+            ShowPanel("hero");
+            e.Handled = true;
+            return true;
+        }
+        if (e.Key == Key.Escape && _ctxHost.IsVisible)
+        {
+            HidePlayerContext();
+            e.Handled = true;
+            return true;
+        }
         return false;
     }
 
@@ -1290,11 +1849,16 @@ public sealed partial class GameWindow
     {
         if (actor == null)
         {
+            HidePlayerContext();
             Toast("没有可查看的目标");
             return;
         }
         string title = string.IsNullOrWhiteSpace(actor.Title) ? "" : actor.Title + " ";
         Toast($"{title}{actor.Name}  {actor.Kind}  HP {actor.Hp}/{actor.MaxHp}");
+        if (actor.Kind == EntityKind.EntityPlayer && !actor.IsSelf)
+            ShowPlayerContext(actor.Name);
+        else
+            HidePlayerContext();
     }
 
     private void Dig()
@@ -1337,33 +1901,49 @@ public sealed partial class GameWindow
         string onText, string offText, Func<Task<string?>> on, Func<Task<string?>> off)
     {
         string state = active ? "使用中" : owned ? "已拥有" : "未拥有";
-        _panelBody.Children.Add(Block($"{label}  {state}"));
+        string stateColor = active ? "#70D070" : owned ? "#E8C872" : "#9E9E9E";
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        row.Children.Add(new TextBlock
+        {
+            Text = label, FontSize = 12, Foreground = Brush("#F6E6C0"), Width = 220,
+            VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = state, FontSize = 11, Foreground = Brush(stateColor), Width = 56,
+            VerticalAlignment = VerticalAlignment.Center
+        });
         if (owned && !active)
         {
-            var button = new Button { Content = onText, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var button = new Button { Content = onText, MinWidth = 64 };
+            MirChrome.StylePrimary(button);
             button.Click += async (_, _) => Toast(await on() ?? "完成");
-            _panelBody.Children.Add(button);
+            row.Children.Add(button);
         }
         else if (active)
         {
-            var button = new Button { Content = offText, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var button = new Button { Content = offText, MinWidth = 64 };
+            MirChrome.StyleDanger(button);
             button.Click += async (_, _) => Toast(await off() ?? "完成");
-            _panelBody.Children.Add(button);
+            row.Children.Add(button);
         }
         else
         {
             string itemId = ContentCatalog.UnlockItemFor(appearanceId);
             bool inBag = itemId.Length > 0 && _session.Inventory.Items.Any(i => string.Equals(i.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
-            if (!inBag)
-                return;
-            var unlock = new Button { Content = "解锁 " + ContentCatalog.ItemName(itemId), HorizontalAlignment = HorizontalAlignment.Stretch };
-            unlock.Click += async (_, _) =>
+            if (inBag)
             {
-                Toast(await _session.UseItemAsync(itemId) ?? "已解锁");
-                await _session.RefreshLooksAsync();
-            };
-            _panelBody.Children.Add(unlock);
+                var unlock = new Button { Content = "解锁", MinWidth = 64 };
+                MirChrome.StyleNormal(unlock);
+                unlock.Click += async (_, _) =>
+                {
+                    Toast(await _session.UseItemAsync(itemId) ?? "已解锁");
+                    await _session.RefreshLooksAsync();
+                };
+                row.Children.Add(unlock);
+            }
         }
+        _panelBody.Children.Add(MirChrome.ListRow(row));
     }
 
     private async Task Safe(Func<Task> work)
@@ -1433,4 +2013,118 @@ public sealed partial class GameWindow
         row.Children.Add(slider);
         return row;
     }
+
+    private void RefreshQuestTracker()
+    {
+        if (_questTrackerBody == null) return;
+        _questTrackerBody.Children.Clear();
+        bool inWorld = _session.Fsm.Phase == SessionPhase.InWorld;
+        var quests = _session.Quests.Take(5).ToList();
+        _questTracker.IsVisible = inWorld && quests.Count > 0;
+        foreach (var quest in quests)
+        {
+            string badge = quest.Status == QuestStatus.QuestReady ? "可交付" : $"{quest.Progress}/{quest.TargetCount}";
+            var line = new TextBlock
+            {
+                Text = $"· {quest.Title}  {badge}",
+                FontSize = 11,
+                Foreground = Brush(quest.Status == QuestStatus.QuestReady ? "#70D070" : "#F6E6C0"),
+                TextWrapping = TextWrapping.Wrap
+            };
+            _questTrackerBody.Children.Add(line);
+        }
+    }
+
+    private void RefreshSiegeBanner()
+    {
+        if (_siegeBanner == null) return;
+        bool show = _session.Fsm.Phase == SessionPhase.InWorld && !string.IsNullOrWhiteSpace(_session.SiegeNote);
+        _siegeBanner.IsVisible = show;
+        if (show)
+            _siegeBannerText.Text = "⚔ " + _session.SiegeNote;
+    }
+
+    private void UpdateZoneBanner(string text, bool safe)
+    {
+        if (_zoneBanner == null) return;
+        _zoneBannerText.Text = text;
+        _zoneBannerText.Foreground = Brush(safe ? "#70D070" : "#FDD835");
+        _zoneBanner.IsVisible = _session.Fsm.Phase == SessionPhase.InWorld;
+    }
+
+    private void ShowPlayerContext(string name)
+    {
+        _ctxName = name;
+        _ctxBody.Children.Clear();
+        void Item(string label, Action action, bool danger = false)
+        {
+            var btn = new Button { Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, FontSize = 12 };
+            if (danger) MirChrome.StyleDanger(btn); else MirChrome.StyleSys(btn);
+            btn.Click += (_, _) => { action(); HidePlayerContext(); };
+            _ctxBody.Children.Add(btn);
+        }
+        Item("查看装备", () => Toast($"查看 {name} 装备（示意）"));
+        Item("私聊", () => { _whisperName.Text = name; _chatChannel = ChatChannel.ChatWhisper; Toast("私聊 " + name); });
+        Item("加好友", () => _ = Safe(async () => Toast(await _session.AddFriendAsync(name) ?? "已添加")));
+        Item("交易", () => { ShowPanel("trade"); _ = Safe(async () => Toast(await _session.TradeStartAsync(name) ?? "已发起交易")); });
+        Item("组队邀请", () => _ = Safe(async () => Toast(await _session.InvitePartyAsync(name) ?? "已邀请")));
+        Item("行会邀请", () => Toast("行会邀请占位：请对方加入你的行会名"));
+        Item("拉黑", () => { _friendsTab = "black"; Toast("已记入黑名单占位：" + name); }, danger: true);
+        Item("挑战【扩展】", () => Toast("挑战占位未接线"));
+        Item("复制名称", () =>
+        {
+            _ = Safe(async () =>
+            {
+                var clip = TopLevel.GetTopLevel(this)?.Clipboard;
+                if (clip != null) await clip.SetTextAsync(name);
+                Toast("已复制 " + name);
+            });
+        });
+        _ctxHost.IsVisible = true;
+    }
+
+    private void HidePlayerContext()
+    {
+        if (_ctxHost != null)
+            _ctxHost.IsVisible = false;
+        _ctxName = "";
+    }
+
+    private static (string id, string name, string price, string tag)[] MallOffers(string tab) => tab switch
+    {
+        "consumable" => new[]
+        {
+            ("mall:teleport", "传送石", "30 元宝", "惠"),
+            ("mall:random", "随机传送卷 x10", "50 元宝", ""),
+            ("mall:repair", "修复油 x5", "45 元宝", ""),
+            ("mall:exp", "双倍经验符(2h)", "80 元宝", "")
+        },
+        "fashion" => new[]
+        {
+            ("mall:robe", "时装·青衫", "380 元宝", "绑"),
+            ("mall:fashion_box", "法袍礼盒", "200 元宝", "")
+        },
+        "material" => new[]
+        {
+            ("mall:ore", "精铁矿 x20", "60 元宝", ""),
+            ("mall:scroll", "武器炼制符", "200 元宝", "")
+        },
+        "pack" => new[]
+        {
+            ("mall:starter", "新手礼包", "98 元宝", "惠"),
+            ("mall:storage", "仓库扩容+8", "150 元宝", "绑")
+        },
+        _ => new[]
+        {
+            ("mall:teleport", "传送石", "30 元宝", "惠"),
+            ("mall:random", "随机传送卷 x10", "50 元宝", ""),
+            ("mall:pearl", "聚灵珠(大)", "120 元宝", "绑"),
+            ("mall:scroll", "武器炼制符", "200 元宝", ""),
+            ("mall:robe", "时装·青衫", "380 元宝", "绑"),
+            ("mall:exp", "双倍经验符(2h)", "80 元宝", ""),
+            ("mall:storage", "仓库扩容+8", "150 元宝", "绑"),
+            ("mall:repair", "修复油 x5", "45 元宝", "")
+        }
+    };
+
 }

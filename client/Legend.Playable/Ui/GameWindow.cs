@@ -137,20 +137,58 @@ public sealed partial class GameWindow : Window
 
         _reconnectText = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.White };
         _reconnect = BuildReconnect();
+        var deathBody = new StackPanel { Spacing = 10, Width = 360 };
+        deathBody.Children.Add(new TextBlock
+        {
+            Text = "你已经死亡",
+            FontSize = 22,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brush("#FF6A6A"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        deathBody.Children.Add(new TextBlock
+        {
+            Text = "操作已锁定，请选择复活方式",
+            FontSize = 13,
+            Foreground = Brush("#F6E6C0"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        deathBody.Children.Add(new TextBlock
+        {
+            Text = "本次死亡可能损失部分经验\n红名或高风险地图：装备掉落概率上升\n掉落摘要：无装备掉落（示意）",
+            FontSize = 12,
+            Foreground = Brush("#C8B48A"),
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        var deathBtns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center };
+        var reviveTown = new Button { Content = "回城复活", MinWidth = 120 };
+        MirChrome.StylePrimary(reviveTown);
+        reviveTown.Click += (_, _) => Toast("服务器会把你复活到出生点");
+        var waitHere = new Button { Content = "就地等待", MinWidth = 120 };
+        MirChrome.StyleNormal(waitHere);
+        waitHere.Click += (_, _) => Toast("观战残局中… 等待服务器复活");
+        deathBtns.Children.Add(reviveTown);
+        deathBtns.Children.Add(waitHere);
+        deathBody.Children.Add(deathBtns);
+        deathBody.Children.Add(new TextBlock
+        {
+            Text = "主路径：回城至安全点 · 空格可归回城复活",
+            FontSize = 10,
+            Foreground = Brush("#E07070"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        var deathFrame = MirChrome.Framed(deathBody, 400);
+        deathFrame.HorizontalAlignment = HorizontalAlignment.Center;
+        deathFrame.VerticalAlignment = VerticalAlignment.Center;
         _death = new Border
         {
-            Background = Brush("#CC2A1010"),
+            Background = Brush("#CC1A0808"),
             IsVisible = false,
-            Child = new TextBlock
-            {
-                Text = "你已死亡\n即将在出生点复活",
-                FontSize = 28,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextAlignment = TextAlignment.Center
-            }
+            Child = deathFrame
         };
+
 
         _canvas.World = _session.World;
         _canvas.WorldPressed += (point, right, shift, ctrl, alt, clicks) =>
@@ -604,6 +642,7 @@ public sealed partial class GameWindow : Window
             return;
         _lastSafe = safe;
         Toast(safe ? "进入安全区" : "离开安全区");
+        UpdateZoneBanner(safe ? "◆ 安全区 · 禁止 PK · 可摆摊/存仓" : "◇ 已离开安全区 · 野外可战斗", safe);
         _audio.PlayForMap(_session.World.Map.MapId, safe);
     }
 
