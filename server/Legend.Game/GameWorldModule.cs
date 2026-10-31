@@ -844,11 +844,80 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
+        bool isCombo = false;
+        ComboConfigItem? comboCfg = null;
+        if (attacker.ActiveHero is not null)
+        {
+            attacker.ActiveHero.Mode = HeroCombo.EffectiveMode(_versionPack.Heroes, attacker.ActiveHero);
+            if (attacker.ActiveHero.Deployed
+                && !string.Equals(attacker.ActiveHero.Mode, "rest", StringComparison.OrdinalIgnoreCase))
+            {
+                // Keep companion near the owner for heji range checks.
+                attacker.ActiveHeroX = attacker.X + 1;
+                attacker.ActiveHeroY = attacker.Y;
+                comboCfg = HeroCombo.FindCombo(
+                    _versionPack.Combos,
+                    skill.SkillId,
+                    attacker.ClassId,
+                    attacker.ActiveHero.ClassId);
+            }
+        }
+
+        if (comboCfg is not null)
+        {
+            if (!HeroCombo.CanExecuteCombo(
+                    _versionPack.Combos,
+                    comboCfg,
+                    attacker.ActiveHero,
+                    attacker.MapId,
+                    attacker.X,
+                    attacker.Y,
+                    attacker.MapId,
+                    attacker.ActiveHeroX,
+                    attacker.ActiveHeroY,
+                    heroAlive: attacker.ActiveHero!.Hp > 0,
+                    playerMp: attacker.Mp,
+                    heroMp: attacker.ActiveHero.Mp,
+                    nowUnixMs: now,
+                    playerReadyAt: readyAt,
+                    heroReadyAt: attacker.HeroComboReadyAtUnixMs,
+                    reason: out string comboDeny))
+            {
+                await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+                {
+                    Success = false,
+                    ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
+                    Message = string.IsNullOrWhiteSpace(comboDeny) ? "合击条件不满足" : comboDeny,
+                    RemainingMp = attacker.Mp
+                }, ct);
+                return;
+            }
+            isCombo = true;
+            dmgMult = comboCfg.DamageMultiplier > 0 ? comboCfg.DamageMultiplier : dmgMult;
+            cooldownMs = Math.Max(cooldownMs, comboCfg.CooldownMs);
+        }
+
         attacker.Mp -= skill.MpCost;
+        if (isCombo && attacker.ActiveHero is not null)
+        {
+            attacker.ActiveHero.Mp = Math.Max(0, attacker.ActiveHero.Mp - comboCfg!.MpCostHero);
+            // skill.MpCost already covers player side; if combo asks more, deduct delta
+            int extraPlayerMp = Math.Max(0, comboCfg.MpCostPlayer - skill.MpCost);
+            if (extraPlayerMp > 0)
+                attacker.Mp = Math.Max(0, attacker.Mp - extraPlayerMp);
+        }
         long nextReady = now + cooldownMs;
         attacker.SkillReadyAtUnixMs[skill.SkillId] = nextReady;
+        if (isCombo)
+            attacker.HeroComboReadyAtUnixMs = nextReady;
 
-        int damage = _combat.CalcDamage(attacker.Atk, monster.Template.Def, dmgMult);
+        int damage = isCombo
+            ? HeroCombo.CalcComboDamage(
+                attacker.Atk,
+                attacker.ActiveHero?.Atk ?? 0,
+                monster.Template.Def,
+                dmgMult)
+            : _combat.CalcDamage(attacker.Atk, monster.Template.Def, dmgMult);
         monster.Hp = Math.Max(0, monster.Hp - damage);
         monster.TargetEntityId = attacker.EntityId;
         bool killed = monster.Hp <= 0;
@@ -863,7 +932,8 @@ public sealed partial class GameWorldModule : IGameModule
             TargetHp = monster.Hp,
             TargetMaxHp = monster.MaxHp,
             TargetDied = killed,
-            MapId = attacker.MapId
+            MapId = attacker.MapId,
+            Combo = isCombo
         };
 
         await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp

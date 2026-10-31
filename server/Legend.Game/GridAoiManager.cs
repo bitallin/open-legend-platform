@@ -45,6 +45,13 @@ public sealed class WorldPlayerEntity
     public Dictionary<string, List<string>> TalentUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Zodiac container (appearance_json). Slot ids from equipment_slots.json.</summary>
     public List<EquippedItemState> ZodiacSlots { get; set; } = new();
+    /// <summary>Persisted heroes (appearance_json).</summary>
+    public List<HeroSaveState> Heroes { get; set; } = new();
+    /// <summary>Currently deployed hero runtime (null if none). Follows player when mode=follow.</summary>
+    public HeroSaveState? ActiveHero { get; set; }
+    public int ActiveHeroX { get; set; }
+    public int ActiveHeroY { get; set; }
+    public long HeroComboReadyAtUnixMs { get; set; }
     public List<QuestProgressState> Quests { get; set; } = new();
     public List<EquippedItemState> Equipment { get; set; } = new();
     public string GuildId { get; set; } = string.Empty;

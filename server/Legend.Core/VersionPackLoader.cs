@@ -741,6 +741,64 @@ public sealed class VersionPackLoader : IVersionPackLoader
                 artifactUpgradeDict[kv.Key] = kv.Value;
         }
 
+
+        var heroesConfig = new HeroesConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.HeroesConfigFile))
+        {
+            string heroesPath = Path.Combine(baseDir, manifest.HeroesConfigFile);
+            if (!File.Exists(heroesPath))
+                throw new FileNotFoundException($"Heroes config not found: {heroesPath}");
+            string heroesJson = File.ReadAllText(heroesPath, Encoding.UTF8);
+            hashInput.Append(heroesJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Heroes, heroesJson, manifest.HeroesConfigFile);
+            heroesConfig = JsonSerializer.Deserialize<HeroesConfigFile>(heroesJson, JsonOptions)
+                ?? new HeroesConfigFile();
+            if (heroesConfig.MaxLoyalty < 1)
+                heroesConfig.MaxLoyalty = 1000;
+            heroesConfig.LoyaltyGates ??= new();
+            heroesConfig.Starter ??= new HeroStarterConfig();
+            if (!string.IsNullOrWhiteSpace(heroesConfig.Starter.ClassId)
+                && classDict.Count > 0
+                && !classDict.ContainsKey(heroesConfig.Starter.ClassId))
+            {
+                throw new InvalidDataException(
+                    $"Hero starter classId '{heroesConfig.Starter.ClassId}' not in classes.json.");
+            }
+        }
+
+        var combosConfig = new CombosConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.CombosConfigFile))
+        {
+            string combosPath = Path.Combine(baseDir, manifest.CombosConfigFile);
+            if (!File.Exists(combosPath))
+                throw new FileNotFoundException($"Combos config not found: {combosPath}");
+            string combosJson = File.ReadAllText(combosPath, Encoding.UTF8);
+            hashInput.Append(combosJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Combos, combosJson, manifest.CombosConfigFile);
+            combosConfig = JsonSerializer.Deserialize<CombosConfigFile>(combosJson, JsonOptions)
+                ?? new CombosConfigFile();
+            if (combosConfig.HejiRangeCells < 1)
+                combosConfig.HejiRangeCells = 3;
+            combosConfig.Combos ??= new();
+            var comboIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in combosConfig.Combos)
+            {
+                if (string.IsNullOrWhiteSpace(c.ComboId))
+                    throw new InvalidDataException("Combo missing comboId.");
+                if (!comboIds.Add(c.ComboId))
+                    throw new InvalidDataException($"Duplicate comboId '{c.ComboId}'.");
+                if (classDict.Count > 0)
+                {
+                    if (!classDict.ContainsKey(c.PlayerClassId))
+                        throw new InvalidDataException($"Combo '{c.ComboId}' playerClassId '{c.PlayerClassId}' unknown.");
+                    if (!classDict.ContainsKey(c.HeroClassId))
+                        throw new InvalidDataException($"Combo '{c.ComboId}' heroClassId '{c.HeroClassId}' unknown.");
+                }
+                if (skillDict.Count > 0 && !skillDict.ContainsKey(c.SkillId))
+                    throw new InvalidDataException($"Combo '{c.ComboId}' skillId '{c.SkillId}' not in skills.json.");
+            }
+        }
+
         string profanityPath = Path.Combine(baseDir, "configs", "profanity.txt");
         if (File.Exists(profanityPath))
             PhasePRules.UseWordList(File.ReadAllLines(profanityPath));
@@ -779,6 +837,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Internal = internalConfig,
             EquipmentSlots = equipmentSlotsConfig,
             ArtifactUpgrades = artifactUpgradeDict,
+            Heroes = heroesConfig,
+            Combos = combosConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

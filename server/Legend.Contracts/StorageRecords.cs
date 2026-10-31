@@ -164,6 +164,8 @@ public static class AppearanceJson
         public Dictionary<string, List<string>> TalentUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Zodiac container slots (slot id + item). docs/site/07.</summary>
         public List<EquippedItemState> ZodiacSlots { get; set; } = new();
+        /// <summary>Hero save list (docs/site/15). MsgIds TBD; state still persists.</summary>
+        public List<HeroSaveState> Heroes { get; set; } = new();
     }
 
     public static State Parse(string? json)
@@ -187,6 +189,7 @@ public static class AppearanceJson
             s.UnlockedMeridians ??= new();
             s.TalentUnlocked ??= new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             s.ZodiacSlots ??= new();
+            s.Heroes ??= new();
             if (string.IsNullOrWhiteSpace(s.AttackMode))
                 s.AttackMode = "peace";
             return s;
@@ -262,6 +265,26 @@ public static class AppearanceJson
                     Durability = z.Durability,
                     MaxDurability = z.MaxDurability,
                     Identified = z.Identified
+                })
+                .ToList(),
+            Heroes = (state.Heroes ?? new())
+                .Where(h => !string.IsNullOrWhiteSpace(h.HeroId))
+                .Select(h => new HeroSaveState
+                {
+                    HeroId = h.HeroId,
+                    Name = h.Name ?? "",
+                    ClassId = h.ClassId ?? "",
+                    Level = Math.Max(1, h.Level),
+                    Loyalty = Math.Max(0, h.Loyalty),
+                    Deployed = h.Deployed,
+                    Mode = string.IsNullOrWhiteSpace(h.Mode) ? "follow" : h.Mode,
+                    Skills = (h.Skills ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    Hp = h.Hp,
+                    MaxHp = Math.Max(1, h.MaxHp),
+                    Mp = h.Mp,
+                    MaxMp = Math.Max(0, h.MaxMp),
+                    Atk = h.Atk,
+                    Def = h.Def
                 })
                 .ToList()
         };

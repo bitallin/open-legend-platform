@@ -723,5 +723,26 @@
     "applyBuffOnCast": "buff_hide",
     "learnRequiredLevel": 6,
     "skillBookItemId": "item_skillbook_group_hide"
+  },
+  {
+    "skillId": "hero_combo",
+    "displayName": "合击",
+    "mpCost": 10,
+    "cooldownMs": 5000,
+    "range": 3,
+    "damageMultiplier": 1.0,
+    "damageMultiplierPerLevel": 0.0,
+    "allowedClasses": [
+      "warrior",
+      "mage",
+      "taoist"
+    ],
+    "requiresLearn": false,
+    "maxLevel": 1,
+    "skillExpPerCast": 0,
+    "skillExpPerKill": 0,
+    "expToNextLevel": [
+      0
+    ]
   }
 ]

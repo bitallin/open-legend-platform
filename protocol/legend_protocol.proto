@@ -403,6 +403,8 @@ message CombatSync {
   int32 target_max_hp = 8;
   bool target_died = 9;
   string map_id = 10;
+  // Hero combo presentation bit (docs/site/05). Protocol stays 1.21.0.
+  bool combo = 11;
 }
 
 message EntitySpawn {

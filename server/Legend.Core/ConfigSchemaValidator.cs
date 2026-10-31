@@ -29,7 +29,9 @@ public sealed class ConfigSchemaValidator : IConfigSchemaValidator
             [ConfigSchemaIds.Talents] = LoadEmbedded("Legend.Core.Schemas.talents.schema.json"),
             [ConfigSchemaIds.Internal] = LoadEmbedded("Legend.Core.Schemas.internal.schema.json"),
             [ConfigSchemaIds.EquipmentSlots] = LoadEmbedded("Legend.Core.Schemas.equipment_slots.schema.json"),
-            [ConfigSchemaIds.Artifacts] = LoadEmbedded("Legend.Core.Schemas.artifacts.schema.json")
+            [ConfigSchemaIds.Artifacts] = LoadEmbedded("Legend.Core.Schemas.artifacts.schema.json"),
+            [ConfigSchemaIds.Heroes] = LoadEmbedded("Legend.Core.Schemas.heroes.schema.json"),
+            [ConfigSchemaIds.Combos] = LoadEmbedded("Legend.Core.Schemas.combos.schema.json")
         };
 
         foreach (var pair in _schemas)

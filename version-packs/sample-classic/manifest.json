@@ -60,5 +60,7 @@
   "talentsConfigFile": "configs/talents.json",
   "internalConfigFile": "configs/internal.json",
   "equipmentSlotsConfigFile": "configs/equipment_slots.json",
-  "artifactsConfigFile": "configs/artifacts.json"
+  "artifactsConfigFile": "configs/artifacts.json",
+  "heroesConfigFile": "configs/heroes.json",
+  "combosConfigFile": "configs/combos.json"
 }
