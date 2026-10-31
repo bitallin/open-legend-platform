@@ -234,7 +234,12 @@ public sealed partial class GameWindow : Window
         {
             _audio.PlayLoginBgm();
             _timer.Start();
-            if (options.UiSmoke)
+            if (!string.IsNullOrWhiteSpace(options.UiCaptureDir))
+            {
+                Console.WriteLine("UI_CAPTURE_OPEN " + options.UiCaptureDir);
+                RunUiCaptureAsync(options.UiCaptureDir);
+            }
+            else if (options.UiSmoke)
             {
                 Console.WriteLine("UI_SMOKE_OPEN");
                 var close = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
