@@ -156,6 +156,12 @@ public static class AppearanceJson
         public Dictionary<string, long> Wallet { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Recycle daily counters keyed by itemId.</summary>
         public Dictionary<string, RecycleDailyJson.Entry> RecycleDaily { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Second XP pool level (docs/site/03 internal). Default 1.</summary>
+        public int InternalLevel { get; set; } = 1;
+        public long InternalExp { get; set; }
+        public List<string> UnlockedMeridians { get; set; } = new();
+        /// <summary>treeId → unlocked nodeIds.</summary>
+        public Dictionary<string, List<string>> TalentUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     public static State Parse(string? json)
@@ -174,6 +180,10 @@ public static class AppearanceJson
             s.Storage ??= new();
             s.Wallet ??= new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
             s.RecycleDaily ??= new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase);
+            if (s.InternalLevel < 1)
+                s.InternalLevel = 1;
+            s.UnlockedMeridians ??= new();
+            s.TalentUnlocked ??= new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(s.AttackMode))
                 s.AttackMode = "peace";
             return s;
@@ -222,7 +232,22 @@ public static class AppearanceJson
                 .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase),
             RecycleDaily = (state.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase))
                 .Where(kv => !string.IsNullOrWhiteSpace(kv.Key))
-                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase),
+            InternalLevel = Math.Max(1, state.InternalLevel),
+            InternalExp = Math.Max(0, state.InternalExp),
+            UnlockedMeridians = (state.UnlockedMeridians ?? new())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            TalentUnlocked = (state.TalentUnlocked ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase))
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Key))
+                .ToDictionary(
+                    kv => kv.Key,
+                    kv => (kv.Value ?? new())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList(),
+                    StringComparer.OrdinalIgnoreCase)
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

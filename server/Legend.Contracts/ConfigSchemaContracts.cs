@@ -19,6 +19,8 @@ public static class ConfigSchemaIds
     public const string Trade = "trade";
     public const string Currencies = "currencies";
     public const string Recycle = "recycle";
+    public const string Talents = "talents";
+    public const string Internal = "internal";
 }
 
 /// <summary>

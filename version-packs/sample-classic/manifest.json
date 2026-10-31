@@ -56,5 +56,7 @@
   "fashionsConfigFile": "configs/fashions.json",
   "petsConfigFile": "configs/pets.json",
   "currenciesConfigFile": "configs/currencies.json",
-  "recycleConfigFile": "configs/recycle.json"
+  "recycleConfigFile": "configs/recycle.json",
+  "talentsConfigFile": "configs/talents.json",
+  "internalConfigFile": "configs/internal.json"
 }

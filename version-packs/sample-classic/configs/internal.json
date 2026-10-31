@@ -1,0 +1,19 @@
+{
+  "maxLevel": 5,
+  "entries": [
+    { "level": 1, "expToNext": 100, "atkBonus": 0, "defBonus": 0, "maxHpBonus": 0, "maxMpBonus": 0, "mpCostPercent": 0 },
+    { "level": 2, "expToNext": 200, "atkBonus": 1, "defBonus": 0, "maxHpBonus": 10, "maxMpBonus": 5, "mpCostPercent": 0 },
+    { "level": 3, "expToNext": 350, "atkBonus": 2, "defBonus": 1, "maxHpBonus": 20, "maxMpBonus": 10, "mpCostPercent": 0 },
+    { "level": 4, "expToNext": 550, "atkBonus": 3, "defBonus": 1, "maxHpBonus": 35, "maxMpBonus": 15, "mpCostPercent": 0 },
+    { "level": 5, "expToNext": 0, "atkBonus": 5, "defBonus": 2, "maxHpBonus": 50, "maxMpBonus": 20, "mpCostPercent": 0 }
+  ],
+  "meridians": [
+    {
+      "meridianId": "meridian_ren",
+      "displayName": "任脉",
+      "requiresInternalLevel": 2,
+      "materials": [{ "itemId": "item_hp_potion", "count": 1 }],
+      "effects": [{ "statId": "maxHp", "value": 15 }]
+    }
+  ]
+}

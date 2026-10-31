@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/internal.schema.json",
+  "title": "Open Legend internal (neigong)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["maxLevel", "entries"],
+  "properties": {
+    "maxLevel": { "type": "integer", "minimum": 1, "maximum": 1000 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level", "expToNext"],
+        "properties": {
+          "level": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "expToNext": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+          "atkBonus": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+          "defBonus": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+          "maxHpBonus": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+          "maxMpBonus": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+          "mpCostPercent": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "meridians": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["meridianId"],
+        "properties": {
+          "meridianId": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "displayName": { "type": "string", "maxLength": 64 },
+          "requiresInternalLevel": { "type": "integer", "minimum": 0, "maximum": 1000 },
+          "materials": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["itemId", "count"],
+              "properties": {
+                "itemId": { "type": "string", "minLength": 1, "maxLength": 64 },
+                "count": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+              }
+            }
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "statId": { "type": "string", "minLength": 1, "maxLength": 64 },
+                "value": { "type": "integer", "minimum": -1000000, "maximum": 1000000 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "pointsPerLevel": 1,
+  "resetCost": { "currencyId": "gold", "amount": 100 },
+  "trees": [
+    {
+      "treeId": "warrior_basic",
+      "classId": "warrior",
+      "displayName": "战士基础",
+      "nodes": [
+        {
+          "nodeId": "w_atk_1",
+          "requires": [],
+          "costPoints": 1,
+          "effects": [{ "statId": "atk", "value": 2 }]
+        },
+        {
+          "nodeId": "w_hp_1",
+          "requires": ["w_atk_1"],
+          "costPoints": 1,
+          "effects": [{ "statId": "maxHp", "value": 20 }]
+        }
+      ]
+    }
+  ]
+}

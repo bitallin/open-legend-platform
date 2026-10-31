@@ -84,6 +84,20 @@ public sealed partial class GameWorldModule
         player.RecycleDaily = new Dictionary<string, RecycleDailyJson.Entry>(
             (state.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>()).Where(kv => !string.IsNullOrWhiteSpace(kv.Key)),
             StringComparer.OrdinalIgnoreCase);
+        player.InternalLevel = Math.Max(1, state.InternalLevel);
+        player.InternalExp = Math.Max(0, state.InternalExp);
+        player.UnlockedMeridians = (state.UnlockedMeridians ?? new())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        player.TalentUnlocked = new Dictionary<string, List<string>>(
+            (state.TalentUnlocked ?? new Dictionary<string, List<string>>())
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Key))
+                .ToDictionary(
+                    kv => kv.Key,
+                    kv => (kv.Value ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
         CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
@@ -108,7 +122,11 @@ public sealed partial class GameWorldModule
             MentorName = player.MentorName ?? "",
             Blacklist = player.Blacklist ?? new(),
             Wallet = player.Wallet ?? new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase),
-            RecycleDaily = player.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase)
+            RecycleDaily = player.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase),
+            InternalLevel = player.InternalLevel,
+            InternalExp = player.InternalExp,
+            UnlockedMeridians = player.UnlockedMeridians ?? new(),
+            TalentUnlocked = player.TalentUnlocked ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);

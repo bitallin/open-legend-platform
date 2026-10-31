@@ -563,6 +563,102 @@ public sealed class VersionPackLoader : IVersionPackLoader
             }
         }
 
+
+        var talentsConfig = new TalentsConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.TalentsConfigFile))
+        {
+            string talentsPath = Path.Combine(baseDir, manifest.TalentsConfigFile);
+            if (!File.Exists(talentsPath))
+                throw new FileNotFoundException($"Talents config not found: {talentsPath}");
+            string talentsJson = File.ReadAllText(talentsPath, Encoding.UTF8);
+            hashInput.Append(talentsJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Talents, talentsJson, manifest.TalentsConfigFile);
+            talentsConfig = JsonSerializer.Deserialize<TalentsConfigFile>(talentsJson, JsonOptions)
+                ?? new TalentsConfigFile();
+            var treeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tree in talentsConfig.Trees)
+            {
+                if (string.IsNullOrWhiteSpace(tree.TreeId))
+                    throw new InvalidDataException("Talent tree missing treeId.");
+                if (!treeIds.Add(tree.TreeId))
+                    throw new InvalidDataException($"Duplicate talent treeId '{tree.TreeId}'.");
+                if (!string.IsNullOrWhiteSpace(tree.ClassId) && classDict.Count > 0 && !classDict.ContainsKey(tree.ClassId))
+                    throw new InvalidDataException($"Talent tree '{tree.TreeId}' classId '{tree.ClassId}' not in classes.json.");
+                var nodeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var node in tree.Nodes)
+                {
+                    if (string.IsNullOrWhiteSpace(node.NodeId))
+                        throw new InvalidDataException($"Talent tree '{tree.TreeId}' has empty nodeId.");
+                    if (!nodeIds.Add(node.NodeId))
+                        throw new InvalidDataException($"Duplicate talent nodeId '{node.NodeId}' in tree '{tree.TreeId}'.");
+                    foreach (var effect in node.Effects ?? new List<TalentEffectConfig>())
+                    {
+                        bool hasStat = !string.IsNullOrWhiteSpace(effect.StatId);
+                        bool hasMod = !string.IsNullOrWhiteSpace(effect.SkillModifierId);
+                        if (!hasStat && !hasMod)
+                            throw new InvalidDataException($"Talent node '{node.NodeId}' effect needs statId or skillModifierId.");
+                        if (hasStat && !StatIdWhitelist.IsAllowed(effect.StatId))
+                            throw new InvalidDataException($"Talent node '{node.NodeId}' statId '{effect.StatId}' not in whitelist.");
+                    }
+                }
+                foreach (var node in tree.Nodes)
+                {
+                    foreach (var req in node.Requires ?? new List<string>())
+                    {
+                        if (!nodeIds.Contains(req))
+                            throw new InvalidDataException($"Talent node '{node.NodeId}' requires unknown '{req}'.");
+                    }
+                }
+            }
+            if (talentsConfig.ResetCost is not null
+                && !string.IsNullOrWhiteSpace(talentsConfig.ResetCost.CurrencyId)
+                && currencyDict.Count > 0
+                && !currencyDict.ContainsKey(talentsConfig.ResetCost.CurrencyId))
+            {
+                throw new InvalidDataException(
+                    $"Talent resetCost currencyId '{talentsConfig.ResetCost.CurrencyId}' not in currencies.json.");
+            }
+        }
+
+        var internalConfig = new InternalConfigFile();
+        if (!string.IsNullOrWhiteSpace(manifest.InternalConfigFile))
+        {
+            string internalPath = Path.Combine(baseDir, manifest.InternalConfigFile);
+            if (!File.Exists(internalPath))
+                throw new FileNotFoundException($"Internal config not found: {internalPath}");
+            string internalJson = File.ReadAllText(internalPath, Encoding.UTF8);
+            hashInput.Append(internalJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Internal, internalJson, manifest.InternalConfigFile);
+            internalConfig = JsonSerializer.Deserialize<InternalConfigFile>(internalJson, JsonOptions)
+                ?? new InternalConfigFile();
+            if (internalConfig.Entries.Count == 0)
+                throw new InvalidDataException("internal.json entries cannot be empty.");
+            var levels = new HashSet<int>();
+            foreach (var e in internalConfig.Entries)
+            {
+                if (!levels.Add(e.Level))
+                    throw new InvalidDataException($"Duplicate internal level {e.Level}.");
+            }
+            var meridianIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in internalConfig.Meridians)
+            {
+                if (string.IsNullOrWhiteSpace(m.MeridianId))
+                    throw new InvalidDataException("Meridian missing meridianId.");
+                if (!meridianIds.Add(m.MeridianId))
+                    throw new InvalidDataException($"Duplicate meridianId '{m.MeridianId}'.");
+                foreach (var mat in m.Materials ?? new List<MeridianMaterialConfig>())
+                {
+                    if (itemDict.Count > 0 && !itemDict.ContainsKey(mat.ItemId))
+                        throw new InvalidDataException($"Meridian '{m.MeridianId}' material '{mat.ItemId}' not in items.json.");
+                }
+                foreach (var effect in m.Effects ?? new List<TalentEffectConfig>())
+                {
+                    if (!string.IsNullOrWhiteSpace(effect.StatId) && !StatIdWhitelist.IsAllowed(effect.StatId))
+                        throw new InvalidDataException($"Meridian '{m.MeridianId}' statId '{effect.StatId}' not in whitelist.");
+                }
+            }
+        }
+
         string profanityPath = Path.Combine(baseDir, "configs", "profanity.txt");
         if (File.Exists(profanityPath))
             PhasePRules.UseWordList(File.ReadAllLines(profanityPath));
@@ -597,6 +693,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Pets = petsConfig,
             Currencies = currencyDict,
             Recycle = recycleDict,
+            Talents = talentsConfig,
+            Internal = internalConfig,
             LuaScripts = luaScripts,
             PackHash = packHash
         };
