@@ -1,3 +1,4 @@
+using Legend.ClientCore;
 using Legend.Contracts.Proto;
 
 namespace Legend.Playable.World;
@@ -75,6 +76,13 @@ public sealed class ActorView
 public sealed class WorldState
 {
     private readonly Dictionary<string, ActorView> _actors = new(StringComparer.Ordinal);
+
+    public IMovePrediction MovePrediction { get; }
+
+    public WorldState(IMovePrediction? movePrediction = null)
+    {
+        MovePrediction = movePrediction ?? new MovePrediction();
+    }
 
     public IReadOnlyDictionary<string, ActorView> Actors => _actors;
     public List<FloatText> Floats { get; } = new();
@@ -207,11 +215,42 @@ public sealed class WorldState
             SelfId = null;
     }
 
+    /// <summary>Optimistic local step (grid only). Paired with <see cref="ApplyMove"/>.</summary>
+    public void PredictSelfMove(int toX, int toY, int direction)
+    {
+        var self = Self;
+        if (self is null)
+            return;
+        MovePrediction.Begin(self.GridX, self.GridY, toX, toY);
+        self.GridX = toX;
+        self.GridY = toY;
+        self.Direction = direction;
+    }
+
     public void ApplyMove(MoveSync sync)
     {
-        if (!sync.Accepted)
-            return;
         if (!_actors.TryGetValue(sync.EntityId, out var actor))
+            return;
+
+        bool isSelf = SelfId != null && string.Equals(sync.EntityId, SelfId, StringComparison.Ordinal);
+        if (isSelf && MovePrediction.HasPending)
+        {
+            int serverX = sync.Accepted ? sync.ToX : sync.FromX;
+            int serverY = sync.Accepted ? sync.ToY : sync.FromY;
+            var result = MovePrediction.Resolve(sync.Accepted, serverX, serverY);
+            actor.GridX = result.GridX;
+            actor.GridY = result.GridY;
+            if (sync.Accepted)
+            {
+                actor.Direction = sync.Direction;
+                actor.InSafeZone = sync.InSafeZone;
+            }
+            actor.DrawX = result.GridX;
+            actor.DrawY = result.GridY;
+            return;
+        }
+
+        if (!sync.Accepted)
             return;
         actor.GridX = sync.ToX;
         actor.GridY = sync.ToY;

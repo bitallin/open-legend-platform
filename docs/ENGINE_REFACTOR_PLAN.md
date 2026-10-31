@@ -244,7 +244,7 @@ Schema 文件：
 
 测试：`dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --filter "FullyQualifiedName~M3|FullyQualifiedName~M4|FullyQualifiedName~Combat"`。
 
-### E5 — 客户端预测边界
+### E5 — 客户端预测边界（已完成）
 
 范围：在 `Legend.ClientCore` 增加窄端口，例如移动预测的“申请 / 被服务器拒绝则回滚”。`Legend.Playable` 改为调用该端口。预测失败时以 `MoveSync.Accepted = false` 为准回到服务器坐标。不改 Avalonia 布局，不改 Unity。
 

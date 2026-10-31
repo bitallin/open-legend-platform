@@ -142,6 +142,7 @@ public sealed partial class PlayableSession : IDisposable
     {
         if (Fsm.Phase != SessionPhase.InWorld)
             return null;
+        World.PredictSelfMove(toX, toY, direction);
         var sync = await _net.RequestMoveAsync(toX, toY, direction);
         World.ApplyMove(sync);
         return sync;
