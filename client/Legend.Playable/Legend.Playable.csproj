@@ -64,6 +64,177 @@
     <EmbeddedResource Include="Assets\ui_chrome.png">
       <LogicalName>assets.ui_chrome.png</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\bag-window-full.png">
+      <LogicalName>assets.chrome.bag-window-full.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\br-cluster.png">
+      <LogicalName>assets.chrome.br-cluster.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-blank-source.png">
+      <LogicalName>assets.chrome.btn-blank-source.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-close.png">
+      <LogicalName>assets.chrome.btn-close.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-danger-default.png">
+      <LogicalName>assets.chrome.btn-danger-default.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-danger-disabled.png">
+      <LogicalName>assets.chrome.btn-danger-disabled.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-danger-hover.png">
+      <LogicalName>assets.chrome.btn-danger-hover.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-danger-pressed.png">
+      <LogicalName>assets.chrome.btn-danger-pressed.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-normal-default.png">
+      <LogicalName>assets.chrome.btn-normal-default.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-normal-disabled.png">
+      <LogicalName>assets.chrome.btn-normal-disabled.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-normal-hover.png">
+      <LogicalName>assets.chrome.btn-normal-hover.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-normal-pressed.png">
+      <LogicalName>assets.chrome.btn-normal-pressed.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-primary-default.png">
+      <LogicalName>assets.chrome.btn-primary-default.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-primary-disabled.png">
+      <LogicalName>assets.chrome.btn-primary-disabled.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-primary-hover.png">
+      <LogicalName>assets.chrome.btn-primary-hover.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\btn-primary-pressed.png">
+      <LogicalName>assets.chrome.btn-primary-pressed.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\chat-frame.png">
+      <LogicalName>assets.chrome.chat-frame.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\checkbox-off.png">
+      <LogicalName>assets.chrome.checkbox-off.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\checkbox-on.png">
+      <LogicalName>assets.chrome.checkbox-on.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\currency-row.png">
+      <LogicalName>assets.chrome.currency-row.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\equip-window-full.png">
+      <LogicalName>assets.chrome.equip-window-full.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-corner-bl.png">
+      <LogicalName>assets.chrome.frame-corner-bl.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-corner-br.png">
+      <LogicalName>assets.chrome.frame-corner-br.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-corner-tl.png">
+      <LogicalName>assets.chrome.frame-corner-tl.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-corner-tr.png">
+      <LogicalName>assets.chrome.frame-corner-tr.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-edge-h.png">
+      <LogicalName>assets.chrome.frame-edge-h.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-edge-v.png">
+      <LogicalName>assets.chrome.frame-edge-v.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\frame-titlebar-tile.png">
+      <LogicalName>assets.chrome.frame-titlebar-tile.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\hotbar-slot.png">
+      <LogicalName>assets.chrome.hotbar-slot.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\input-field.png">
+      <LogicalName>assets.chrome.input-field.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\_atlas.png">
+      <LogicalName>assets.chrome.items._atlas.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-01.png">
+      <LogicalName>assets.chrome.items.item-01.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-02.png">
+      <LogicalName>assets.chrome.items.item-02.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-03.png">
+      <LogicalName>assets.chrome.items.item-03.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-04.png">
+      <LogicalName>assets.chrome.items.item-04.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-05.png">
+      <LogicalName>assets.chrome.items.item-05.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-06.png">
+      <LogicalName>assets.chrome.items.item-06.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-07.png">
+      <LogicalName>assets.chrome.items.item-07.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-08.png">
+      <LogicalName>assets.chrome.items.item-08.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-09.png">
+      <LogicalName>assets.chrome.items.item-09.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-10.png">
+      <LogicalName>assets.chrome.items.item-10.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-11.png">
+      <LogicalName>assets.chrome.items.item-11.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-12.png">
+      <LogicalName>assets.chrome.items.item-12.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-13.png">
+      <LogicalName>assets.chrome.items.item-13.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-14.png">
+      <LogicalName>assets.chrome.items.item-14.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-15.png">
+      <LogicalName>assets.chrome.items.item-15.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\items\item-16.png">
+      <LogicalName>assets.chrome.items.item-16.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\menu-text-btn.png">
+      <LogicalName>assets.chrome.menu-text-btn.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\minimap-frame.png">
+      <LogicalName>assets.chrome.minimap-frame.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\orb-hpmp-full.png">
+      <LogicalName>assets.chrome.orb-hpmp-full.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\panel-bg-tile.png">
+      <LogicalName>assets.chrome.panel-bg-tile.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\scrollbar-thumb.png">
+      <LogicalName>assets.chrome.scrollbar-thumb.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\scrollbar-track.png">
+      <LogicalName>assets.chrome.scrollbar-track.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\slot-empty-32.png">
+      <LogicalName>assets.chrome.slot-empty-32.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\slot-selected.png">
+      <LogicalName>assets.chrome.slot-selected.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\tab-active.png">
+      <LogicalName>assets.chrome.tab-active.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\chrome\tab-inactive.png">
+      <LogicalName>assets.chrome.tab-inactive.png</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\version-packs\sample-classic\configs\profanity.txt">
       <LogicalName>configs.profanity.txt</LogicalName>
     </EmbeddedResource>
