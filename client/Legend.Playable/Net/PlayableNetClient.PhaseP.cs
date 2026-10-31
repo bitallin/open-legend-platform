@@ -143,4 +143,48 @@ public sealed partial class PlayableNetClient
         var frame = await SendRequestAsync(MsgId.PetDismissReq, new PetDismissReq(), ct).ConfigureAwait(false);
         return PetDismissResp.Parser.ParseFrom(frame.Payload);
     }
+
+
+    public async Task<MailListResp> MailListAsync(CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailListReq, new MailListReq(), ct).ConfigureAwait(false);
+        return MailListResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailReadResp> MailReadAsync(string mailId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailReadReq, new MailReadReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
+        return MailReadResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailClaimAttachmentResp> MailClaimAsync(string mailId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailClaimAttachmentReq, new MailClaimAttachmentReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
+        var resp = MailClaimAttachmentResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+        {
+            Gold = resp.Gold;
+            ReplaceInventory(resp.Inventory);
+        }
+        return resp;
+    }
+
+    public async Task<MailDeleteResp> MailDeleteAsync(string mailId, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailDeleteReq, new MailDeleteReq { MailId = mailId ?? "" }, ct).ConfigureAwait(false);
+        return MailDeleteResp.Parser.ParseFrom(frame.Payload);
+    }
+
+    public async Task<MailSendResp> MailSendAsync(string toName, string subject, string body, int attachGold = 0, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.MailSendReq, new MailSendReq
+        {
+            ToCharacterName = toName ?? "",
+            Subject = subject ?? "",
+            Body = body ?? "",
+            AttachGold = attachGold
+        }, ct).ConfigureAwait(false);
+        return MailSendResp.Parser.ParseFrom(frame.Payload);
+    }
+
 }

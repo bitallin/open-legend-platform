@@ -754,6 +754,25 @@ public sealed partial class PlayableSession : IDisposable
     /// Advance assist FSM when running. Dispatches Move/Attack/Pickup/UseItem intents.
     /// No-op while default-off / not Running. Stops immediately when MapNoHang is set.
     /// </summary>
+    public bool TryStartAssist(out string reason)
+    {
+        reason = "";
+        if (Fsm.Phase != SessionPhase.InWorld)
+        {
+            reason = "not_in_world";
+            return false;
+        }
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Assist.Settings.Enabled = true;
+        return Assist.TryStart(BuildAssistWorldView(now), out reason);
+    }
+
+    public void StopAssist(string reason = "ui")
+    {
+        Assist.Stop(reason);
+        Assist.Settings.Enabled = false;
+    }
+
     public void TickAssist(long nowUnixMs)
     {
         if (!Assist.Running || _assistBusy || Fsm.Phase != SessionPhase.InWorld)
