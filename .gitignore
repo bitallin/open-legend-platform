@@ -57,6 +57,8 @@ admin/**/bin/
 admin/**/obj/
 
 # Admin media library uploads (keep .gitkeep)
+# Default Mir-style pack art lives in version-packs/*/seed-media/ (committed).
+# Runtime copies go under assets/library|thumbs|ui|... (ignored below).
 version-packs/*/assets/library/*
 !version-packs/*/assets/library/.gitkeep
 version-packs/*/assets/thumbs/*

@@ -61,7 +61,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
-    await SeedData.EnsureSeedAsync(db);
+    var paths = scope.ServiceProvider.GetRequiredService<RepoPaths>();
+    await SeedData.EnsureSeedAsync(db, paths);
 }
 
 if (!app.Environment.IsDevelopment())

@@ -31,5 +31,10 @@
       "targetX": 28,
       "targetY": 14
     }
-  ]
+  ],
+  "look": {
+    "minimapAssetId": "6418970caf46ae1a9c7db05d3d07f6db",
+    "backdropAssetId": "6418970caf46ae1a9c7db05d3d07f6db",
+    "tileAssetId": "6418970caf46ae1a9c7db05d3d07f6db"
+  }
 }

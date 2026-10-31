@@ -22,5 +22,10 @@
     }
   ],
   "safeZones": [],
-  "portals": []
+  "portals": [],
+  "look": {
+    "minimapAssetId": "c669fb5fa650971a52b21752a8a1fb49",
+    "backdropAssetId": "c669fb5fa650971a52b21752a8a1fb49",
+    "tileAssetId": "c669fb5fa650971a52b21752a8a1fb49"
+  }
 }

@@ -7,7 +7,8 @@
       "slot": "",
       "healHp": 50,
       "healMp": 0,
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "a1588dfca1ae5d563292710261caaa9c"
     },
     {
       "itemId": "item_mp_potion",
@@ -16,7 +17,8 @@
       "slot": "",
       "healHp": 0,
       "healMp": 40,
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "e5d5b602e9f4c6a329b3a10cf5b77d7c"
     },
     {
       "itemId": "item_dried_meat",
@@ -25,13 +27,15 @@
       "slot": "",
       "healHp": 20,
       "healMp": 0,
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "a058530612b7fcb1f1afaea2c52fa9d6"
     },
     {
       "itemId": "item_copper_coin",
       "displayName": "古旧铜币",
       "kind": "material",
-      "slot": ""
+      "slot": "",
+      "iconAssetId": "fb491cad3426b06b2574847851464c5f"
     },
     {
       "itemId": "item_wooden_blade",
@@ -46,7 +50,8 @@
       "enhanceDefPerLevel": 0,
       "enhanceHpPerLevel": 0,
       "requiredLevel": 1,
-      "weight": 6
+      "weight": 6,
+      "iconAssetId": "a2306418ff18ebdbacea02901273dc89"
     },
     {
       "itemId": "item_wooden_sword",
@@ -61,7 +66,8 @@
       "enhanceDefPerLevel": 0,
       "enhanceHpPerLevel": 0,
       "requiredLevel": 1,
-      "weight": 8
+      "weight": 8,
+      "iconAssetId": "d8b290bd96b96e49f45d34dad5e9a3a1"
     },
     {
       "itemId": "item_iron_sword",
@@ -77,7 +83,8 @@
       "enhanceHpPerLevel": 0,
       "requiredClass": "warrior",
       "requiredLevel": 2,
-      "weight": 12
+      "weight": 12,
+      "iconAssetId": "2864d7f8cee591b7ef2bd85c2b0dd062"
     },
     {
       "itemId": "item_cloth_armor",
@@ -93,7 +100,8 @@
       "enhanceHpPerLevel": 10,
       "requiredLevel": 1,
       "weight": 10,
-      "setId": "set_dawn_cloth"
+      "setId": "set_dawn_cloth",
+      "iconAssetId": "9a8fb128a2331c7226eac05ca51f6a17"
     },
     {
       "itemId": "item_bronze_ring",
@@ -107,14 +115,16 @@
       "enhanceDefPerLevel": 1,
       "enhanceHpPerLevel": 5,
       "requiredLevel": 1,
-      "weight": 2
+      "weight": 2,
+      "iconAssetId": "a47f78a23de7e8bcc9a4f43e168ed017"
     },
     {
       "itemId": "item_skillbook_fatal_strike",
       "displayName": "技能书·致命一击",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "fatal_strike"
+      "teachesSkillId": "fatal_strike",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_war_cry_scroll",
@@ -123,7 +133,8 @@
       "slot": "",
       "healHp": 0,
       "healMp": 0,
-      "appliesBuffId": "buff_war_cry"
+      "appliesBuffId": "buff_war_cry",
+      "iconAssetId": "b6430e62f72fbb295f6500a1dc804be0"
     },
     {
       "itemId": "item_dragon_scale",
@@ -131,7 +142,8 @@
       "kind": "material",
       "slot": "",
       "healHp": 0,
-      "healMp": 0
+      "healMp": 0,
+      "iconAssetId": "326cfa3b8de82c9149e13f15c8e702d8"
     },
     {
       "itemId": "item_mount_white_horse",
@@ -140,7 +152,8 @@
       "slot": "",
       "unlockMountId": "mount_white_horse",
       "healHp": 0,
-      "healMp": 0
+      "healMp": 0,
+      "iconAssetId": "e25ba7f5a6afa72a67041cb3d11cc09e"
     },
     {
       "itemId": "item_fashion_crimson_robe",
@@ -149,7 +162,8 @@
       "slot": "",
       "unlockFashionId": "fashion_crimson_robe",
       "healHp": 0,
-      "healMp": 0
+      "healMp": 0,
+      "iconAssetId": "c21a816c16230a28adc676043ea41fcc"
     },
     {
       "itemId": "item_pet_wolf_pup",
@@ -158,7 +172,8 @@
       "slot": "",
       "unlockPetId": "pet_wolf_pup",
       "healHp": 0,
-      "healMp": 0
+      "healMp": 0,
+      "iconAssetId": "efa32276901f36fe1a3cbea48a59add4"
     },
     {
       "itemId": "item_cloth_helmet",
@@ -171,7 +186,8 @@
       "requiredLevel": 1,
       "sellPriceGold": 6,
       "weight": 4,
-      "setId": "set_dawn_cloth"
+      "setId": "set_dawn_cloth",
+      "iconAssetId": "47ff084c3be13650b9620afacf327469"
     },
     {
       "itemId": "item_copper_necklace",
@@ -182,7 +198,8 @@
       "defBonus": 1,
       "requiredLevel": 1,
       "sellPriceGold": 8,
-      "weight": 2
+      "weight": 2,
+      "iconAssetId": "dbd68895caf6c6de64fdf636ca57ef21"
     },
     {
       "itemId": "item_leather_bracelet",
@@ -192,7 +209,8 @@
       "defBonus": 1,
       "requiredLevel": 1,
       "sellPriceGold": 5,
-      "weight": 2
+      "weight": 2,
+      "iconAssetId": "0bfb768f714e721e117ed2cbba514a96"
     },
     {
       "itemId": "item_iron_bracelet",
@@ -202,7 +220,8 @@
       "atkBonus": 2,
       "requiredLevel": 1,
       "sellPriceGold": 7,
-      "weight": 3
+      "weight": 3,
+      "iconAssetId": "b1718e707fe103b0a9468c415e9cde7d"
     },
     {
       "itemId": "item_silver_ring",
@@ -213,7 +232,8 @@
       "defBonus": 1,
       "requiredLevel": 1,
       "sellPriceGold": 10,
-      "weight": 2
+      "weight": 2,
+      "iconAssetId": "26a2f48b151def247b2a18ad4e35f98e"
     },
     {
       "itemId": "item_cloth_boots",
@@ -225,7 +245,8 @@
       "requiredLevel": 1,
       "sellPriceGold": 5,
       "weight": 3,
-      "setId": "set_dawn_cloth"
+      "setId": "set_dawn_cloth",
+      "iconAssetId": "d61e9c00d9782aef3dcbdd3dc40ea91b"
     },
     {
       "itemId": "item_rope_belt",
@@ -236,7 +257,8 @@
       "maxHpBonus": 12,
       "requiredLevel": 1,
       "sellPriceGold": 4,
-      "weight": 2
+      "weight": 2,
+      "iconAssetId": "e4a018508bf5bcb390072f1b04aecc06"
     },
     {
       "itemId": "item_torch",
@@ -247,77 +269,88 @@
       "defBonus": 0,
       "requiredLevel": 1,
       "sellPriceGold": 2,
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "845a53659a8ba246220b752307a43d9a"
     },
     {
       "itemId": "item_bone_chip",
       "displayName": "骨片",
       "kind": "material",
       "slot": "",
-      "sellPriceGold": 3
+      "sellPriceGold": 3,
+      "iconAssetId": "a490f2d3ea2ae84e881be36851893d51"
     },
     {
       "itemId": "item_marsh_hide",
       "displayName": "沼皮",
       "kind": "material",
       "slot": "",
-      "sellPriceGold": 4
+      "sellPriceGold": 4,
+      "iconAssetId": "8081495ba1e3cf6241a7bc99a87dfe60"
     },
     {
       "itemId": "item_skillbook_rush",
       "displayName": "技能书·野蛮冲撞",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "rush"
+      "teachesSkillId": "rush",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_mana_shield",
       "displayName": "技能书·魔法盾",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "mana_shield"
+      "teachesSkillId": "mana_shield",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_ice_roar",
       "displayName": "技能书·冰咆哮",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "ice_roar"
+      "teachesSkillId": "ice_roar",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_fire_rain",
       "displayName": "技能书·火雨",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "fire_rain"
+      "teachesSkillId": "fire_rain",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_hide",
       "displayName": "技能书·隐身术",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "hide"
+      "teachesSkillId": "hide",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_summon_bone",
       "displayName": "技能书·召唤骷髅",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "summon_bone"
+      "teachesSkillId": "summon_bone",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_summon_beast",
       "displayName": "技能书·召唤神兽",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "summon_beast"
+      "teachesSkillId": "summon_beast",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_skillbook_group_hide",
       "displayName": "技能书·集体隐身",
       "kind": "skillbook",
       "slot": "",
-      "teachesSkillId": "group_hide"
+      "teachesSkillId": "group_hide",
+      "iconAssetId": "b2d260b7b16a66587993cdb0a4c8326b"
     },
     {
       "itemId": "item_town_scroll",
@@ -325,7 +358,8 @@
       "kind": "recall",
       "slot": "",
       "weight": 1,
-      "recallMapId": ""
+      "recallMapId": "",
+      "iconAssetId": "b6430e62f72fbb295f6500a1dc804be0"
     },
     {
       "itemId": "item_sealed_ring",
@@ -337,14 +371,16 @@
       "weight": 2,
       "needsIdentify": true,
       "requiredLevel": 1,
-      "sellPriceGold": 20
+      "sellPriceGold": 20,
+      "iconAssetId": "680242748b0f139e8b4e0ff670dba4d7"
     },
     {
       "itemId": "item_random_scroll",
       "displayName": "随机传送卷",
       "kind": "random",
       "slot": "",
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "b6430e62f72fbb295f6500a1dc804be0"
     },
     {
       "itemId": "item_rough_ore",
@@ -352,21 +388,24 @@
       "kind": "material",
       "slot": "",
       "weight": 2,
-      "sellPriceGold": 4
+      "sellPriceGold": 4,
+      "iconAssetId": "0396e3a4efe4ed2581a1d945329db8e3"
     },
     {
       "itemId": "item_slime_gel",
       "displayName": "史莱姆凝胶",
       "kind": "material",
       "slot": "",
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "f550469c0b1fd3abd4346b23f65dcdd7"
     },
     {
       "itemId": "item_boar_hide",
       "displayName": "野猪皮",
       "kind": "material",
       "slot": "",
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "f662d506ac69273235b6e998c295ca30"
     },
     {
       "itemId": "item_zodiac_rat",
@@ -380,7 +419,8 @@
         "zodiac"
       ],
       "preferredSlot": "zodiac_01",
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "875383090dcefef92447b5de9419715e"
     },
     {
       "itemId": "item_artifact_seal",
@@ -391,7 +431,8 @@
       "defBonus": 0,
       "maxHpBonus": 0,
       "requiredLevel": 1,
-      "weight": 1
+      "weight": 1,
+      "iconAssetId": "9a8bb04d11507dc051dbbc6027b477e6"
     }
   ],
   "enhanceRules": [
