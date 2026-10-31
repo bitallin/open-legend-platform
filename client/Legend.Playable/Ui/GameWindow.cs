@@ -50,7 +50,7 @@ public sealed partial class GameWindow : Window
     private readonly TextBlock _chatLog;
     private readonly TextBox _chatInput;
     private readonly ScrollViewer _chatScroll;
-    private readonly StackPanel _bagItems;
+    private readonly WrapPanel _bagItems;
     private readonly TextBlock _bagGold;
     private readonly TextBlock _reconnectText;
     private readonly TextBlock _bossText = new() { Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, FontSize = 12 };
@@ -131,7 +131,7 @@ public sealed partial class GameWindow : Window
         _hud = BuildHud();
         AttachPhaseL(_hud);
 
-        _bagItems = new StackPanel { Spacing = 4 };
+        _bagItems = new WrapPanel { Width = 200 };
         _bagGold = Label("");
         _bag = BuildBag();
 
@@ -822,18 +822,50 @@ public sealed partial class GameWindow : Window
         _bagGold.Text = $"金币 {_session.Inventory.Gold}";
         if (_session.Inventory.Items.Count == 0)
         {
-            _bagItems.Children.Add(new TextBlock { Text = "背包是空的", Foreground = Brushes.White });
+            _bagItems.Children.Add(new TextBlock { Text = "背包是空的", Foreground = Brushes.White, Margin = new Avalonia.Thickness(4) });
             return;
         }
+        int iconIndex = 1;
         foreach (var item in _session.Inventory.Items)
         {
             var id = item.ItemId;
+            var icon = MirChrome.ItemIcon(((iconIndex - 1) % 16) + 1);
+            iconIndex++;
+            var cell = new Grid { Width = 40, Height = 40 };
+            if (MirChrome.SlotEmpty != null)
+                cell.Children.Add(new Image { Source = MirChrome.SlotEmpty, Width = 40, Height = 40, Stretch = Stretch.Fill });
+            if (icon != null)
+                cell.Children.Add(new Image
+                {
+                    Source = icon,
+                    Width = 32,
+                    Height = 32,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            if (item.Count > 1)
+            {
+                cell.Children.Add(new TextBlock
+                {
+                    Text = item.Count.ToString(),
+                    FontSize = 10,
+                    Foreground = Brush("#F6E6C0"),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Margin = new Avalonia.Thickness(0, 0, 2, 1)
+                });
+            }
             var button = new Button
             {
-                Content = $"{ContentCatalog.ItemName(item.ItemId)}  x{item.Count}   拖到人物面板装备，双击使用",
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Left
+                Width = 44,
+                Height = 44,
+                Padding = new Avalonia.Thickness(0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Avalonia.Thickness(0),
+                Content = cell
             };
+            ToolTip.SetTip(button, $"{ContentCatalog.ItemName(item.ItemId)} x{item.Count} · 拖到人物装备 · 双击使用");
             button.PointerPressed += async (s, ev) =>
             {
                 if (ev.ClickCount >= 2)
@@ -1034,58 +1066,136 @@ public sealed partial class GameWindow : Window
 
     private Border BuildLogin()
     {
-        var title = new TextBlock
-        {
-            Text = "LEGEND",
-            FontSize = 42,
-            FontWeight = FontWeight.Bold,
-            Foreground = Brush("#E8C872"),
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        var sky = new TownBackdrop { Height = 168 };
-        var sub = new TextBlock
-        {
-            Text = "自研客户端 · 协议 1.21.0 · 无 Unity",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Foreground = Brush("#D8C7A2"),
-            Margin = new Avalonia.Thickness(0, 0, 0, 12)
-        };
-        var button = new Button { Content = "登录并进入选角", HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center };
-        button.Click += async (_, _) =>
+        MirChrome.StyleField(_user);
+        MirChrome.StyleField(_pass);
+        MirChrome.StyleField(_host);
+        MirChrome.StyleField(_port);
+
+        var loginBtn = new Button { Content = "登录", HorizontalAlignment = HorizontalAlignment.Stretch };
+        MirChrome.StylePrimary(loginBtn);
+        loginBtn.Click += async (_, _) =>
         {
             try { await DoLogin(); }
             catch (Exception ex) { _loginStatus.Text = ex.Message; }
         };
-        var panel = new StackPanel
+        var noticeBtn = new Button { Content = "公告", HorizontalAlignment = HorizontalAlignment.Stretch };
+        MirChrome.StyleNormal(noticeBtn);
+        var exitBtn = new Button { Content = "退出", HorizontalAlignment = HorizontalAlignment.Stretch };
+        MirChrome.StyleDanger(exitBtn);
+        exitBtn.Click += (_, _) => Close();
+
+        var loginBody = new StackPanel { Spacing = 8 };
+        loginBody.Children.Add(new TextBlock
+        {
+            Text = "账号登录",
+            FontSize = 18,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brush("#F6E6C0"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        loginBody.Children.Add(Labeled("账号", _user));
+        loginBody.Children.Add(Labeled("密码", _pass));
+        loginBody.Children.Add(Labeled("主机", _host));
+        loginBody.Children.Add(Labeled("端口", _port));
+        loginBody.Children.Add(new TextBlock { Text = "区服 " + _options.RealmId, Foreground = Brush("#C8B48A"), FontSize = 12 });
+        var btnRow = new Grid();
+        btnRow.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        btnRow.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        btnRow.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        Grid.SetColumn(loginBtn, 0);
+        Grid.SetColumn(noticeBtn, 1);
+        Grid.SetColumn(exitBtn, 2);
+        loginBtn.Margin = new Avalonia.Thickness(0, 0, 4, 0);
+        noticeBtn.Margin = new Avalonia.Thickness(2, 0, 2, 0);
+        exitBtn.Margin = new Avalonia.Thickness(4, 0, 0, 0);
+        btnRow.Children.Add(loginBtn);
+        btnRow.Children.Add(noticeBtn);
+        btnRow.Children.Add(exitBtn);
+        loginBody.Children.Add(btnRow);
+        loginBody.Children.Add(_loginStatus);
+        loginBody.Children.Add(new TextBlock
+        {
+            Text = "Enter 登录 · Esc 退出 · 公网 150.158.164.90:7100",
+            FontSize = 11,
+            Foreground = Brush("#8A7A5A"),
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var noticeBody = new StackPanel { Spacing = 6 };
+        noticeBody.Children.Add(new TextBlock
+        {
+            Text = "游戏公告",
+            FontSize = 18,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brush("#F6E6C0"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        foreach (var line in new[]
+                 {
+                     "[维护] 每周日 04:00–06:00 例行维护",
+                     "[活动] 经验加成进行中",
+                     "[更新] 石金壳对齐 OL-01 / OL-02 / OL-03",
+                     "[提示] 请使用官方启动器或本客户端",
+                     "[安全] 勿泄露账号与验证码",
+                     "[版本] 客户端协议 1.21.0"
+                 })
+        {
+            noticeBody.Children.Add(new TextBlock
+            {
+                Text = line,
+                FontSize = 13,
+                Foreground = Brush("#E8C872"),
+                TextWrapping = TextWrapping.Wrap
+            });
+        }
+
+        var title = new TextBlock
+        {
+            Text = "开天·传奇",
+            FontSize = 40,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brush("#E8C872"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Avalonia.Thickness(0, 0, 0, 16)
+        };
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 18,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        row.Children.Add(MirChrome.Framed(loginBody, 320));
+        row.Children.Add(MirChrome.Framed(noticeBody, 360, 320));
+
+        var center = new StackPanel
         {
             Spacing = 8,
-            Width = 460,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
-        panel.Children.Add(sky);
-        panel.Children.Add(title);
-        panel.Children.Add(sub);
-        panel.Children.Add(Labeled("主机", _host));
-        panel.Children.Add(Labeled("端口", _port));
-        panel.Children.Add(new TextBlock { Text = "区服 " + _options.RealmId, Foreground = Brush("#C8B48A") });
-        panel.Children.Add(Labeled("账号", _user));
-        panel.Children.Add(Labeled("密码", _pass));
-        panel.Children.Add(button);
-        panel.Children.Add(_loginStatus);
-        panel.Children.Add(new TextBlock
+        center.Children.Add(title);
+        center.Children.Add(row);
+        center.Children.Add(new TextBlock
         {
-            Text = "公网试玩 150.158.164.90:7100   realm-classic-01",
-            FontSize = 12,
+            Text = "自研客户端 · 对齐私服石金壳 · 无 Unity",
+            HorizontalAlignment = HorizontalAlignment.Center,
             Foreground = Brush("#B7A78A"),
-            TextWrapping = TextWrapping.Wrap
+            FontSize = 12,
+            Margin = new Avalonia.Thickness(0, 10, 0, 0)
         });
-        return Card(panel, "#F014100E");
+
+        var root = new Grid();
+        root.Children.Add(new TownBackdrop());
+        root.Children.Add(new Border { Background = Brush("#990C0806") });
+        root.Children.Add(center);
+        return new Border { Child = root, Background = Brush("#120E0C") };
     }
 
     private Border BuildChars()
     {
+        MirChrome.StyleField(_newName);
         var create = new Button { Content = "创建角色", HorizontalAlignment = HorizontalAlignment.Stretch };
+        MirChrome.StylePrimary(create);
         create.Click += async (_, _) =>
         {
             _audio.PlayUiClick();
@@ -1111,103 +1221,164 @@ public sealed partial class GameWindow : Window
         _genderBox.SelectionChanged += (_, _) => SyncPreview();
         SyncPreview();
         var logout = new Button { Content = "返回登录", HorizontalAlignment = HorizontalAlignment.Stretch };
+        MirChrome.StyleNormal(logout);
         logout.Click += (_, _) =>
         {
             _session.ReturnToLogin();
             _audio.PlayLoginBgm();
         };
-        var panel = new StackPanel { Spacing = 8, Width = 520, Margin = new Avalonia.Thickness(24) };
-        panel.Children.Add(new TextBlock { Text = "选择角色", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
-        panel.Children.Add(new ScrollViewer { Content = _charList, MaxHeight = 280 });
-        panel.Children.Add(new TextBlock { Text = "创角立绘", Foreground = Brush("#E8C872") });
-        panel.Children.Add(_preview);
-        panel.Children.Add(_newName);
-        panel.Children.Add(_classBox);
-        panel.Children.Add(_genderBox);
-        panel.Children.Add(create);
-        panel.Children.Add(logout);
+        var panel = new StackPanel { Spacing = 8, Width = 480 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "选择角色",
+            FontSize = 22,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brush("#E8C872"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        panel.Children.Add(new ScrollViewer { Content = _charList, MaxHeight = 220 });
+        var createRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        _preview.Width = 96;
+        _preview.Height = 120;
+        var form = new StackPanel { Spacing = 6, Width = 280 };
+        form.Children.Add(new TextBlock { Text = "创角", Foreground = Brush("#E8C872") });
+        form.Children.Add(_newName);
+        form.Children.Add(_classBox);
+        form.Children.Add(_genderBox);
+        form.Children.Add(create);
+        form.Children.Add(logout);
+        createRow.Children.Add(_preview);
+        createRow.Children.Add(form);
+        panel.Children.Add(createRow);
         panel.Children.Add(_charStatus);
-        var wrap = Card(panel, "#F014100E");
-        wrap.HorizontalAlignment = HorizontalAlignment.Center;
-        wrap.VerticalAlignment = VerticalAlignment.Center;
-        wrap.Padding = new Avalonia.Thickness(0);
-        return wrap;
+        var framed = MirChrome.Framed(panel, 520, 520);
+        var root = new Grid();
+        root.Children.Add(new TownBackdrop());
+        root.Children.Add(new Border { Background = Brush("#990C0806") });
+        root.Children.Add(framed);
+        return new Border { Child = root, Background = Brush("#120E0C") };
     }
 
     private Grid BuildHud()
     {
-        var bars = new StackPanel { Spacing = 4, Width = 280 };
-        bars.Children.Add(_hpText);
-        bars.Children.Add(_hpBar);
-        bars.Children.Add(_mpText);
-        bars.Children.Add(_mpBar);
-        bars.Children.Add(_expBar);
-        bars.Children.Add(_vitals);
+        _hpText.FontSize = 12;
+        _mpText.FontSize = 12;
+        _hpBar.Height = 10;
+        _mpBar.Height = 10;
+        _expBar.Height = 8;
+        MirChrome.StyleField(_chatInput);
+
+        // BL yin-yang orb (OL-02)
+        var orbStack = new Grid { Width = 168, Height = 180 };
+        if (MirChrome.Orb != null)
+            orbStack.Children.Add(new Image { Source = MirChrome.Orb, Stretch = Stretch.Uniform, Width = 168, Height = 180 });
+        var orbLabels = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Bottom,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Avalonia.Thickness(0, 0, 0, 8),
+            Spacing = 2
+        };
+        orbLabels.Children.Add(_hpText);
+        orbLabels.Children.Add(_mpText);
+        orbStack.Children.Add(orbLabels);
+        var orbHost = new Border
+        {
+            Child = orbStack,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Avalonia.Thickness(8, 0, 0, 8)
+        };
+
+        // subtle vitals / exp under top strip
+        var topStrip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        topStrip.Children.Add(_vitals);
+        topStrip.Children.Add(_expBar);
         var topLeft = new Border
         {
-            Background = Brush("#AA1A140F"),
-            Padding = new Avalonia.Thickness(10),
-            Margin = new Avalonia.Thickness(12),
-            Child = bars,
+            Background = Brush("#AA120E0A"),
+            Padding = new Avalonia.Thickness(8, 4),
+            Margin = new Avalonia.Thickness(12, 8, 0, 0),
+            Child = topStrip,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top
         };
+
+        // TR minimap frame
+        var mapInner = new StackPanel { Spacing = 2 };
+        mapInner.Children.Add(new TextBlock { Text = "小地图", FontSize = 12, Foreground = Brush("#E8C872"), HorizontalAlignment = HorizontalAlignment.Center });
+        mapInner.Children.Add(_target);
+        var mapChrome = new Grid { Width = 190, Height = 160 };
+        if (MirChrome.MinimapFrame != null)
+            mapChrome.Children.Add(new Image { Source = MirChrome.MinimapFrame, Stretch = Stretch.Fill });
+        mapChrome.Children.Add(new Border { Padding = new Avalonia.Thickness(18, 22, 18, 18), Child = mapInner });
         var topRight = new Border
         {
-            Background = Brush("#AA1A140F"),
-            Padding = new Avalonia.Thickness(10),
-            Margin = new Avalonia.Thickness(12),
-            Child = _target,
+            Child = mapChrome,
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Avalonia.Thickness(0, 8, 8, 0)
         };
+
         var worldBtn = Small("世界");
         var nearBtn = Small("附近");
+        MirChrome.StyleSys(worldBtn);
+        MirChrome.StyleSys(nearBtn);
         worldBtn.Click += (_, _) => { _chatChannel = ChatChannel.ChatWorld; _audio.PlayUiClick(); worldBtn.FontWeight = FontWeight.Bold; nearBtn.FontWeight = FontWeight.Normal; };
         nearBtn.Click += (_, _) => { _chatChannel = ChatChannel.ChatNearby; _audio.PlayUiClick(); nearBtn.FontWeight = FontWeight.Bold; worldBtn.FontWeight = FontWeight.Normal; };
         worldBtn.FontWeight = FontWeight.Bold;
         var channel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         channel.Children.Add(worldBtn);
         channel.Children.Add(nearBtn);
-        var chat = new StackPanel { Spacing = 4, Width = 440 };
+        var chat = new StackPanel { Spacing = 4, Width = 520 };
         chat.Children.Add(channel);
         chat.Children.Add(_chatScroll);
         chat.Children.Add(_chatInput);
         chat.Children.Add(_hint);
         var bottom = new Border
         {
-            Background = Brush("#CC16110E"),
-            Padding = new Avalonia.Thickness(8),
-            Margin = new Avalonia.Thickness(12, 0, 0, 12),
+            Background = MirChrome.ChatBrush ?? Brush("#CC16110E"),
+            Padding = new Avalonia.Thickness(14, 10, 14, 10),
+            Margin = new Avalonia.Thickness(170, 0, 200, 10),
             Child = chat,
             HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Bottom
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Width = 560,
+            MinHeight = 130
         };
+
         var grid = new Grid();
         grid.Children.Add(topLeft);
         grid.Children.Add(topRight);
         grid.Children.Add(_bossHost);
         grid.Children.Add(bottom);
+        grid.Children.Add(orbHost);
         return grid;
     }
 
     private Border BuildBag()
     {
-        var stack = new StackPanel { Spacing = 6, Width = 240 };
-        stack.Children.Add(new TextBlock { Text = "背包", FontSize = 18, FontWeight = FontWeight.Bold, Foreground = Brush("#E8C872") });
-        stack.Children.Add(_bagGold);
-        stack.Children.Add(new ScrollViewer { Content = _bagItems, MaxHeight = 320 });
-        var border = new Border
+        var stack = new StackPanel { Spacing = 6 };
+        stack.Children.Add(new TextBlock
         {
-            Background = MirChrome.BagFrame ?? Brush("#EE1C1612"),
-            BorderThickness = new Avalonia.Thickness(0),
-            Padding = new Avalonia.Thickness(10),
-            Child = stack,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Avalonia.Thickness(0, 0, 16, 80)
-        };
-        return border;
+            Text = "背包",
+            FontSize = 16,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brush("#E8C872"),
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        stack.Children.Add(_bagGold);
+        stack.Children.Add(new ScrollViewer { Content = _bagItems, MaxHeight = 340 });
+        var art = MirChrome.ArtWindow(
+            MirChrome.BagWindow,
+            stack,
+            width: 260,
+            height: 480,
+            contentMargin: new Avalonia.Thickness(28, 36, 28, 48));
+        art.HorizontalAlignment = HorizontalAlignment.Left;
+        art.VerticalAlignment = VerticalAlignment.Center;
+        art.Margin = new Avalonia.Thickness(24, 0, 0, 40);
+        return art;
     }
 
     private Border BuildReconnect()
@@ -1229,10 +1400,15 @@ public sealed partial class GameWindow : Window
         stack.Children.Add(_reconnectText);
         stack.Children.Add(again);
         stack.Children.Add(back);
-        var card = Card(stack, "#F01A1210");
-        card.HorizontalAlignment = HorizontalAlignment.Center;
-        card.VerticalAlignment = VerticalAlignment.Center;
-        return card;
+        MirChrome.StylePrimary(again);
+        MirChrome.StyleNormal(back);
+        var framed = MirChrome.Framed(stack, 340);
+        framed.HorizontalAlignment = HorizontalAlignment.Center;
+        framed.VerticalAlignment = VerticalAlignment.Center;
+        var root = new Grid();
+        root.Children.Add(new Border { Background = Brush("#CC0C0806") });
+        root.Children.Add(framed);
+        return new Border { Child = root };
     }
 
     private static readonly ClassChoice[] ClassChoices =

@@ -4,7 +4,7 @@
 
 | 项 | 值 |
 |----|----|
-| 最后更新 | 2026-10-31 |
+| 最后更新 | 2026-11-01 |
 | 阶段 | Phase R + 引擎 E0–E13 已完成（DocOnly 扩展切片）。功能清单 100%。见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
@@ -37,6 +37,15 @@
 | 18 操作 | 19.0 | 19 | 100% |
 
 Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
+
+
+## 画面石金壳对齐（2026-11-01）
+
+- Avalonia 客户端导入原型 kit：`Assets/chrome/`（阴阳球 / 聊天 / BR / 小地图 / 背包人物整窗 / 九宫 / 按钮 / 物品格）。
+- 登录、选角、主 HUD、背包网格、人物环绕槽对齐 OL-01-A/B/C · OL-02-A/B · OL-03-C 硬门槛；禁墙纸平铺与浮空灰块。
+- 协议仍 **1.21.0**；服务端无协议变更。矩阵仍 100%。
+- 进度对照 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
+
 
 画面对照另见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。Phase R 起是斜 45° 菱形地图、装备分层和贴图主界面。VISUAL_PARITY_COMPLETE=true。
 

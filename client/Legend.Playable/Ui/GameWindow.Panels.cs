@@ -31,15 +31,15 @@ public sealed partial class GameWindow
 
     private void AttachPhaseL(Grid hud)
     {
-        var skills = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        var skills = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
         for (int i = 0; i < 8; i++)
         {
             int slot = i;
             var button = new Button
             {
-                Width = 72,
+                Width = 48,
                 Height = 40,
-                FontSize = 11,
+                FontSize = 10,
                 Background = MirChrome.Slot ?? Brush("#1A120C"),
                 Foreground = Brush("#F6E6C0"),
                 BorderThickness = new Avalonia.Thickness(0)
@@ -48,15 +48,15 @@ public sealed partial class GameWindow
             _skillButtons[i] = button;
             skills.Children.Add(button);
         }
-        var potions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        var potions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
         for (int i = 0; i < 6; i++)
         {
             int slot = i;
             var button = new Button
             {
-                Width = 64,
+                Width = 42,
                 Height = 28,
-                FontSize = 11,
+                FontSize = 10,
                 Background = MirChrome.Slot ?? Brush("#1A120C"),
                 Foreground = Brush("#F6E6C0"),
                 BorderThickness = new Avalonia.Thickness(0)
@@ -65,75 +65,76 @@ public sealed partial class GameWindow
             _potionButtons[i] = button;
             potions.Children.Add(button);
         }
-        var systems = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        systems.Children.Add(Sys("背包", () => { _bagOpen = !_bagOpen; _audio.PlayOpen(); }));
-        systems.Children.Add(Sys("人物", () => ShowPanel("char")));
-        systems.Children.Add(Sys("技能", () => ShowPanel("skills")));
-        systems.Children.Add(Sys("任务", () => ShowPanel("quest")));
-        systems.Children.Add(Sys("组队", () => ShowPanel("party")));
-        systems.Children.Add(Sys("行会", () => ShowPanel("guild")));
-        systems.Children.Add(Sys("好友", () => ShowPanel("friends")));
-        systems.Children.Add(Sys("摆摊", () => ShowPanel("stall")));
-        systems.Children.Add(Sys("外观", () => ShowPanel("looks")));
-        systems.Children.Add(Sys("地图", () => ShowPanel("map")));
-        systems.Children.Add(Sys("世界", () => ShowPanel("world")));
-        systems.Children.Add(Sys("交易", () => ShowPanel("trade")));
-        systems.Children.Add(Sys("攻城", () => { ShowPanel("siege"); _ = Safe(async () => { await _session.SiegeStatusAsync(); }); }));
-        systems.Children.Add(Sys("设置", () => ShowPanel("settings")));
-        var dock = new StackPanel { Spacing = 4 };
+        var systems = new WrapPanel { MaxWidth = 200 };
+        void AddSys(string text, Action action) => systems.Children.Add(Sys(text, action));
+        AddSys("背包", () => { _bagOpen = !_bagOpen; _audio.PlayOpen(); });
+        AddSys("人物", () => ShowPanel("char"));
+        AddSys("技能", () => ShowPanel("skills"));
+        AddSys("任务", () => ShowPanel("quest"));
+        AddSys("组队", () => ShowPanel("party"));
+        AddSys("行会", () => ShowPanel("guild"));
+        AddSys("好友", () => ShowPanel("friends"));
+        AddSys("摆摊", () => ShowPanel("stall"));
+        AddSys("外观", () => ShowPanel("looks"));
+        AddSys("地图", () => ShowPanel("map"));
+        AddSys("世界", () => ShowPanel("world"));
+        AddSys("交易", () => ShowPanel("trade"));
+        AddSys("攻城", () => { ShowPanel("siege"); _ = Safe(async () => { await _session.SiegeStatusAsync(); }); });
+        AddSys("设置", () => ShowPanel("settings"));
+
+        var dock = new StackPanel { Spacing = 4, Width = 210 };
         dock.Children.Add(_modeLabel);
         dock.Children.Add(skills);
         dock.Children.Add(potions);
         dock.Children.Add(systems);
         dock.Children.Add(_expLabel);
+
+        var br = new Grid { Width = 210, Height = 250 };
+        if (MirChrome.BrCluster != null)
+            br.Children.Add(new Image { Source = MirChrome.BrCluster, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom });
+        br.Children.Add(new Border
+        {
+            Child = dock,
+            Padding = new Avalonia.Thickness(8, 8, 8, 8),
+            VerticalAlignment = VerticalAlignment.Bottom
+        });
         var bar = new Border
         {
-            Background = MirChrome.BottomBar ?? Brush("#F016100C"),
-            BorderThickness = new Avalonia.Thickness(0),
-            Padding = new Avalonia.Thickness(8),
-            Margin = new Avalonia.Thickness(0, 0, 12, 12),
-            Child = dock,
+            Child = br,
+            Margin = new Avalonia.Thickness(0, 0, 6, 6),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom
         };
         hud.Children.Add(bar);
 
+        MirChrome.StyleField(_whisperName);
         var channels = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         channels.Children.Add(Sys("喊话", () => _chatChannel = ChatChannel.ChatWorld));
         channels.Children.Add(Sys("私聊", () => _chatChannel = ChatChannel.ChatWhisper));
         channels.Children.Add(Sys("组队", () => _chatChannel = ChatChannel.ChatParty));
         channels.Children.Add(Sys("行会", () => _chatChannel = ChatChannel.ChatGuild));
         channels.Children.Add(_whisperName);
-        if (_hud.Children.Count > 0 && _hud.Children[^1] != bar)
-        {
-            /* chat row stays in BuildHud */
-        }
-        // Insert channel extras into the existing chat stack if we can find it.
+
         _panelBody.Children.Add(_panelTitle);
-        _panelHost = new Border
-        {
-            Background = MirChrome.BagFrame ?? Brush("#EE1C1612"),
-            BorderBrush = Brush("#E8C872"),
-            BorderThickness = new Avalonia.Thickness(1),
-            Padding = new Avalonia.Thickness(10),
-            Child = new ScrollViewer { Content = _panelBody, MaxHeight = 460, Width = 320 },
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Avalonia.Thickness(0, 72, 16, 0),
-            IsVisible = false
-        };
+        var panelScroll = new ScrollViewer { Content = _panelBody, MaxHeight = 440, Width = 300 };
+        _panelHost = MirChrome.Framed(panelScroll, 320, null, new Avalonia.Thickness(10, 12, 10, 10));
+        _panelHost.HorizontalAlignment = HorizontalAlignment.Right;
+        _panelHost.VerticalAlignment = VerticalAlignment.Center;
+        _panelHost.Margin = new Avalonia.Thickness(0, 40, 220, 40);
+        _panelHost.IsVisible = false;
         hud.Children.Add(_panelHost);
         DragDrop.SetAllowDrop(_panelHost, true);
         _panelHost.AddHandler(DragDrop.DropEvent, OnItemDropped);
         hud.Children.Add(channels);
         channels.HorizontalAlignment = HorizontalAlignment.Left;
         channels.VerticalAlignment = VerticalAlignment.Bottom;
-        channels.Margin = new Avalonia.Thickness(470, 0, 0, 148);
+        channels.Margin = new Avalonia.Thickness(190, 0, 0, 150);
     }
 
     private Button Sys(string text, Action action)
     {
         var button = new Button { Content = text, Padding = new Avalonia.Thickness(8, 2), FontSize = 12 };
+        MirChrome.StyleSys(button);
         button.Click += (_, _) =>
         {
             _audio.PlayUiClick();
@@ -154,6 +155,8 @@ public sealed partial class GameWindow
             _openPanel = id;
             _panelFp = "";
             _audio.PlayOpen();
+            if (id == "char")
+                _bagOpen = true;
             if (id == "guild")
                 _ = Safe(() => _session.RefreshGuildAsync());
             else if (id == "friends")
@@ -226,31 +229,69 @@ public sealed partial class GameWindow
             case "char":
                 _panelTitle.Text = "人物 F10";
                 _panelBody.Children.Add(Block($"职业 {_session.ClassId}  等级 {_session.Level}"));
-                var enhance = new Button { Content = "强化武器", HorizontalAlignment = HorizontalAlignment.Stretch };
-                enhance.Click += async (_, _) => Toast(await _session.EnhanceAsync("weapon") ?? "已尝试强化");
-                _panelBody.Children.Add(enhance);
                 _panelBody.Children.Add(Block(_session.GuildName.Length == 0 ? "行会：无" : $"行会 {_session.GuildName} {_session.GuildRank}"));
-                foreach (string slot in new[] { "weapon", "armor", "helmet", "necklace", "bracelet", "bracelet2", "ring", "ring2", "boots", "belt", "torch" })
+                // Paperdoll + surround equipment slots (OL-03), not a green text dump.
+                var doll = new ClassPortrait
+                {
+                    Width = 96,
+                    Height = 120,
+                    ClassId = string.IsNullOrEmpty(_session.ClassId) ? "warrior" : _session.ClassId,
+                    Gender = "m"
+                };
+                var leftSlots = new StackPanel { Spacing = 4, Width = 88 };
+                var rightSlots = new StackPanel { Spacing = 4, Width = 88 };
+                string[] leftOrder = { "helmet", "necklace", "armor", "belt", "boots" };
+                string[] rightOrder = { "weapon", "bracelet", "bracelet2", "ring", "ring2", "torch" };
+                void AddEquipSlot(StackPanel host, string slot)
                 {
                     var eq = _session.Equipment.FirstOrDefault(e => string.Equals(e.Slot, slot, StringComparison.OrdinalIgnoreCase));
-                    string line = eq == null || string.IsNullOrEmpty(eq.ItemId)
-                        ? $"{SlotLabel(slot)}  —"
-                        : $"{SlotLabel(slot)}  {(eq.Identified ? ContentCatalog.ItemName(eq.ItemId) : "未鉴定")}  耐久 {eq.Durability}/{Math.Max(eq.MaxDurability, 1)}";
-                    _panelBody.Children.Add(Block(line));
+                    string label = eq == null || string.IsNullOrEmpty(eq.ItemId)
+                        ? SlotLabel(slot)
+                        : (eq.Identified ? ContentCatalog.ItemName(eq.ItemId) : "未鉴定");
+                    var cell = new Border
+                    {
+                        Width = 84,
+                        Height = 40,
+                        Background = MirChrome.Slot ?? Brush("#22180F"),
+                        BorderBrush = Brush("#8A6A38"),
+                        BorderThickness = new Avalonia.Thickness(1),
+                        Child = new TextBlock
+                        {
+                            Text = label,
+                            FontSize = 11,
+                            Foreground = Brush("#F0D8A8"),
+                            TextWrapping = TextWrapping.NoWrap,
+                            TextTrimming = TextTrimming.CharacterEllipsis,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Margin = new Avalonia.Thickness(4, 0)
+                        }
+                    };
                     if (eq != null && !eq.Identified && !string.IsNullOrEmpty(eq.ItemId))
                     {
                         string id = eq.ItemId;
-                        var identify = new Button { Content = "鉴定", HorizontalAlignment = HorizontalAlignment.Stretch };
-                        identify.Click += async (_, _) => Toast(await _session.IdentifyAsync(id) ?? "已鉴定");
-                        _panelBody.Children.Add(identify);
+                        cell.PointerPressed += async (_, _) => Toast(await _session.IdentifyAsync(id) ?? "已鉴定");
                     }
+                    host.Children.Add(cell);
                 }
+                foreach (var s in leftOrder) AddEquipSlot(leftSlots, s);
+                foreach (var s in rightOrder) AddEquipSlot(rightSlots, s);
+                var surround = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+                surround.Children.Add(leftSlots);
+                surround.Children.Add(doll);
+                surround.Children.Add(rightSlots);
+                _panelBody.Children.Add(surround);
+                var enhance = new Button { Content = "强化武器", HorizontalAlignment = HorizontalAlignment.Stretch };
+                MirChrome.StyleNormal(enhance);
+                enhance.Click += async (_, _) => Toast(await _session.EnhanceAsync("weapon") ?? "已尝试强化");
+                _panelBody.Children.Add(enhance);
                 foreach (var item in _session.Inventory.Items)
                 {
                     var id = item.ItemId;
                     if (!LooksEquipable(id))
                         continue;
                     var button = new Button { Content = $"装备 {ContentCatalog.ItemName(id)}", HorizontalAlignment = HorizontalAlignment.Stretch };
+                    MirChrome.StyleNormal(button);
                     button.Click += async (_, _) => Toast(await _session.EquipAsync(id, GuessSlot(id)) ?? "已装备");
                     _panelBody.Children.Add(button);
                 }
