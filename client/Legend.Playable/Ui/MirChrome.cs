@@ -227,6 +227,68 @@ public static class MirChrome
         };
     }
 
+
+    public static Button MakeTab(string text, bool active)
+    {
+        var button = new Button
+        {
+            Content = text,
+            MinWidth = 64,
+            MinHeight = 26,
+            FontSize = 12,
+            Padding = new Thickness(10, 2),
+            Foreground = new SolidColorBrush(Color.Parse(active ? "#1A1208" : "#F0D8A8")),
+            Background = BrushOf(active ? TabActive : TabInactive)
+                ?? new SolidColorBrush(Color.Parse(active ? "#E8C872" : "#2A1C14")),
+            BorderThickness = new Thickness(0)
+        };
+        return button;
+    }
+
+    public static Border ListRow(Control content, bool selected = false)
+    {
+        return new Border
+        {
+            Background = selected
+                ? new SolidColorBrush(Color.Parse("#AA6A4A18"))
+                : new SolidColorBrush(Color.Parse("#6614100C")),
+            BorderBrush = new SolidColorBrush(Color.Parse(selected ? "#E8C872" : "#5A4030")),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(6, 4),
+            Margin = new Thickness(0, 0, 0, 3),
+            Child = content
+        };
+    }
+
+    public static Border SlotCell(Control? inner = null, double size = 40)
+    {
+        var grid = new Grid { Width = size, Height = size };
+        if (SlotEmpty != null)
+            grid.Children.Add(new Image { Source = SlotEmpty, Stretch = Stretch.Fill, Width = size, Height = size });
+        if (inner != null)
+            grid.Children.Add(inner);
+        return new Border
+        {
+            Width = size + 2,
+            Height = size + 2,
+            Margin = new Thickness(1),
+            Child = grid
+        };
+    }
+
+    public static ProgressBar ThinBar(string hex, double value, double max)
+    {
+        return new ProgressBar
+        {
+            Minimum = 0,
+            Maximum = Math.Max(1, max),
+            Value = Math.Clamp(value, 0, Math.Max(1, max)),
+            Height = 8,
+            Foreground = new SolidColorBrush(Color.Parse(hex)),
+            Background = new SolidColorBrush(Color.Parse("#140C0A"))
+        };
+    }
+
     private static Bitmap? LoadBmp(string logical)
     {
         var stream = typeof(MirChrome).Assembly.GetManifestResourceStream(logical);
