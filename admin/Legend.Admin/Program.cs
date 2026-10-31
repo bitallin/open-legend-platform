@@ -78,6 +78,20 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
+// Reliable media bytes for <img src> (Razor Page /Assets/File can render layout if handler misbinds).
+app.MapGet("/api/media/{id}", async (string id, bool thumb, MediaLibraryService media, CancellationToken ct) =>
+{
+    var asset = await media.FindAsync(id, ct);
+    if (asset is null || asset.SoftDeleted) return Results.NotFound();
+    var path = thumb ? media.ResolveThumbAbsolute(asset) : media.ResolveAbsolute(asset);
+    if (path is null || !File.Exists(path)) return Results.NotFound();
+    var contentType = path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+        ? "image/png"
+        : (string.IsNullOrWhiteSpace(asset.ContentType) ? "application/octet-stream" : asset.ContentType);
+    return Results.File(path, contentType);
+}).RequireAuthorization();
+
+
 // --- JSON APIs ---
 app.MapGet("/api/health", () => Results.Json(new { ok = true, service = "Legend.Admin", time = DateTimeOffset.UtcNow }));
 

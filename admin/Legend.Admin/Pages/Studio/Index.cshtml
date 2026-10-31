@@ -113,7 +113,7 @@
       @foreach (var a in Model.RecentMedia)
       {
         <a class="media-tile" asp-page="/Assets/Index" asp-route-packId="@Model.PackId" asp-route-q="@a.Id" title="@a.FileName">
-          <img class="lightbox-src" src="/Assets/File?id=@a.Id&thumb=1" alt="@a.FileName" loading="lazy" />
+          <img class="lightbox-src" src="/api/media/@a.Id?thumb=true" alt="@a.FileName" loading="lazy" />
           <span class="chip badge kind kind-@a.Kind">@a.Kind</span>
           <span class="cap">@a.FileName</span>
         </a>

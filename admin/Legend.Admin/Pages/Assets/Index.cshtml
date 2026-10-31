@@ -114,7 +114,7 @@
   {
     <div class="asset-card @(a.SoftDeleted ? "soft-deleted" : "")">
       <div class="preview">
-        <img class="lightbox-src" src="/Assets/File?id=@a.Id&thumb=true" alt="@a.FileName" loading="lazy" />
+        <img class="lightbox-src" src="/api/media/@a.Id?thumb=true" alt="@a.FileName" loading="lazy" />
         @if (Model.CanWrite)
         {
           <input class="select-box asset-select" type="checkbox" name="ids" value="@a.Id" form="bulk-form" />

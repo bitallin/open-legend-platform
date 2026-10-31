@@ -18,7 +18,7 @@ public sealed class LookThumbResolver(AdminDbContext db)
     public string? ThumbUrl(MediaAsset? asset)
     {
         if (asset is null) return null;
-        return $"/Assets/File?id={Uri.EscapeDataString(asset.Id)}&thumb=1";
+        return $"/api/media/{Uri.EscapeDataString(asset.Id)}?thumb=true";
     }
 
     public string? ThumbUrlForEntity(JsonObject entity, EntityDescriptor desc, IReadOnlyDictionary<string, MediaAsset> byId)

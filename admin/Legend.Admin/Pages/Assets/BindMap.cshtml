@@ -14,7 +14,7 @@
           <option value="">（不绑定）</option>
           @foreach (var a in Model.Assets) { <option value="@a.Id">@a.FileName (@a.Kind)</option> }
         </select>
-        @if (!string.IsNullOrEmpty(Model.TileAssetId)) { <img class="thumb-sm" src="/Assets/File?id=@Model.TileAssetId&thumb=true" /> }
+        @if (!string.IsNullOrEmpty(Model.TileAssetId)) { <img class="thumb-sm" src="/api/media/@Model.TileAssetId?thumb=true" /> }
       </div>
       <div>
         <label>小地图 minimapAssetId</label>

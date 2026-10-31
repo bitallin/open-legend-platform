@@ -106,7 +106,7 @@
         img.className = 'lightbox-src';
         frame.appendChild(img);
       }
-      img.src = '/Assets/File?id=' + encodeURIComponent(id) + '&thumb=1';
+      img.src = '/api/media/' + encodeURIComponent(id) + '?thumb=true';
       img.alt = id;
     }
     sel.addEventListener('change', sync);

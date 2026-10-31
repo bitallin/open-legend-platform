@@ -19,7 +19,7 @@
           }
         </select>
         @if (!string.IsNullOrEmpty(Model.SpriteAssetId))
-        { <img class="thumb-sm" src="/Assets/File?id=@Model.SpriteAssetId&thumb=true" /> }
+        { <img class="thumb-sm" src="/api/media/@Model.SpriteAssetId?thumb=true" /> }
       </div>
       <div>
         <label>图标（iconAssetId）</label>
@@ -31,7 +31,7 @@
           }
         </select>
         @if (!string.IsNullOrEmpty(Model.IconAssetId))
-        { <img class="thumb-sm" src="/Assets/File?id=@Model.IconAssetId&thumb=true" /> }
+        { <img class="thumb-sm" src="/api/media/@Model.IconAssetId?thumb=true" /> }
       </div>
     </div>
     <div class="row">
