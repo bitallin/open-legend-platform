@@ -91,6 +91,8 @@ public sealed class VersionPackManifest
     public string InternalConfigFile { get; set; } = "";
     public string EquipmentSlotsConfigFile { get; set; } = "";
     public string ArtifactsConfigFile { get; set; } = "";
+    public string HeroesConfigFile { get; set; } = "";
+    public string CombosConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -870,6 +872,70 @@ public sealed class ArtifactsConfigFile
     public List<ArtifactUpgradeConfig> Upgrades { get; set; } = new();
 }
 
+public sealed class HeroLoyaltyGateConfig
+{
+    public int Below { get; set; }
+    public string Action { get; set; } = "";
+}
+
+public sealed class HeroStarterConfig
+{
+    public string ClassId { get; set; } = "warrior";
+    public string NamePrefix { get; set; } = "英";
+    public int Loyalty { get; set; } = 800;
+    public int Level { get; set; } = 1;
+    public string Mode { get; set; } = "follow";
+    public bool Deployed { get; set; } = true;
+}
+
+/// <summary>configs/heroes.json — hero rules (docs/site/15). MsgIds still TBD.</summary>
+public sealed class HeroesConfigFile
+{
+    public int CreateCostGold { get; set; }
+    public int MaxLoyalty { get; set; } = 1000;
+    public bool CreateStarterOnLogin { get; set; }
+    public HeroStarterConfig Starter { get; set; } = new();
+    public List<HeroLoyaltyGateConfig> LoyaltyGates { get; set; } = new();
+}
+
+public sealed class ComboConfigItem
+{
+    public string ComboId { get; set; } = "";
+    public string PlayerClassId { get; set; } = "";
+    public string HeroClassId { get; set; } = "";
+    public string SkillId { get; set; } = "";
+    public int CooldownMs { get; set; } = 5000;
+    public int MpCostPlayer { get; set; }
+    public int MpCostHero { get; set; }
+    public double DamageMultiplier { get; set; } = 2.0;
+}
+
+/// <summary>configs/combos.json — hero combo table (docs/site/05).</summary>
+public sealed class CombosConfigFile
+{
+    public int HejiRangeCells { get; set; } = 3;
+    public List<ComboConfigItem> Combos { get; set; } = new();
+}
+
+/// <summary>Persisted hero instance (appearance_json). Not an account character slot.</summary>
+public sealed class HeroSaveState
+{
+    public string HeroId { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string ClassId { get; set; } = "";
+    public int Level { get; set; } = 1;
+    public int Loyalty { get; set; } = 1000;
+    public bool Deployed { get; set; }
+    public string Mode { get; set; } = "follow";
+    public List<string> Skills { get; set; } = new();
+    public int Hp { get; set; } = 100;
+    public int MaxHp { get; set; } = 100;
+    public int Mp { get; set; } = 50;
+    public int MaxMp { get; set; } = 50;
+    public int Atk { get; set; } = 8;
+    public int Def { get; set; } = 3;
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -910,6 +976,8 @@ public sealed class LoadedVersionPack
     /// <summary>artifactItemId → (level → upgrade row).</summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>> ArtifactUpgrades { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>>(StringComparer.OrdinalIgnoreCase);
+    public HeroesConfigFile Heroes { get; init; } = new();
+    public CombosConfigFile Combos { get; init; } = new();
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 

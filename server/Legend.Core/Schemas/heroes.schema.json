@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/heroes.schema.json",
+  "title": "Open Legend heroes",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "createCostGold": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+    "maxLoyalty": { "type": "integer", "minimum": 1, "maximum": 100000 },
+    "createStarterOnLogin": { "type": "boolean" },
+    "starter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "classId": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "namePrefix": { "type": "string", "maxLength": 32 },
+        "loyalty": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "level": { "type": "integer", "minimum": 1, "maximum": 999 },
+        "mode": { "type": "string", "maxLength": 16 },
+        "deployed": { "type": "boolean" }
+      }
+    },
+    "loyaltyGates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["below", "action"],
+        "properties": {
+          "below": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "action": { "type": "string", "minLength": 1, "maxLength": 32 }
+        }
+      }
+    }
+  }
+}

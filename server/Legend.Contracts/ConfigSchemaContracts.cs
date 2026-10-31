@@ -23,6 +23,8 @@ public static class ConfigSchemaIds
     public const string Internal = "internal";
     public const string EquipmentSlots = "equipmentSlots";
     public const string Artifacts = "artifacts";
+    public const string Heroes = "heroes";
+    public const string Combos = "combos";
 }
 
 /// <summary>

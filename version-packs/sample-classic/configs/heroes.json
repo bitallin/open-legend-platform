@@ -1,0 +1,17 @@
+{
+  "createCostGold": 0,
+  "maxLoyalty": 1000,
+  "createStarterOnLogin": true,
+  "starter": {
+    "classId": "warrior",
+    "namePrefix": "英",
+    "loyalty": 800,
+    "level": 1,
+    "mode": "follow",
+    "deployed": true
+  },
+  "loyaltyGates": [
+    { "below": 50, "action": "deny_summon" },
+    { "below": 100, "action": "force_rest" }
+  ]
+}

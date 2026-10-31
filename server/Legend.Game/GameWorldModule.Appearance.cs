@@ -116,6 +116,46 @@ public sealed partial class GameWorldModule
                 Identified = z.Identified
             })
             .ToList();
+        player.Heroes = (state.Heroes ?? new())
+            .Where(h => !string.IsNullOrWhiteSpace(h.HeroId))
+            .Select(h => new HeroSaveState
+            {
+                HeroId = h.HeroId,
+                Name = h.Name ?? "",
+                ClassId = h.ClassId ?? "",
+                Level = Math.Max(1, h.Level),
+                Loyalty = Math.Max(0, h.Loyalty),
+                Deployed = h.Deployed,
+                Mode = string.IsNullOrWhiteSpace(h.Mode) ? "follow" : h.Mode,
+                Skills = (h.Skills ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                Hp = h.Hp,
+                MaxHp = Math.Max(1, h.MaxHp),
+                Mp = h.Mp,
+                MaxMp = Math.Max(0, h.MaxMp),
+                Atk = h.Atk,
+                Def = h.Def
+            })
+            .ToList();
+        if (player.Heroes.Count == 0 && _versionPack.Heroes.CreateStarterOnLogin)
+        {
+            var starter = HeroCombo.CreateStarter(_versionPack.Heroes, player.CharacterId);
+            player.Heroes.Add(starter);
+        }
+        player.ActiveHero = player.Heroes.FirstOrDefault(h => h.Deployed);
+        if (player.ActiveHero is not null)
+        {
+            player.ActiveHero.Mode = HeroCombo.EffectiveMode(_versionPack.Heroes, player.ActiveHero);
+            if (string.Equals(player.ActiveHero.Mode, "rest", StringComparison.OrdinalIgnoreCase))
+            {
+                player.ActiveHero.Deployed = false;
+                player.ActiveHero = null;
+            }
+            else
+            {
+                player.ActiveHeroX = player.X + 1;
+                player.ActiveHeroY = player.Y;
+            }
+        }
         CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
@@ -145,7 +185,8 @@ public sealed partial class GameWorldModule
             InternalExp = player.InternalExp,
             UnlockedMeridians = player.UnlockedMeridians ?? new(),
             TalentUnlocked = player.TalentUnlocked ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase),
-            ZodiacSlots = player.ZodiacSlots ?? new()
+            ZodiacSlots = player.ZodiacSlots ?? new(),
+            Heroes = SyncHeroesForPersist(player)
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);
@@ -461,5 +502,20 @@ public sealed partial class GameWorldModule
             await BroadcastAppearanceSyncAsync(player, "fashion_unlock", ct);
             return (true, $"Unlocked fashion {fid}");
         }
+    }
+
+    private static List<HeroSaveState> SyncHeroesForPersist(WorldPlayerEntity player)
+    {
+        var list = (player.Heroes ?? new()).ToList();
+        if (player.ActiveHero is not null)
+        {
+            int idx = list.FindIndex(h =>
+                string.Equals(h.HeroId, player.ActiveHero.HeroId, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+                list[idx] = player.ActiveHero;
+            else
+                list.Add(player.ActiveHero);
+        }
+        return list;
     }
 }

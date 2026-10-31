@@ -1,0 +1,25 @@
+{
+  "hejiRangeCells": 3,
+  "combos": [
+    {
+      "comboId": "combo_ww",
+      "playerClassId": "warrior",
+      "heroClassId": "warrior",
+      "skillId": "hero_combo",
+      "cooldownMs": 5000,
+      "mpCostPlayer": 10,
+      "mpCostHero": 10,
+      "damageMultiplier": 2.0
+    },
+    {
+      "comboId": "combo_wm",
+      "playerClassId": "warrior",
+      "heroClassId": "mage",
+      "skillId": "hero_combo",
+      "cooldownMs": 5000,
+      "mpCostPlayer": 10,
+      "mpCostHero": 12,
+      "damageMultiplier": 2.2
+    }
+  ]
+}
