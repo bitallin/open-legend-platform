@@ -21,6 +21,7 @@ public sealed partial class GameWorldModule : IGameModule
     private readonly ILegendStorage _storage;
     private readonly IAntiCheatProbe _antiCheatProbe;
     private readonly IMovementRules _movement;
+    private readonly ICombatResolver _combat;
     private readonly ConcurrentDictionary<string, GridAoiManager> _maps = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, MonsterEntity> _monsters = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, LootEntity> _loots = new(StringComparer.Ordinal);
@@ -42,13 +43,15 @@ public sealed partial class GameWorldModule : IGameModule
         LoadedVersionPack versionPack,
         ILegendStorage storage,
         IAntiCheatProbe? antiCheatProbe = null,
-        IMovementRules? movementRules = null)
+        IMovementRules? movementRules = null,
+        ICombatResolver? combatResolver = null)
     {
         _eventBus = eventBus;
         _versionPack = versionPack;
         _storage = storage;
         _antiCheatProbe = antiCheatProbe ?? new DefaultAntiCheatProbe(maxStepDistance: 2);
         _movement = movementRules ?? DefaultMovementRules.Instance;
+        _combat = combatResolver ?? DefaultCombatResolver.Instance;
 
         foreach (var map in versionPack.Maps.Values)
             _maps[map.MapId] = new GridAoiManager(map);
@@ -761,95 +764,46 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
-        if (attacker.IsDead || attacker.Hp <= 0)
-        {
-            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
-            {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrDead,
-                Message = "You are dead."
-            }, ct);
-            return;
-        }
-
-        // Safe zone: complete attack ban
-        if (attacker.InSafeZone || aoi.Map.IsInSafeZone(attacker.X, attacker.Y))
-        {
-            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
-            {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrSafeZone,
-                Message = "安全区内禁止攻击。"
-            }, ct);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(req.SkillId) ||
-            !_versionPack.Skills.TryGetValue(req.SkillId, out var skill))
-        {
-            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
-            {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
-                Message = $"未知技能: {req.SkillId}"
-            }, ct);
-            return;
-        }
-
-        if (skill.AllowedClasses.Count > 0 &&
-            !skill.AllowedClasses.Any(c => string.Equals(c, attacker.ClassId, StringComparison.OrdinalIgnoreCase)))
-        {
-            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
-            {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
-                Message = $"职业 {attacker.ClassId} 无法使用技能 {skill.SkillId}"
-            }, ct);
-            return;
-        }
-
-        if (!HasLearnedSkill(attacker, skill.SkillId, out var learned) || learned is null)
-        {
-            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
-            {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrSkillNotLearned,
-                Message = $"尚未学会技能: {skill.SkillId}"
-            }, ct);
-            return;
-        }
-
-        int skillLevel = Math.Max(1, learned.Level);
-        double dmgMult = SkillHelper.EffectiveMultiplier(skill, skillLevel);
-        int cooldownMs = SkillHelper.EffectiveCooldownMs(skill, skillLevel);
-        if (skill.CastTimeMs > 0)
-            cooldownMs = Math.Max(cooldownMs, skill.CastTimeMs);
-
+        SkillConfigItem? skillLookup = null;
+        bool skillKnown = !string.IsNullOrWhiteSpace(req.SkillId) &&
+            _versionPack.Skills.TryGetValue(req.SkillId, out skillLookup);
+        SkillConfigItem skill = skillLookup ?? new SkillConfigItem { SkillId = req.SkillId ?? "" };
+        bool classAllowed = !skillKnown || skill.AllowedClasses.Count == 0 ||
+            skill.AllowedClasses.Any(c => string.Equals(c, attacker.ClassId, StringComparison.OrdinalIgnoreCase));
+        LearnedSkillState? learned = null;
+        bool learnedOk = skillKnown && HasLearnedSkill(attacker, skill.SkillId, out learned) && learned is not null;
+        int skillLevel = learnedOk ? Math.Max(1, learned!.Level) : 1;
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        if (attacker.SkillReadyAtUnixMs.TryGetValue(skill.SkillId, out long readyAt) && now < readyAt)
+        attacker.SkillReadyAtUnixMs.TryGetValue(skill.SkillId, out long readyAt);
+
+        var gate = _combat.EvaluateAttackGate(new CombatGateContext(
+            attacker.EntityId,
+            attacker.IsDead || attacker.Hp <= 0,
+            attacker.InSafeZone || aoi.Map.IsInSafeZone(attacker.X, attacker.Y),
+            skillKnown,
+            classAllowed,
+            learnedOk,
+            skill.SkillId,
+            now,
+            readyAt,
+            attacker.Mp,
+            skillKnown ? skill.MpCost : 0,
+            _antiCheatProbe));
+        if (!gate.Accepted)
         {
             await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
             {
                 Success = false,
-                ErrorCode = ProtocolErrorCode.ErrSkillCooldown,
-                Message = "技能冷却中",
-                NextReadyUnixMs = readyAt,
+                ErrorCode = gate.ErrorCode,
+                Message = gate.Message,
+                NextReadyUnixMs = gate.ReadyAtUnixMs,
                 RemainingMp = attacker.Mp
             }, ct);
             return;
         }
 
-        if (attacker.Mp < skill.MpCost)
-        {
-            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
-            {
-                Success = false,
-                ErrorCode = ProtocolErrorCode.ErrInvalidSkill,
-                Message = "MP 不足",
-                RemainingMp = attacker.Mp
-            }, ct);
-            return;
-        }
+        double dmgMult = _combat.EffectiveMultiplier(skill, skillLevel);
+        int cooldownMs = _combat.EffectiveCooldownMs(skill, skillLevel, skill.CastTimeMs);
 
         if (PhaseLRules.IsSupportSkill(skill.Kind))
         {
@@ -878,14 +832,14 @@ public sealed partial class GameWorldModule : IGameModule
         if (string.Equals(skill.Kind, "charge", StringComparison.OrdinalIgnoreCase))
             await StepChargeAsync(attacker, monster.X, monster.Y, skill.ChargeSteps, ct);
 
-        int dist = CombatMath.Chebyshev(attacker.X, attacker.Y, monster.X, monster.Y);
-        if (dist > skill.Range)
+        var range = _combat.EvaluateRange(attacker.X, attacker.Y, monster.X, monster.Y, skill.Range);
+        if (!range.Accepted)
         {
             await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
             {
                 Success = false,
-                ErrorCode = ProtocolErrorCode.ErrOutOfRange,
-                Message = $"目标超出技能距离 ({dist}>{skill.Range})"
+                ErrorCode = range.ErrorCode,
+                Message = range.Message
             }, ct);
             return;
         }
@@ -894,7 +848,7 @@ public sealed partial class GameWorldModule : IGameModule
         long nextReady = now + cooldownMs;
         attacker.SkillReadyAtUnixMs[skill.SkillId] = nextReady;
 
-        int damage = CombatMath.CalcDamage(attacker.Atk, monster.Template.Def, dmgMult);
+        int damage = _combat.CalcDamage(attacker.Atk, monster.Template.Def, dmgMult);
         monster.Hp = Math.Max(0, monster.Hp - damage);
         monster.TargetEntityId = attacker.EntityId;
         bool killed = monster.Hp <= 0;

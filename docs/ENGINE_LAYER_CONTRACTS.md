@@ -12,7 +12,7 @@
 | `IClientSession` | Legend.Contracts | 一条连接上的账号、会话令牌、角色与 `SendAsync(MsgId, seq, message)`。Gate 持有实现。逻辑层不碰套接字。 |
 | `IEventBus` | Legend.Contracts | 进程内领域事件。脚本主机订阅，世界在状态改变后发布。 |
 | `IPlugin` | Legend.Contracts | 可开关插件。Host 启用内置审计插件。 |
-| `IAntiCheatProbe` | Legend.Contracts | `ValidateMove`。默认实现 `DefaultAntiCheatProbe` 限制切比雪夫步长。世界在采纳移动前调用。 |
+| `IAntiCheatProbe` | Legend.Contracts | `ValidateMove` 与 `ValidateAttackInterval`。默认实现 `DefaultAntiCheatProbe`：步长切比雪夫限制；攻击间隔与原技能冷却检查一致。世界在采纳移动 / 攻击门闩前调用。 |
 | `IVersionPackLoader` | Legend.Contracts | `LoadFromManifest`。实现是 `VersionPackLoader`。Host 启动与 `reload-pack` 都走它。 |
 | `IPaymentProvider` / `IMerchantPaymentProvider` | Legend.Contracts | 支付沙箱。与 E0 无关，签名保持。 |
 | `ILegendStorage` 及 `IAccountStore`、`ICharacterStore`、`ISessionStore` 等 | Legend.Contracts（命名空间 `Legend.Storage`） | 持久化端口与记录类型。Sqlite / Postgres / 内存实现仍在 `Legend.Storage` 项目。 |
@@ -119,7 +119,7 @@ sequenceDiagram
 |----------|--------|------|
 | 存储端口搬到 Contracts | E2 已完成 | 端口在 Contracts 程序集；Host 仍负责选择实现 |
 | `IMovementRules` | E3 已完成 | 纯判定在 `DefaultMovementRules`；AOI 仍在 `GridAoiManager` |
-| `ICombatResolver` | E4 | 同上，且不能改伤害数字 |
+| `ICombatResolver` | E4 已完成 | 纯判定在 `DefaultCombatResolver`；伤害仍转发 `CombatMath`，数字未改 |
 | ClientCore 预测端口 | E5 | 视觉原型未要求本 PR 改 Avalonia |
 | 协议目录生成器 | E6 | E0 只给阅读指针 |
 | 新的 `legend_api` 方法 | E7 之后 | 18 的扩展路线，不是地基 |

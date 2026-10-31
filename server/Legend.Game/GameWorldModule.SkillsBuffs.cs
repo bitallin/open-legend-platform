@@ -220,14 +220,18 @@ public sealed partial class GameWorldModule
 
     private async Task ApplyBuffAsync(WorldPlayerEntity player, string buffId, CancellationToken ct)
     {
-        if (!_versionPack.Buffs.TryGetValue(buffId, out var cfg))
+        bool known = _versionPack.Buffs.TryGetValue(buffId, out var cfg);
+        var existing = player.ActiveBuffs.FirstOrDefault(b =>
+            string.Equals(b.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
+        string rule = known ? (cfg!.StackRule ?? "refresh") : "refresh";
+        var decision = _combat.EvaluateBuffApply(known, rule, existing != null);
+        if (!decision.Accepted)
+            return; // same silent deny as before; ErrBuffDenied is exposed on the port for callers/tests
+        if (!known || cfg is null)
             return;
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var existing = player.ActiveBuffs.FirstOrDefault(b =>
-            string.Equals(b.BuffId, buffId, StringComparison.OrdinalIgnoreCase));
-
-        string rule = (cfg.StackRule ?? "refresh").ToLowerInvariant();
+        rule = (cfg.StackRule ?? "refresh").ToLowerInvariant();
         if (existing != null)
         {
             if (rule == "deny")

@@ -184,4 +184,16 @@ public sealed class DefaultAntiCheatProbe : IAntiCheatProbe
         reason = string.Empty;
         return true;
     }
+
+    public bool ValidateAttackInterval(string playerId, string skillId, long nowUnixMs, long readyAtUnixMs, out string reason)
+    {
+        if (readyAtUnixMs > 0 && nowUnixMs < readyAtUnixMs)
+        {
+            reason = "技能冷却中";
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
 }

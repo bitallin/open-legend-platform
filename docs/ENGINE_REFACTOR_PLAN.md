@@ -230,7 +230,9 @@ Schema 文件：
 
 测试：`dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --filter "FullyQualifiedName~M2|FullyQualifiedName~Movement"`。
 
-### E4 — 战斗切片与反作弊钩子
+### E4 — 战斗切片与反作弊钩子（已完成）
+
+状态：已完成。`ICombatResolver` / `DefaultCombatResolver` 承接攻击门闩（死亡、安全区、技能、冷却探针、MP）、距离、Buff 施加判定，以及伤害数字转发。`IAntiCheatProbe.ValidateAttackInterval` 默认与原冷却检查一致，可被测试替换。错误码仍用 1012–1016、1018、1051、1073。伤害公式未改。
 
 范围：攻击、技能、Buff 的结算入口收成 `ICombatResolver`（名字可在实现时按现有 `CombatMath` 调整）。`IAntiCheatProbe` 继续负责步长；为攻击间隔补一个同风格的探针方法，默认行为与今天的冷却检查一致。错误码仍用 1012–1016、1018、1051、1073。
 
