@@ -12,7 +12,16 @@
       "lootTableId": "slime_basic",
       "respawnMs": 8000,
       "ai": "chase",
-      "expReward": 30
+      "expReward": 30,
+      "look": {
+        "spriteAssetId": "5acecf96e68d3cfd73daaf749c1fa197",
+        "iconAssetId": "5acecf96e68d3cfd73daaf749c1fa197",
+        "sheetKey": "slime_green",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "boar_wild",
@@ -26,7 +35,16 @@
       "lootTableId": "boar_basic",
       "respawnMs": 12000,
       "ai": "stationary",
-      "expReward": 60
+      "expReward": 60,
+      "look": {
+        "spriteAssetId": "272d304ddfbf1b2aab42f43323d78dae",
+        "iconAssetId": "272d304ddfbf1b2aab42f43323d78dae",
+        "sheetKey": "boar_wild",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "slime_cave",
@@ -40,7 +58,16 @@
       "lootTableId": "slime_basic",
       "respawnMs": 0,
       "ai": "chase",
-      "expReward": 15
+      "expReward": 15,
+      "look": {
+        "spriteAssetId": "2aca2bff05440aa435ee6a218ca05df0",
+        "iconAssetId": "2aca2bff05440aa435ee6a218ca05df0",
+        "sheetKey": "slime_cave",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "world_green_dragon",
@@ -54,7 +81,16 @@
       "lootTableId": "world_dragon_basic",
       "respawnMs": 0,
       "ai": "chase",
-      "expReward": 120
+      "expReward": 120,
+      "look": {
+        "spriteAssetId": "b1a6d7e322213d8209cb193e913e836a",
+        "iconAssetId": "b1a6d7e322213d8209cb193e913e836a",
+        "sheetKey": "world_green_dragon",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "marsh_crawler",
@@ -68,7 +104,16 @@
       "lootTableId": "marsh_basic",
       "respawnMs": 10000,
       "ai": "chase",
-      "expReward": 45
+      "expReward": 45,
+      "look": {
+        "spriteAssetId": "3bd1845e63084943426c683d32db32cc",
+        "iconAssetId": "3bd1845e63084943426c683d32db32cc",
+        "sheetKey": "marsh_crawler",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "bone_walker",
@@ -82,7 +127,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 12000,
       "ai": "chase",
-      "expReward": 70
+      "expReward": 70,
+      "look": {
+        "spriteAssetId": "922c60811e9ecf99c3ffd8f39975ee41",
+        "iconAssetId": "922c60811e9ecf99c3ffd8f39975ee41",
+        "sheetKey": "bone_walker",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "castle_gate",
@@ -96,7 +150,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 20000,
       "ai": "stationary",
-      "expReward": 40
+      "expReward": 40,
+      "look": {
+        "spriteAssetId": "971a552817b86e5d62768fc9b7a29b03",
+        "iconAssetId": "971a552817b86e5d62768fc9b7a29b03",
+        "sheetKey": "castle_gate",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "castle_wall",
@@ -110,7 +173,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 20000,
       "ai": "stationary",
-      "expReward": 20
+      "expReward": 20,
+      "look": {
+        "spriteAssetId": "111b7012f7661dbeb74e149840a94111",
+        "iconAssetId": "111b7012f7661dbeb74e149840a94111",
+        "sheetKey": "castle_wall",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "castle_flag",
@@ -124,7 +196,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 15000,
       "ai": "stationary",
-      "expReward": 80
+      "expReward": 80,
+      "look": {
+        "spriteAssetId": "8723ffcd46a05b434331c7120d92b2d4",
+        "iconAssetId": "8723ffcd46a05b434331c7120d92b2d4",
+        "sheetKey": "castle_flag",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "temple_wraith",
@@ -138,7 +219,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 14000,
       "ai": "chase",
-      "expReward": 90
+      "expReward": 90,
+      "look": {
+        "spriteAssetId": "d86d9db08efe5df470008e36a99ecc41",
+        "iconAssetId": "d86d9db08efe5df470008e36a99ecc41",
+        "sheetKey": "temple_wraith",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "deer_plain",
@@ -152,7 +242,16 @@
       "lootTableId": "slime_basic",
       "respawnMs": 9000,
       "ai": "chase",
-      "expReward": 18
+      "expReward": 18,
+      "look": {
+        "spriteAssetId": "c5079a1bda0fefd3d92ad7ee6f3b9339",
+        "iconAssetId": "c5079a1bda0fefd3d92ad7ee6f3b9339",
+        "sheetKey": "deer_plain",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "chicken_wild",
@@ -166,7 +265,16 @@
       "lootTableId": "slime_basic",
       "respawnMs": 7000,
       "ai": "chase",
-      "expReward": 10
+      "expReward": 10,
+      "look": {
+        "spriteAssetId": "95f9ac693d406b9a476aaa21345a5529",
+        "iconAssetId": "95f9ac693d406b9a476aaa21345a5529",
+        "sheetKey": "chicken_wild",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "scarecrow",
@@ -180,7 +288,16 @@
       "lootTableId": "boar_basic",
       "respawnMs": 10000,
       "ai": "stationary",
-      "expReward": 28
+      "expReward": 28,
+      "look": {
+        "spriteAssetId": "f01ceca70674e0a772f30184ecd98f97",
+        "iconAssetId": "f01ceca70674e0a772f30184ecd98f97",
+        "sheetKey": "scarecrow",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "worm_cave",
@@ -194,7 +311,16 @@
       "lootTableId": "slime_basic",
       "respawnMs": 8000,
       "ai": "chase",
-      "expReward": 32
+      "expReward": 32,
+      "look": {
+        "spriteAssetId": "c3ddb9ec1d8c1966a3f6359519af44e4",
+        "iconAssetId": "c3ddb9ec1d8c1966a3f6359519af44e4",
+        "sheetKey": "worm_cave",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "centipede_red",
@@ -208,7 +334,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 14000,
       "ai": "chase",
-      "expReward": 95
+      "expReward": 95,
+      "look": {
+        "spriteAssetId": "e627a4cbe739308f71ae665a65820cda",
+        "iconAssetId": "e627a4cbe739308f71ae665a65820cda",
+        "sheetKey": "centipede_red",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "skeleton_fighter",
@@ -222,7 +357,16 @@
       "lootTableId": "bone_basic",
       "respawnMs": 12000,
       "ai": "chase",
-      "expReward": 75
+      "expReward": 75,
+      "look": {
+        "spriteAssetId": "96de1dd1f0d0e56d5b7ecc6b936e8581",
+        "iconAssetId": "96de1dd1f0d0e56d5b7ecc6b936e8581",
+        "sheetKey": "skeleton_fighter",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "cave_brute",
@@ -236,7 +380,16 @@
       "lootTableId": "marsh_basic",
       "respawnMs": 15000,
       "ai": "chase",
-      "expReward": 130
+      "expReward": 130,
+      "look": {
+        "spriteAssetId": "4f28400acbe0d2fdbf4baa9b2bc07b4a",
+        "iconAssetId": "4f28400acbe0d2fdbf4baa9b2bc07b4a",
+        "sheetKey": "cave_brute",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     },
     {
       "monsterId": "forest_wolf",
@@ -250,7 +403,16 @@
       "lootTableId": "boar_basic",
       "respawnMs": 11000,
       "ai": "chase",
-      "expReward": 55
+      "expReward": 55,
+      "look": {
+        "spriteAssetId": "09be423feac2d9928dfc46f65abfc329",
+        "iconAssetId": "09be423feac2d9928dfc46f65abfc329",
+        "sheetKey": "forest_wolf",
+        "frameW": 64,
+        "frameH": 64,
+        "directions": 1,
+        "framesPerDir": 1
+      }
     }
   ],
   "spawns": [

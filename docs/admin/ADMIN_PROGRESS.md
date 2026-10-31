@@ -1,6 +1,6 @@
 # Admin Console 进度
 
-> 时区：Asia/Shanghai · 分支：`main` · 更新：2026-11-01（M12 地图刷怪 / 默认包）
+> 时区：Asia/Shanghai · 分支：`main` · 更新：2026-11-01（M12 默认素材包）
 
 | 时间 | 里程碑 | 状态 | 备注 |
 |------|--------|------|------|
@@ -19,6 +19,8 @@
 | 2026-11-01 | M11 试玩服部署 | **完成** | `/opt/legend-admin` @ 150.158.164.90；Login 200；怪物 CRUD 探针 OK；截图 `docs/admin/screenshots-m11/` |
 
 ## 已完成
+
+- M12 默认素材：`version-packs/sample-classic/seed-media/`（约 13MB，可入库）→ 启动时同步 `MediaAssets`；UI 10 槽、地图 8、怪物 18、物品 41 全绑定；试玩服部署后 Studio/怪物/地图/素材库可见缩略图
 
 - 工程：`admin/Legend.Admin/`（ASP.NET Core 8 Razor Pages + EF Core Sqlite + BCrypt）
 - 规划对齐私服常见后台模块（开区合区、爆率、NPC/商店、技能、任务、商城充值、多货币、审计、在线封禁、邮件、活动/公告、沙巴克、内挂开关跳转、素材索引）

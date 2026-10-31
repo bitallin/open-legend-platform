@@ -96,3 +96,12 @@ SQLite `MediaAssets` 表仅作管理台索引；**磁盘文件是真相源**。
 字段：`monsterId`、`mapId`、`x`、`y`、`count`（复活间隔读模板 `respawnMs`）。  
 不同地图应挂不同怪；新手村与洞穴/沙巴克等表互不相同。改完可在 **运维 → 热重载** 通知 Host。
 
+
+
+## 默认素材包（sample-classic）
+
+仓库内 `version-packs/sample-classic/seed-media/` 为热血传奇怀旧风默认图（GenerateImage 生成后重压）。`configs/assets_manifest.json` 列出 MediaAssets；`ui_skin.json` / 怪物 `look` / 物品 `iconAssetId` / 地图 `look` 已绑定。
+
+- 安装到 runtime 目录：`python3 tools/install_classic_seed_media.py`
+- Admin 启动：`SeedData.SyncMediaFromPackManifestAsync` 会按 manifest 写入 SQLite，缺 `assets/library` 时从 `seedPath` 物化
+- 运营上传仍走素材库 → `assets/library`（gitignore）

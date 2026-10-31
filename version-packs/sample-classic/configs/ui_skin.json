@@ -1,56 +1,58 @@
 {
   "version": 1,
   "packId": "sample-classic",
+  "updatedAt": "2026-10-31T23:47:05.949830+00:00",
+  "updatedBy": "seed-classic-default-assets",
   "slots": {
     "login_bg": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "0024240cd59127c7dc51535fd51cce4a",
+      "note": "默认素材·登录背景",
+      "publishedPath": "assets/ui/login_bg.png"
     },
     "hud_frame": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "a211f79c6b0285b222f6587481de4bd2",
+      "note": "默认素材·HUD边框",
+      "publishedPath": "assets/ui/hud_frame.png"
     },
     "hp_orb": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "08a47fe0f7d1c2e345ba8f5f518c96f5",
+      "note": "默认素材·血量球",
+      "publishedPath": "assets/ui/hp_orb.png"
     },
     "mp_orb": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "43d0238b107b1eb200d2debc57879c76",
+      "note": "默认素材·蓝量球",
+      "publishedPath": "assets/ui/mp_orb.png"
     },
     "menu_ring": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "22cabeb2a63691a38531f4b94dc16074",
+      "note": "默认素材·菜单环",
+      "publishedPath": "assets/ui/menu_ring.png"
     },
     "window_frame": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "f63db35e18df18122dc42ea813e7e8c1",
+      "note": "默认素材·窗口框",
+      "publishedPath": "assets/ui/window_frame.png"
     },
     "item_icon_atlas": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "ae0d9219f84c546e410daab19344ee48",
+      "note": "默认素材·物品图标集",
+      "publishedPath": "assets/ui/item_icon_atlas.png"
     },
     "chat_panel": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "1d86efd59b806c1600d436189ce001cf",
+      "note": "默认素材·聊天面板",
+      "publishedPath": "assets/ui/chat_panel.png"
     },
     "minimap_frame": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "ec07438fcfa830509a08271dbc52035c",
+      "note": "默认素材·小地图框",
+      "publishedPath": "assets/ui/minimap_frame.png"
     },
     "button_primary": {
-      "assetId": "",
-      "note": "",
-      "publishedPath": ""
+      "assetId": "e0d3149ce31546852a08bf8f123d1817",
+      "note": "默认素材·主按钮",
+      "publishedPath": "assets/ui/button_primary.png"
     }
   }
 }
