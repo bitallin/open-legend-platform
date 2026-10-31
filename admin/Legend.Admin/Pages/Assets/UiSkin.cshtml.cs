@@ -11,7 +11,7 @@ namespace Legend.Admin.Pages.Assets;
 public class UiSkinModel(
     VersionPackService packs,
     AssetManifestService manifest,
-    MediaLibraryService media) : PageModel
+    MediaLibraryService media, PackPreference packPref) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
@@ -23,7 +23,7 @@ public class UiSkinModel(
     public async Task OnGetAsync(string? packId, CancellationToken ct)
     {
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         Skin = await manifest.ReadUiSkinAsync(PackId, ct);
         if (Skin["slots"] is JsonObject slots)
             SlotNames = slots.Select(kv => kv.Key).OrderBy(k => k).ToList();

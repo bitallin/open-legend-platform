@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Legend.Admin.Pages.Configs;
 
 [Authorize(Policy = "AnyStaff")]
-public class IndexModel(VersionPackService packs) : PageModel
+public class IndexModel(VersionPackService packs, PackPreference packPref) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
@@ -17,7 +17,7 @@ public class IndexModel(VersionPackService packs) : PageModel
     public void OnGet(string? packId)
     {
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         if (Packs.Any(p => p.Id == PackId))
             Files = packs.ListConfigFiles(PackId).ToList();
     }

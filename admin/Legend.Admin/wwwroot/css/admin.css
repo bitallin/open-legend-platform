@@ -593,3 +593,8 @@ table.data tbody tr:hover { background: rgba(255,255,255,0.02); }
   .main { padding: 16px; }
   .app-topbar .tb-search { display: none; }
 }
+
+
+/* Map spawn overview chips */
+.kpi-row { display:flex; flex-wrap:wrap; gap:10px; }
+.kpi.active { outline:2px solid var(--accent, #d4a017); background: rgba(212,160,23,.12); }

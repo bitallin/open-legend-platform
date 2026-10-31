@@ -13,7 +13,7 @@ public class EditModel(
     VersionPackService packs,
     JsonEntityStore store,
     MediaLibraryService media,
-    LookThumbResolver thumbs) : PageModel
+    LookThumbResolver thumbs, PackPreference packPref) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
@@ -34,7 +34,7 @@ public class EditModel(
         if (Desc is null) return NotFound();
         Kind = Desc.Kind;
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         EntityId = id;
         IsCreate = string.IsNullOrWhiteSpace(id);
 

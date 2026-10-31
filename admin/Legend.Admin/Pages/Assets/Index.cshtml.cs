@@ -10,7 +10,7 @@ namespace Legend.Admin.Pages.Assets;
 public class IndexModel(
     VersionPackService packs,
     MediaLibraryService media,
-    AssetManifestService manifest) : PageModel
+    AssetManifestService manifest, PackPreference packPref) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
@@ -24,7 +24,7 @@ public class IndexModel(
     public async Task OnGetAsync(string? packId, string? kind, string? q, bool showDeleted = false, CancellationToken ct = default)
     {
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         Kind = string.IsNullOrWhiteSpace(kind) ? "all" : kind;
         Q = q ?? "";
         ShowDeleted = showDeleted;

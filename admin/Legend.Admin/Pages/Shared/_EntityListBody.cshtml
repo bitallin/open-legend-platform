@@ -42,6 +42,14 @@
     {
       <a class="btn btn-primary" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@Model.PackId">新建</a>
     }
+    @if (kind == "maps")
+    {
+      <a class="btn btn-primary" asp-page="/Entities/MapSpawns" asp-route-packId="@Model.PackId">按地图配置刷怪</a>
+    }
+    @if (kind == "monsters")
+    {
+      <a class="btn" asp-page="/Entities/MapSpawns" asp-route-packId="@Model.PackId">地图刷怪表</a>
+    }
     <a class="btn" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="@(Model.Desc.IsMapFiles ? "maps/novice_plain.json" : Model.Desc.RelativePath)">JSON 兜底</a>
     <div class="view-toggle" role="group" aria-label="视图切换">
       <a class="@(view=="cards"?"active":"")" href="?packId=@Model.PackId&q=@Uri.EscapeDataString(Model.Q)&view=cards&missingOnly=@missingOnly.ToString().ToLowerInvariant()">卡片</a>
@@ -53,7 +61,18 @@
 
 @if (Model.Rows.Count == 0)
 {
-  <div class="card"><div class="empty">暂无数据。@if (Model.CanWrite){<a asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@Model.PackId">新建一条</a>}</div></div>
+  <div class="card"><div class="empty">
+    暂无数据。
+    @if (kind == "monsters" && Model.PackId != "sample-classic")
+    {
+      <span>当前包 <code>@Model.PackId</code> 可能没有怪物模板。</span>
+      <a href="?packId=sample-classic">切换到 sample-classic</a>
+    }
+    else if (Model.CanWrite)
+    {
+      <a asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@Model.PackId">新建一条</a>
+    }
+  </div></div>
 }
 else if (view == "table")
 {
@@ -86,6 +105,10 @@ else if (view == "table")
         }
         <td class="nowrap">
           <a class="btn btn-sm btn-primary" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@Model.PackId" asp-route-id="@r.Id">编辑</a>
+          @if (kind == "maps")
+          {
+            <a class="btn btn-sm" asp-page="/Entities/MapSpawns" asp-route-packId="@Model.PackId" asp-route-mapId="@r.Id">刷怪</a>
+          }
           @if (bindPage is not null)
           {
             <a class="btn btn-sm" asp-page="@bindPage" asp-route-packId="@Model.PackId" asp-route-id="@r.Id">外观</a>
@@ -143,6 +166,10 @@ else
       </div>
       <div class="ecard-actions">
         <a class="btn btn-sm btn-primary" asp-page="/Entities/Edit" asp-route-kind="@kind" asp-route-packId="@Model.PackId" asp-route-id="@r.Id">编辑</a>
+        @if (kind == "maps")
+        {
+          <a class="btn btn-sm" asp-page="/Entities/MapSpawns" asp-route-packId="@Model.PackId" asp-route-mapId="@r.Id">刷怪</a>
+        }
         @if (bindPage is not null)
         {
           <a class="btn btn-sm" asp-page="@bindPage" asp-route-packId="@Model.PackId" asp-route-id="@r.Id">@(r.ThumbUrl is null ? "上传外观" : "外观")</a>

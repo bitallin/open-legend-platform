@@ -10,7 +10,7 @@ using System.Text.Encodings.Web;
 namespace Legend.Admin.Pages.Entities;
 
 [Authorize(Policy = "AnyStaff")]
-public class GameplayModel(VersionPackService packs, AuditService audit) : PageModel
+public class GameplayModel(VersionPackService packs, AuditService audit, PackPreference packPref) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
@@ -21,7 +21,7 @@ public class GameplayModel(VersionPackService packs, AuditService audit) : PageM
     public async Task OnGetAsync(string? packId, CancellationToken ct)
     {
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         Modules = BuildModules(PackId);
         Toggles = await LoadTogglesAsync(PackId, ct);
     }

@@ -1,6 +1,6 @@
 # Admin Console 进度
 
-> 时区：Asia/Shanghai · 分支：`main` tip `945c157` · 更新：2026-11-01（M11）
+> 时区：Asia/Shanghai · 分支：`main` · 更新：2026-11-01（M12 地图刷怪 / 默认包）
 
 | 时间 | 里程碑 | 状态 | 备注 |
 |------|--------|------|------|
@@ -46,6 +46,7 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 | 仪表盘 | Index | 完成 | 包/区服/Host 探测摘要 |
 | 配置目录+JSON 编辑 | Configs/* | 完成 | 修订写入 Admin 库 |
 | 怪/掉落/物品/技能 | Entities/* | 完成 | 摘要表 + 跳转编辑器 |
+| 地图刷怪 | Entities/MapSpawns | 完成 | 按地图查看/增删改 spawns；侧栏+地图编辑入口 |
 | NPC/店/任务/地图 | Entities/* | 完成 | 同上 |
 | 玩法数值合集 | Entities/Gameplay | 完成 | 经验/职业/内挂等跳转 |
 | UI/特效/音效索引 | Assets/Catalog | 完成 | JSON 清单（保留） |
@@ -121,3 +122,18 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 - 冒烟：登录后 `/` `/Studio` `/Entities/Monsters` `/Assets` `/Assets/UiSkin` `/Entities/Edit` `/Account/Login` 200；怪物 CRUD 仍可用
 - 截图：`docs/admin/screenshots-m11/`
 - **建议父代理通知用户验收：是**
+
+
+## M12 地图刷怪 / 默认版本包（2026-11-01 Asia/Shanghai）
+
+**根因**：侧栏「怪物」未带 `packId`，`ListPacks().FirstOrDefault()` 落到空的 `sample-176`，列表为空（不是滤掉无外观）。
+
+**改动**：
+- `PackPreference`：显式 query → cookie → **优先 `sample-classic`**（避免字母序空包）
+- `/Entities/MapSpawns`：按地图 CRUD `monsters.json` → `spawns`（怪/坐标/数量）
+- 侧栏「地图刷怪」+ 地图编辑页入口；实体列表空态提示换包
+- 种子：`sample-classic` 18 模板 / 8 地图差异化 27 刷怪点
+
+- 冒烟：登录后 `/Entities/Monsters` 非空；`/Entities/MapSpawns?mapId=novice_plain` 与 `dark_forest` 刷怪不同
+- **建议父代理通知用户验收：是**
+
