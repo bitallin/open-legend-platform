@@ -1,4 +1,5 @@
 using Legend.Contracts;
+using Legend.Game;
 using Legend.Core;
 using Legend.Storage;
 
@@ -119,6 +120,44 @@ public class TalentInternalTests
             pack.Internal, "meridian_ren", internalLevel: 2, alreadyUnlocked: Array.Empty<string>(),
             out var m, out _));
         Assert.Equal("meridian_ren", m!.MeridianId);
+    }
+
+
+    [Fact]
+    public void RecalculateStats_Applies_Talent_Internal_And_Meridian()
+    {
+        var pack = new VersionPackLoader().LoadFromManifest(
+            RepoFile("version-packs", "sample-classic", "manifest.json"));
+        var player = new WorldPlayerEntity
+        {
+            EntityId = "p1",
+            CharacterId = "c1",
+            Name = "T",
+            ClassId = "warrior",
+            MapId = "novice_plain",
+            Session = null!,
+            BaseAtk = 10,
+            BaseDef = 5,
+            BaseMaxHp = 100,
+            BaseMaxMp = 50,
+            Atk = 10,
+            Def = 5,
+            MaxHp = 100,
+            Hp = 100,
+            MaxMp = 50,
+            Mp = 50,
+            InternalLevel = 3, // atk+2 def+1 maxHp+20 maxMp+10
+            UnlockedMeridians = new List<string> { "meridian_ren" }, // maxHp +15
+            TalentUnlocked = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["warrior_basic"] = new List<string> { "w_atk_1", "w_hp_1" } // atk+2 maxHp+20
+            }
+        };
+        EquipmentHelper.RecalculateStats(player, pack);
+        Assert.Equal(14, player.Atk); // 10 + 2 internal + 2 talent
+        Assert.Equal(6, player.Def);  // 5 + 1
+        Assert.Equal(155, player.MaxHp); // 100 + 20 + 15 + 20
+        Assert.Equal(60, player.MaxMp);  // 50 + 10
     }
 
     private static string RepoFile(params string[] parts)

@@ -112,7 +112,7 @@ public sealed partial class GameWorldModule
             return;
         }
 
-        player.Gold -= cfg.CreateCostGold;
+        AdjustGold(player, -(cfg.CreateCostGold));
         player.GuildId = guild.GuildId;
         player.GuildName = guild.Name;
         player.GuildRank = "leader";

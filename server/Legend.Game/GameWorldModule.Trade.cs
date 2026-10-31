@@ -308,7 +308,7 @@ public sealed partial class GameWorldModule
 
             lock (_combatLock)
             {
-                buyer.Gold -= soldListing.TotalPriceGold;
+                AdjustGold(buyer, -(soldListing.TotalPriceGold));
                 InventoryHelper.AddItem(buyer.Inventory, soldListing.ItemId, soldListing.Count);
             }
             await _storage.Characters.SaveGoldAsync(buyer.CharacterId, buyer.Gold, ct);
@@ -322,7 +322,7 @@ public sealed partial class GameWorldModule
             {
                 lock (_combatLock)
                 {
-                    onlineSeller.Gold += netSellerGold;
+                    AdjustGold(onlineSeller, netSellerGold);
                     sellerNewGold = onlineSeller.Gold;
                 }
                 await _storage.Characters.SaveGoldAsync(onlineSeller.CharacterId, sellerNewGold, ct);

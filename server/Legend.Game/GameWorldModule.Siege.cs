@@ -218,7 +218,7 @@ public sealed partial class GameWorldModule
                 return;
             }
 
-            player.Gold -= cost;
+            AdjustGold(player, -(cost));
             await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
 
             _siegeDeclaredGuilds.Add(new SiegeDeclaredGuildEntry
@@ -375,7 +375,7 @@ public sealed partial class GameWorldModule
                     {
                         if (!string.Equals(p.GuildId, winnerId, StringComparison.Ordinal))
                             continue;
-                        p.Gold += reward;
+                        AdjustGold(p, reward);
                         await _storage.Characters.SaveGoldAsync(p.CharacterId, p.Gold, ct);
                         var invNotify = new InventoryNotify { Gold = p.Gold, Reason = "siege_reward" };
                         foreach (var it in InventoryHelper.ToProto(p.Inventory))

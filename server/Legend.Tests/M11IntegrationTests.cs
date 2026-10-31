@@ -241,8 +241,9 @@ public class M11IntegrationTests
 
             int memberGoldBefore = enterM.Gold;
 
-            // Member goes offline
+            // Member goes offline (wait for server disconnect to drop AOI before rewards).
             await member.DisposeAsync();
+            await Task.Delay(150);
 
             var decl = await leader.SiegeDeclareAsync();
             Assert.True(decl.Success, decl.Message);

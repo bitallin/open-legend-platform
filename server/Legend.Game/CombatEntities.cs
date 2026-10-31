@@ -380,7 +380,62 @@ public static class EquipmentHelper
     }
 
     public static void RecalculateStats(WorldPlayerEntity player, LoadedVersionPack pack)
-        => RecalculateStats(player, pack.Items, pack.Buffs, pack.ArtifactUpgrades);
+    {
+        // Gear first without buffs; apply talent/internal flat bonuses; then percent buffs.
+        RecalculateStats(player, pack.Items, buffs: null, pack.ArtifactUpgrades);
+        ApplyProgressionStatBonuses(player, pack);
+        if (pack.Buffs.Count > 0)
+            BuffHelper.ApplyBuffModifiers(player, pack.Buffs);
+    }
+
+    /// <summary>
+    /// Fold unlocked talent nodes, internal level entry, and meridians into Atk/Def/MaxHp/MaxMp
+    /// (docs/site/03). Called from the pack overload of RecalculateStats.
+    /// </summary>
+    public static void ApplyProgressionStatBonuses(WorldPlayerEntity player, LoadedVersionPack pack)
+    {
+        int atk = 0, def = 0, maxHp = 0, maxMp = 0;
+
+        var entry = InternalProgress.GetEntry(pack.Internal, player.InternalLevel);
+        if (entry is not null)
+        {
+            atk += entry.AtkBonus;
+            def += entry.DefBonus;
+            maxHp += entry.MaxHpBonus;
+            maxMp += entry.MaxMpBonus;
+        }
+
+        void Fold(Dictionary<string, int> stats)
+        {
+            foreach (var (statId, value) in stats)
+            {
+                if (value == 0) continue;
+                if (string.Equals(statId, "atk", StringComparison.OrdinalIgnoreCase))
+                    atk += value;
+                else if (string.Equals(statId, "def", StringComparison.OrdinalIgnoreCase))
+                    def += value;
+                else if (string.Equals(statId, "maxHp", StringComparison.OrdinalIgnoreCase))
+                    maxHp += value;
+                else if (string.Equals(statId, "maxMp", StringComparison.OrdinalIgnoreCase))
+                    maxMp += value;
+            }
+        }
+
+        Fold(InternalProgress.SumMeridianStats(
+            pack.Internal, player.UnlockedMeridians ?? new List<string>()));
+        Fold(TalentProgress.SumStatEffects(
+            pack.Talents, player.TalentUnlocked ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)));
+
+        player.Atk += atk;
+        player.Def += def;
+        player.MaxHp = Math.Max(1, player.MaxHp + maxHp);
+        // MaxMp is not rebuilt in RecalculateStats gear path — reset from base then add bonuses.
+        player.MaxMp = Math.Max(0, player.BaseMaxMp + maxMp);
+        if (player.Hp > player.MaxHp)
+            player.Hp = player.MaxHp;
+        if (player.Mp > player.MaxMp)
+            player.Mp = player.MaxMp;
+    }
 }
 
 public sealed class LearnedSkillState

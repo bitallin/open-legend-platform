@@ -44,6 +44,9 @@ public sealed partial class PlayableNetClient : IDisposable
     public string GuildName { get; private set; } = "";
     public string GuildRank { get; private set; } = "";
     public string PartyId { get; private set; } = "";
+    /// <summary>From EnterWorldResp / MapChangeNotify (docs/site/04 mapFlags).</summary>
+    public bool MapNoHang { get; private set; }
+    public bool MapNoAutoPickup { get; private set; }
 
     public event Action<EntitySnapshot>? OnSelfEnteredWorld;
     public event Action<EntitySnapshot>? OnEntityEnter;
@@ -209,6 +212,8 @@ public sealed partial class PlayableNetClient : IDisposable
         GuildId = enter.GuildId ?? "";
         GuildName = enter.GuildName ?? "";
         GuildRank = enter.GuildRank ?? "";
+        MapNoHang = enter.MapNoHang;
+        MapNoAutoPickup = enter.MapNoAutoPickup;
         var self = enter.SelfEntity;
         var nearby = enter.NearbyEntities.ToList();
         _main.Enqueue(() =>
@@ -723,6 +728,8 @@ public sealed partial class PlayableNetClient : IDisposable
                     SelfEntity.X = change.ToX;
                     SelfEntity.Y = change.ToY;
                     SelfEntity.InSafeZone = change.InSafeZone;
+                    MapNoHang = change.MapNoHang;
+                    MapNoAutoPickup = change.MapNoAutoPickup;
                 }
                 _main.Enqueue(() => OnMapChange?.Invoke(change));
                 break;

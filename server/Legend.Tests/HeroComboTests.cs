@@ -125,6 +125,43 @@ public class HeroComboTests
         Assert.Equal(45, dmg);
     }
 
+
+    [Fact]
+    public void CanExecuteCombo_Fails_When_Hero_OutOfRange()
+    {
+        var combos = new CombosConfigFile { HejiRangeCells = 3 };
+        var combo = new ComboConfigItem
+        {
+            ComboId = "c1",
+            SkillId = "hero_combo",
+            PlayerClassId = "warrior",
+            HeroClassId = "warrior",
+            CooldownMs = 1000,
+            MpCostPlayer = 1,
+            MpCostHero = 1,
+            DamageMultiplier = 2.0
+        };
+        var hero = new HeroSaveState
+        {
+            HeroId = "h1",
+            ClassId = "warrior",
+            Deployed = true,
+            Mode = "follow",
+            Hp = 50,
+            MaxHp = 50,
+            Mp = 20,
+            MaxMp = 20
+        };
+        Assert.False(HeroCombo.CanExecuteCombo(
+            combos, combo, hero,
+            "map1", 10, 10,
+            "map1", 20, 10, // 10 cells away > 3
+            heroAlive: true, playerMp: 30, heroMp: 20,
+            nowUnixMs: 1000, playerReadyAt: 0, heroReadyAt: 0,
+            reason: out string reason));
+        Assert.Contains("range", reason, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void Combos_Loader_RejectsUnknownSkill()
     {

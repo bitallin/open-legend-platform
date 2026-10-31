@@ -74,3 +74,18 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：引擎扩展 E12（#26 → `bd40255`）。英雄存档与合击；`AttackReq` skillId=`hero_combo`；`CombatSync.combo`；无新 MsgId。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎扩展 E13（#27 → `4849741`）。`client_assist.json` / `pickup_filters.json`；ClientCore 内挂状态机默认关；`map_no_hang` / `map_no_auto_pickup` 进世界同步。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：试玩服 `150.158.164.90:7100` 升至 tip `3462ee6`（含 E9–E13）；CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 对齐同 SHA。矩阵仍 100%。协议仍是 1.21.0。
+
+## E9–E13 审查加固（本机自审）
+
+对照 `ENGINE_REFACTOR_PLAN` / docs/site 自审后合入的正确性修复（协议仍 **1.21.0**，矩阵计分不变）：
+
+| 项 | 修复 |
+|----|------|
+| E9 | `AdjustGold` / `CreditCurrency` 先镜像再入账，避免扣金未同步钱包后 Credit 刷高 Gold |
+| E10 | `RecalculateStats(pack)` 汇总天赋节点、内功等级与经脉 flat 加成（atk/def/maxHp/maxMp） |
+| E12 | 合击前不再瞬移英雄；`SyncHeroFollow` 在移动/传送后跟随，距离门闩生效 |
+| E13 | Playable 存储并下发使用 `MapNoHang`/`MapNoAutoPickup`；`ClientAssistEngine` 挂入 Session/Tick（默认关） |
+| 测试 | 钱包回归、天赋属性、合击超距；攻城离线奖励用例补短暂等待降 flaky |
+
+未做（产品化加深，非阻塞）：商城多货币履约、天赋战斗效果 MsgId、英雄 AI/完整 UI、内挂默认开、Avalonia 观感（仍等用户定稿）。
+

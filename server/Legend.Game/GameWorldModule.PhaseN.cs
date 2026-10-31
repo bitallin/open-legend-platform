@@ -168,7 +168,7 @@ public sealed partial class GameWorldModule
         int loss = PhaseNRules.DeathGoldLoss(player.Gold, rules.DeathGoldPercent);
         if (loss > 0)
         {
-            player.Gold -= loss;
+            AdjustGold(player, -(loss));
             await DropGoldPileAsync(player, loss, ct);
         }
         int maxItems = Math.Max(0, rules.DeathMaxItems);
