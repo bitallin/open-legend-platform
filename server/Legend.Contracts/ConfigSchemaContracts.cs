@@ -17,6 +17,8 @@ public static class ConfigSchemaIds
     public const string Levels = "levels";
     public const string Guild = "guild";
     public const string Trade = "trade";
+    public const string Currencies = "currencies";
+    public const string Recycle = "recycle";
 }
 
 /// <summary>

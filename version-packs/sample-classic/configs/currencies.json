@@ -1,0 +1,10 @@
+[
+  {
+    "currencyId": "gold",
+    "displayName": "金币",
+    "tradable": true,
+    "stallAllowed": true,
+    "auctionAllowed": true,
+    "deductGroup": "gold"
+  }
+]

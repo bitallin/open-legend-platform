@@ -1,0 +1,10 @@
+[
+  {
+    "itemId": "item_slime_gel",
+    "currencyId": "gold",
+    "amount": 5,
+    "grantExp": 0,
+    "dailyLimit": 10,
+    "destroyItem": true
+  }
+]

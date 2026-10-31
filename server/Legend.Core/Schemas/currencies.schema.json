@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/currencies.schema.json",
+  "title": "Open Legend currencies",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["currencyId", "displayName"],
+    "properties": {
+      "currencyId": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "tradable": { "type": "boolean" },
+      "stallAllowed": { "type": "boolean" },
+      "auctionAllowed": { "type": "boolean" },
+      "deductGroup": { "type": "string", "minLength": 1, "maxLength": 64 }
+    }
+  }
+}

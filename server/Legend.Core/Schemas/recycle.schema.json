@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/recycle.schema.json",
+  "title": "Open Legend recycle",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["itemId", "currencyId", "amount"],
+    "properties": {
+      "itemId": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "currencyId": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "amount": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+      "grantExp": { "type": "integer", "minimum": 0, "maximum": 100000000 },
+      "dailyLimit": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+      "destroyItem": { "type": "boolean" }
+    }
+  }
+}

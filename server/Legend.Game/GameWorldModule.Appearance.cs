@@ -78,6 +78,13 @@ public sealed partial class GameWorldModule
         player.Gender = state.Gender ?? "";
         player.MentorName = state.MentorName ?? "";
         player.Blacklist = state.Blacklist ?? new();
+        player.Wallet = new Dictionary<string, long>(
+            (state.Wallet ?? new Dictionary<string, long>()).Where(kv => !string.IsNullOrWhiteSpace(kv.Key)),
+            StringComparer.OrdinalIgnoreCase);
+        player.RecycleDaily = new Dictionary<string, RecycleDailyJson.Entry>(
+            (state.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>()).Where(kv => !string.IsNullOrWhiteSpace(kv.Key)),
+            StringComparer.OrdinalIgnoreCase);
+        CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
         player.LastMoveUnixMs = 0;
@@ -99,7 +106,9 @@ public sealed partial class GameWorldModule
             AttackMode = string.IsNullOrWhiteSpace(player.AttackMode) ? "peace" : player.AttackMode,
             Gender = player.Gender ?? "",
             MentorName = player.MentorName ?? "",
-            Blacklist = player.Blacklist ?? new()
+            Blacklist = player.Blacklist ?? new(),
+            Wallet = player.Wallet ?? new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase),
+            RecycleDaily = player.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase)
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);

@@ -152,6 +152,10 @@ public static class AppearanceJson
         public string Gender { get; set; } = "";
         public string MentorName { get; set; } = "";
         public List<string> Blacklist { get; set; } = new();
+        /// <summary>Multi-currency balances (currencyId → amount). Gold mirrors CharacterRecord.Gold.</summary>
+        public Dictionary<string, long> Wallet { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Recycle daily counters keyed by itemId.</summary>
+        public Dictionary<string, RecycleDailyJson.Entry> RecycleDaily { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     public static State Parse(string? json)
@@ -168,6 +172,8 @@ public static class AppearanceJson
             s.EquippedFashionId ??= "";
             s.ActivePetId ??= "";
             s.Storage ??= new();
+            s.Wallet ??= new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            s.RecycleDaily ??= new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(s.AttackMode))
                 s.AttackMode = "peace";
             return s;
@@ -210,7 +216,13 @@ public static class AppearanceJson
             AttackMode = string.IsNullOrWhiteSpace(state.AttackMode) ? "peace" : state.AttackMode,
             Gender = state.Gender ?? "",
             MentorName = state.MentorName ?? "",
-            Blacklist = (state.Blacklist ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            Blacklist = (state.Blacklist ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            Wallet = (state.Wallet ?? new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase))
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && kv.Value > 0)
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase),
+            RecycleDaily = (state.RecycleDaily ?? new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase))
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase)
         };
         return JsonSerializer.Serialize(payload, Opts);
     }

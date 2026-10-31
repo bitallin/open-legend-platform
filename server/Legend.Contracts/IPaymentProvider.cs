@@ -8,6 +8,11 @@ public sealed class PaymentProductDef
     public int RewardGold { get; set; }
     public string RewardItemId { get; set; } = "";
     public int RewardItemCount { get; set; }
+    /// <summary>
+    /// Optional fulfillment currency (docs/site/12). Empty or "gold" uses mail AttachGold.
+    /// Other currencyIds credit the runtime wallet when enabled in currencies.json.
+    /// </summary>
+    public string RewardCurrencyId { get; set; } = "";
 }
 
 /// <summary>Legacy + shared payment provider surface (mock HMAC still implements this).</summary>

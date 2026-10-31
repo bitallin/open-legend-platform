@@ -1408,9 +1408,11 @@ public sealed partial class GameWorldModule : IGameModule
 
     private async Task PersistEconomyAsync(WorldPlayerEntity player, CancellationToken ct)
     {
+        CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
         await _storage.Characters.SaveInventoryAsync(player.CharacterId, InventoryHelper.Serialize(player.Inventory), ct);
         await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
         await _storage.Characters.SaveQuestsAsync(player.CharacterId, QuestHelper.Serialize(player.Quests), ct);
+        await PersistAppearanceAsync(player, ct);
     }
 
     private async Task HandleTalkAsync(IClientSession session, PacketFrame frame, CancellationToken ct)

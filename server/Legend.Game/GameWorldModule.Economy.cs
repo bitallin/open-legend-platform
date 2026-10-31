@@ -30,6 +30,14 @@ public sealed partial class GameWorldModule
             await session.SendAsync(MsgId.ShopSellResp, frame.Seq, FailSell(ProtocolErrorCode.ErrShopDenied, "Unknown item"), ct);
             return;
         }
+
+        // Recycle table (docs/site/11) overrides plain sell price when the item is listed.
+        if (_versionPack.Recycle.TryGetValue(item.ItemId, out var recycle))
+        {
+            await HandleRecycleSellAsync(session, frame, player, item, recycle, count, ct);
+            return;
+        }
+
         int unit = PhaseLRules.SellUnitPrice(item, shop);
         bool removed = false;
         lock (_combatLock)
@@ -40,7 +48,7 @@ public sealed partial class GameWorldModule
             return;
         }
         int gained = unit * count;
-        player.Gold += gained;
+        CreditCurrency(player, CurrencyWallet.GoldId, gained);
         await PersistEconomyAsync(player, ct);
         var resp = new ShopSellResp
         {
@@ -54,6 +62,87 @@ public sealed partial class GameWorldModule
             resp.Inventory.Add(slot);
         await session.SendAsync(MsgId.ShopSellResp, frame.Seq, resp, ct);
         await PushInventoryAsync(session, player, "ShopSell", ct);
+    }
+
+    private async Task HandleRecycleSellAsync(
+        IClientSession session,
+        PacketFrame frame,
+        WorldPlayerEntity player,
+        ItemTemplate item,
+        RecycleConfigItem recycle,
+        int count,
+        CancellationToken ct)
+    {
+        if (!CurrencyWallet.IsEnabled(_versionPack.Currencies, recycle.CurrencyId))
+        {
+            await session.SendAsync(MsgId.ShopSellResp, frame.Seq,
+                FailSell(ProtocolErrorCode.ErrShopDenied, "Currency not enabled", player.Gold), ct);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        player.RecycleDaily ??= new Dictionary<string, RecycleDailyJson.Entry>(StringComparer.OrdinalIgnoreCase);
+        var daily = RecycleDailyJson.GetOrCreate(player.RecycleDaily, item.ItemId, now);
+        if (recycle.DailyLimit > 0 && daily.UsedToday + count > recycle.DailyLimit)
+        {
+            int remain = Math.Max(0, recycle.DailyLimit - daily.UsedToday);
+            await session.SendAsync(MsgId.ShopSellResp, frame.Seq,
+                FailSell(ProtocolErrorCode.ErrShopDenied, $"Daily recycle limit reached (remain {remain})", player.Gold), ct);
+            return;
+        }
+
+        bool removed = false;
+        lock (_combatLock)
+            removed = InventoryHelper.TryRemoveItem(player.Inventory, item.ItemId, count);
+        if (!removed)
+        {
+            await session.SendAsync(MsgId.ShopSellResp, frame.Seq,
+                FailSell(ProtocolErrorCode.ErrShopDenied, "Not enough items", player.Gold), ct);
+            return;
+        }
+
+        long gainedLong = (long)recycle.Amount * count;
+        int goldGained = 0;
+        CreditCurrency(player, recycle.CurrencyId, gainedLong);
+        if (string.Equals(recycle.CurrencyId, CurrencyWallet.GoldId, StringComparison.OrdinalIgnoreCase))
+            goldGained = (int)Math.Clamp(gainedLong, 0, int.MaxValue);
+
+        daily.UsedToday += count;
+        // destroyItem: item already removed from inventory; no NPC stock in this engine.
+
+        if (recycle.GrantExp > 0)
+        {
+            int expGain = recycle.GrantExp * count;
+            // Exp via existing level curve path when available; otherwise accumulate Exp only.
+            player.Exp = Math.Max(0, player.Exp + Math.Max(0, expGain));
+        }
+
+        await PersistEconomyAsync(player, ct);
+        if (recycle.GrantExp > 0)
+            await _storage.Characters.SaveLevelExpAsync(player.CharacterId, player.Level, player.Exp, player.MaxHp, player.MaxMp, ct);
+
+        var resp = new ShopSellResp
+        {
+            Success = true,
+            ErrorCode = ProtocolErrorCode.ErrNone,
+            Message = "Recycled",
+            GoldGained = goldGained,
+            Gold = player.Gold
+        };
+        foreach (var slot in InventoryHelper.ToProto(player.Inventory))
+            resp.Inventory.Add(slot);
+        await session.SendAsync(MsgId.ShopSellResp, frame.Seq, resp, ct);
+        await PushInventoryAsync(session, player, "Recycle", ct);
+    }
+
+    private void CreditCurrency(WorldPlayerEntity player, string currencyId, long amount)
+    {
+        player.Wallet ??= new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        CurrencyWallet.Credit(player.Wallet, currencyId, amount);
+        if (string.Equals(currencyId, CurrencyWallet.GoldId, StringComparison.OrdinalIgnoreCase))
+            player.Gold = CurrencyWallet.GetGold(player.Wallet);
+        else
+            CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
     }
 
     private async Task HandleRepairAsync(IClientSession session, PacketFrame frame, CancellationToken ct)
