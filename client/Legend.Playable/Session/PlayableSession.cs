@@ -38,7 +38,11 @@ public sealed partial class PlayableSession : IDisposable
     public IReadOnlyList<CharacterSummary> Characters => _characters;
     public PlayableNetClient Net => _net;
     /// <summary>Client-only assist FSM (docs/site/19). Default off; respects MapNoHang / MapNoAutoPickup.</summary>
-    public ClientAssistEngine Assist { get; } = new(new ClientAssistSettings { Enabled = false });
+    public ClientAssistEngine Assist { get; } = new(new ClientAssistSettings
+    {
+        Enabled = false,
+        Pickup = new AssistPickupSetting { Enabled = false }
+    });
     bool _assistBusy;
 
     public event Action? EnteredWorld;
