@@ -122,6 +122,7 @@ sequenceDiagram
 | `ICombatResolver` | E4 已完成 | 纯判定在 `DefaultCombatResolver`；伤害仍转发 `CombatMath`，数字未改 |
 | `IMovePrediction` | E5 已完成 | 格子坐标预测；`Accepted=false` 回滚到服务器 From 坐标 |
 | ProtocolCatalog 守卫 | E6 已完成 | MsgId↔proto 消息名；`ProtocolErrorCode` 数值唯一且不回收 |
+| ScriptSandbox / 热更回滚 | E7 已完成 | 坏包回滚；钩子异常不打崩移动；沙箱无 IO |
 | 协议目录生成器 | E6 | E0 只给阅读指针 |
 | 新的 `legend_api` 方法 | E7 之后 | 18 的扩展路线，不是地基 |
 
