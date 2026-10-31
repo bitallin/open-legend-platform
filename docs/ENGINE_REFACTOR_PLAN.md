@@ -254,7 +254,7 @@ Schema 文件：
 
 测试：`dotnet test client/Legend.Playable.Tests/Legend.Playable.Tests.csproj -c Release` 与 ClientCore 相关的服务端测试过滤器（今天 ClientCore 测试在 `Legend.Tests` 的 Phase F/G）。
 
-### E6 — 协议目录守卫
+### E6 — 协议目录守卫（已完成）
 
 范围：测试锁定 `MsgId` 与 proto 消息的对应关系、`ProtocolErrorCode` 数值不重复且不回收。可以生成一份只读目录到 `docs/`，或只在测试里断言。不新增报文，不升 `protocol/VERSION`。
 
