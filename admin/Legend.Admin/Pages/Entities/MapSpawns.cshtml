@@ -1,0 +1,171 @@
+@page
+@model Legend.Admin.Pages.Entities.MapSpawnsModel
+@{ ViewData["Title"] = "地图刷怪"; }
+
+<nav class="crumbs">
+  <a asp-page="/Studio/Index" asp-route-packId="@Model.PackId">内容总览</a> /
+  <a asp-page="/Entities/Maps" asp-route-packId="@Model.PackId">地图</a> /
+  <span>刷怪配置</span>
+</nav>
+
+<div class="card">
+  <form method="get" class="row">
+    <div>
+      <label>版本包</label>
+      <select name="packId" onchange="this.form.submit()">
+        @foreach (var p in Model.Packs)
+        {
+          <option value="@p.Id" selected="@(p.Id == Model.PackId)">@p.Id</option>
+        }
+      </select>
+    </div>
+    <div style="flex:1.6">
+      <label>地图</label>
+      <select name="mapId" onchange="this.form.submit()">
+        @foreach (var m in Model.Maps)
+        {
+          var n = Model.CountsByMap.GetValueOrDefault(m.Id);
+          <option value="@m.Id" selected="@(m.Id == Model.MapId)">@m.Name (@m.Id) · @n 点</option>
+        }
+      </select>
+    </div>
+    <div><button class="btn btn-primary" type="submit">查看</button></div>
+    <div class="toolbar" style="margin:0;flex:1;justify-content:flex-end">
+      <a class="btn" asp-page="/Entities/Monsters" asp-route-packId="@Model.PackId">怪物模板</a>
+      <a class="btn" asp-page="/Entities/Maps" asp-route-packId="@Model.PackId">地图列表</a>
+      <a class="btn" asp-page="/Configs/Edit" asp-route-packId="@Model.PackId" asp-route-path="configs/monsters.json">JSON 兜底</a>
+    </div>
+  </form>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.LoadError))
+{
+  <div class="card"><p class="flash err" style="margin:0">@Model.LoadError</p></div>
+}
+
+<div class="kpi-row" style="margin-bottom:14px">
+  @foreach (var m in Model.Maps)
+  {
+    var n = Model.CountsByMap.GetValueOrDefault(m.Id);
+    var active = m.Id == Model.MapId;
+    <a class="kpi @(active ? "active" : "")" href="?packId=@Uri.EscapeDataString(Model.PackId)&mapId=@Uri.EscapeDataString(m.Id)" title="@m.Id">
+      <div class="v">@n</div>
+      <div class="l">@m.Name</div>
+    </a>
+  }
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h3>@(string.IsNullOrEmpty(Model.MapName) ? "刷怪点" : Model.MapName) · 刷怪表</h3>
+    <span class="muted">共 @Model.Rows.Count 条 · <code>configs/monsters.json</code> → <code>spawns</code></span>
+  </div>
+
+  @if (Model.Rows.Count == 0)
+  {
+    <div class="empty">此地图暂无刷怪。每个地图应配置不同怪物；在下方新增。</div>
+  }
+  else
+  {
+    <div class="table-scroll">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>怪物</th>
+            <th>X</th>
+            <th>Y</th>
+            <th>数量</th>
+            <th>模板复活 ms</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in Model.Rows)
+        {
+          if (Model.CanWrite)
+          {
+            <tr>
+              <td class="muted">@r.Index</td>
+              <td colspan="6" style="padding:8px">
+                <form method="post" asp-page-handler="Update" class="row" style="margin:0;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="packId" value="@Model.PackId" />
+                  <input type="hidden" name="mapId" value="@Model.MapId" />
+                  <input type="hidden" name="index" value="@r.Index" />
+                  <div style="min-width:200px;flex:1">
+                    <label class="tiny">怪物</label>
+                    <select name="monsterId">
+                      @foreach (var mo in Model.Monsters)
+                      {
+                        <option value="@mo.Id" selected="@(mo.Id == r.MonsterId)">@mo.Name (@mo.Id)</option>
+                      }
+                    </select>
+                  </div>
+                  <div style="width:80px"><label class="tiny">X</label><input type="number" name="x" value="@r.X" min="0" max="511" /></div>
+                  <div style="width:80px"><label class="tiny">Y</label><input type="number" name="y" value="@r.Y" min="0" max="511" /></div>
+                  <div style="width:80px"><label class="tiny">数量</label><input type="number" name="count" value="@r.Count" min="1" max="100" /></div>
+                  <div class="tiny muted" style="padding-bottom:10px">复活 @r.TemplateRespawnMs ms</div>
+                  <button class="btn btn-sm btn-primary" type="submit">保存</button>
+                </form>
+                <form method="post" asp-page-handler="Delete" style="display:inline;margin-left:6px" onsubmit="return confirm('删除该刷怪点？');">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="packId" value="@Model.PackId" />
+                  <input type="hidden" name="mapId" value="@Model.MapId" />
+                  <input type="hidden" name="index" value="@r.Index" />
+                  <button class="btn btn-sm btn-danger" type="submit">删</button>
+                </form>
+              </td>
+            </tr>
+          }
+          else
+          {
+            <tr>
+              <td class="muted">@r.Index</td>
+              <td><strong>@r.DisplayName</strong> <code class="tiny">@r.MonsterId</code></td>
+              <td>@r.X</td>
+              <td>@r.Y</td>
+              <td>@r.Count</td>
+              <td>@r.TemplateRespawnMs</td>
+              <td class="muted">只读</td>
+            </tr>
+          }
+        }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (Model.CanWrite && !string.IsNullOrEmpty(Model.MapId))
+{
+<div class="card">
+  <div class="card-head"><h3>新增刷怪点 · @Model.MapName</h3></div>
+  @if (Model.Monsters.Count == 0)
+  {
+    <div class="empty">当前版本包没有怪物模板。<a asp-page="/Entities/Monsters" asp-route-packId="@Model.PackId">先去新建怪物</a>，或把版本包切到 <code>sample-classic</code>。</div>
+  }
+  else
+  {
+    <form method="post" asp-page-handler="Add" class="row">
+      @Html.AntiForgeryToken()
+      <input type="hidden" name="packId" value="@Model.PackId" />
+      <input type="hidden" name="mapId" value="@Model.MapId" />
+      <div style="flex:1.4">
+        <label>怪物</label>
+        <select name="monsterId" required>
+          @foreach (var mo in Model.Monsters)
+          {
+            <option value="@mo.Id">@mo.Name (@mo.Id) · HP @mo.MaxHp · 经验 @mo.Exp</option>
+          }
+        </select>
+      </div>
+      <div style="width:90px"><label>X</label><input type="number" name="x" value="12" min="0" max="511" required /></div>
+      <div style="width:90px"><label>Y</label><input type="number" name="y" value="12" min="0" max="511" required /></div>
+      <div style="width:90px"><label>数量</label><input type="number" name="count" value="1" min="1" max="100" required /></div>
+      <div><button class="btn btn-primary" type="submit">添加</button></div>
+    </form>
+    <p class="tiny muted" style="margin-top:8px">复活间隔取自怪物模板 <code>respawnMs</code>。改完后到「热重载」让 Host 生效。</p>
+  }
+</div>
+}

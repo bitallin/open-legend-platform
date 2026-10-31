@@ -27,7 +27,10 @@ else
       @if (Model.Kind == "items")
       { <a class="btn" asp-page="/Assets/BindItem" asp-route-packId="@Model.PackId" asp-route-id="@Model.EntityId">外观绑定</a> }
       @if (Model.Kind == "maps")
-      { <a class="btn" asp-page="/Assets/BindMap" asp-route-packId="@Model.PackId" asp-route-id="@Model.EntityId">外观绑定</a> }
+      {
+        <a class="btn" asp-page="/Assets/BindMap" asp-route-packId="@Model.PackId" asp-route-id="@Model.EntityId">外观绑定</a>
+        <a class="btn btn-primary" asp-page="/Entities/MapSpawns" asp-route-packId="@Model.PackId" asp-route-mapId="@Model.EntityId">配置刷怪</a>
+      }
     }
   </div>
 </div>

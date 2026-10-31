@@ -88,3 +88,11 @@ version-packs/<packId>/
 ```
 
 SQLite `MediaAssets` 表仅作管理台索引；**磁盘文件是真相源**。
+
+## 地图刷怪（运营）
+
+侧栏 **内容 → 地图刷怪**（或地图编辑页「配置刷怪」）：按地图维护 `configs/monsters.json` 的 `spawns` 数组。
+
+字段：`monsterId`、`mapId`、`x`、`y`、`count`（复活间隔读模板 `respawnMs`）。  
+不同地图应挂不同怪；新手村与洞穴/沙巴克等表互不相同。改完可在 **运维 → 热重载** 通知 Host。
+

@@ -30,6 +30,9 @@ builder.Services.AddScoped<AssetManifestService>();
 builder.Services.AddScoped<LookBindingService>();
 builder.Services.AddScoped<JsonEntityStore>();
 builder.Services.AddScoped<LookThumbResolver>();
+builder.Services.AddScoped<MonsterSpawnStore>();
+builder.Services.AddScoped<PackPreference>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<HostAdminClient>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
 {

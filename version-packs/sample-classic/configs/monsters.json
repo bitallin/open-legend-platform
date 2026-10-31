@@ -139,50 +139,253 @@
       "respawnMs": 14000,
       "ai": "chase",
       "expReward": 90
+    },
+    {
+      "monsterId": "deer_plain",
+      "displayName": "平原鹿",
+      "maxHp": 35,
+      "atk": 4,
+      "def": 1,
+      "aggroRange": 3,
+      "attackRange": 1,
+      "attackCooldownMs": 1600,
+      "lootTableId": "slime_basic",
+      "respawnMs": 9000,
+      "ai": "chase",
+      "expReward": 18
+    },
+    {
+      "monsterId": "chicken_wild",
+      "displayName": "野鸡",
+      "maxHp": 22,
+      "atk": 3,
+      "def": 0,
+      "aggroRange": 3,
+      "attackRange": 1,
+      "attackCooldownMs": 1400,
+      "lootTableId": "slime_basic",
+      "respawnMs": 7000,
+      "ai": "chase",
+      "expReward": 10
+    },
+    {
+      "monsterId": "scarecrow",
+      "displayName": "稻草人",
+      "maxHp": 55,
+      "atk": 8,
+      "def": 2,
+      "aggroRange": 4,
+      "attackRange": 1,
+      "attackCooldownMs": 1500,
+      "lootTableId": "boar_basic",
+      "respawnMs": 10000,
+      "ai": "stationary",
+      "expReward": 28
+    },
+    {
+      "monsterId": "worm_cave",
+      "displayName": "洞蛆",
+      "maxHp": 45,
+      "atk": 9,
+      "def": 2,
+      "aggroRange": 4,
+      "attackRange": 1,
+      "attackCooldownMs": 1300,
+      "lootTableId": "slime_basic",
+      "respawnMs": 8000,
+      "ai": "chase",
+      "expReward": 32
+    },
+    {
+      "monsterId": "centipede_red",
+      "displayName": "赤蜈蚣",
+      "maxHp": 120,
+      "atk": 18,
+      "def": 6,
+      "aggroRange": 5,
+      "attackRange": 1,
+      "attackCooldownMs": 1200,
+      "lootTableId": "bone_basic",
+      "respawnMs": 14000,
+      "ai": "chase",
+      "expReward": 95
+    },
+    {
+      "monsterId": "skeleton_fighter",
+      "displayName": "骷髅兵",
+      "maxHp": 100,
+      "atk": 15,
+      "def": 5,
+      "aggroRange": 5,
+      "attackRange": 1,
+      "attackCooldownMs": 1300,
+      "lootTableId": "bone_basic",
+      "respawnMs": 12000,
+      "ai": "chase",
+      "expReward": 75
+    },
+    {
+      "monsterId": "cave_brute",
+      "displayName": "穴蛮战士",
+      "maxHp": 160,
+      "atk": 22,
+      "def": 8,
+      "aggroRange": 6,
+      "attackRange": 1,
+      "attackCooldownMs": 1200,
+      "lootTableId": "marsh_basic",
+      "respawnMs": 15000,
+      "ai": "chase",
+      "expReward": 130
+    },
+    {
+      "monsterId": "forest_wolf",
+      "displayName": "林狼",
+      "maxHp": 85,
+      "atk": 14,
+      "def": 4,
+      "aggroRange": 6,
+      "attackRange": 1,
+      "attackCooldownMs": 1100,
+      "lootTableId": "boar_basic",
+      "respawnMs": 11000,
+      "ai": "chase",
+      "expReward": 55
     }
   ],
   "spawns": [
     {
-      "monsterId": "slime_green",
+      "monsterId": "chicken_wild",
       "mapId": "novice_plain",
-      "x": 25,
-      "y": 10,
+      "x": 18,
+      "y": 12,
+      "count": 3
+    },
+    {
+      "monsterId": "deer_plain",
+      "mapId": "novice_plain",
+      "x": 22,
+      "y": 14,
       "count": 2
     },
     {
       "monsterId": "slime_green",
       "mapId": "novice_plain",
       "x": 28,
-      "y": 12,
+      "y": 10,
+      "count": 2
+    },
+    {
+      "monsterId": "scarecrow",
+      "mapId": "novice_plain",
+      "x": 30,
+      "y": 16,
       "count": 1
     },
     {
       "monsterId": "boar_wild",
       "mapId": "novice_plain",
-      "x": 32,
-      "y": 14,
+      "x": 34,
+      "y": 18,
       "count": 1
+    },
+    {
+      "monsterId": "forest_wolf",
+      "mapId": "dark_forest",
+      "x": 10,
+      "y": 10,
+      "count": 2
+    },
+    {
+      "monsterId": "forest_wolf",
+      "mapId": "dark_forest",
+      "x": 16,
+      "y": 14,
+      "count": 2
     },
     {
       "monsterId": "slime_green",
       "mapId": "dark_forest",
       "x": 12,
+      "y": 18,
+      "count": 2
+    },
+    {
+      "monsterId": "castle_flag",
+      "mapId": "dark_forest",
+      "x": 20,
+      "y": 20,
+      "count": 1
+    },
+    {
+      "monsterId": "slime_cave",
+      "mapId": "dungeon_slime_cave",
+      "x": 8,
+      "y": 8,
+      "count": 3
+    },
+    {
+      "monsterId": "worm_cave",
+      "mapId": "dungeon_slime_cave",
+      "x": 12,
+      "y": 10,
+      "count": 2
+    },
+    {
+      "monsterId": "worm_cave",
+      "mapId": "dungeon_slime_cave",
+      "x": 14,
+      "y": 14,
+      "count": 2
+    },
+    {
+      "monsterId": "centipede_red",
+      "mapId": "dungeon_slime_cave",
+      "x": 18,
       "y": 12,
+      "count": 1
+    },
+    {
+      "monsterId": "marsh_crawler",
+      "mapId": "marsh_den",
+      "x": 14,
+      "y": 10,
       "count": 2
     },
     {
       "monsterId": "marsh_crawler",
       "mapId": "marsh_den",
-      "x": 16,
-      "y": 12,
-      "count": 3
+      "x": 18,
+      "y": 14,
+      "count": 2
+    },
+    {
+      "monsterId": "cave_brute",
+      "mapId": "marsh_den",
+      "x": 20,
+      "y": 16,
+      "count": 1
+    },
+    {
+      "monsterId": "skeleton_fighter",
+      "mapId": "bone_path",
+      "x": 12,
+      "y": 10,
+      "count": 2
     },
     {
       "monsterId": "bone_walker",
       "mapId": "bone_path",
       "x": 18,
-      "y": 10,
-      "count": 3
+      "y": 12,
+      "count": 2
+    },
+    {
+      "monsterId": "skeleton_fighter",
+      "mapId": "bone_path",
+      "x": 22,
+      "y": 14,
+      "count": 2
     },
     {
       "monsterId": "castle_gate",
@@ -199,18 +402,46 @@
       "count": 1
     },
     {
-      "monsterId": "castle_flag",
-      "mapId": "dark_forest",
-      "x": 20,
-      "y": 20,
+      "monsterId": "castle_wall",
+      "mapId": "sand_gate",
+      "x": 15,
+      "y": 13,
       "count": 1
     },
     {
       "monsterId": "temple_wraith",
       "mapId": "sealed_temple",
-      "x": 18,
+      "x": 16,
       "y": 12,
       "count": 2
+    },
+    {
+      "monsterId": "temple_wraith",
+      "mapId": "sealed_temple",
+      "x": 20,
+      "y": 14,
+      "count": 1
+    },
+    {
+      "monsterId": "world_green_dragon",
+      "mapId": "sealed_temple",
+      "x": 18,
+      "y": 18,
+      "count": 1
+    },
+    {
+      "monsterId": "chicken_wild",
+      "mapId": "oath_city",
+      "x": 12,
+      "y": 20,
+      "count": 2
+    },
+    {
+      "monsterId": "deer_plain",
+      "mapId": "oath_city",
+      "x": 16,
+      "y": 22,
+      "count": 1
     }
   ]
 }

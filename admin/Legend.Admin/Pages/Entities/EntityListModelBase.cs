@@ -11,7 +11,8 @@ namespace Legend.Admin.Pages.Entities;
 public abstract class EntityListModelBase(
     VersionPackService packs,
     JsonEntityStore store,
-    LookThumbResolver thumbs) : PageModel
+    LookThumbResolver thumbs,
+    PackPreference packPref) : PageModel
 {
     protected abstract EntityDescriptor Descriptor { get; }
 
@@ -27,7 +28,7 @@ public abstract class EntityListModelBase(
     public async Task OnGetAsync(string? packId, string? q, string? view, bool missingOnly = false, CancellationToken ct = default)
     {
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         Q = q?.Trim() ?? "";
         ViewMode = string.Equals(view, "table", StringComparison.OrdinalIgnoreCase) ? "table" : "cards";
         MissingOnly = missingOnly;

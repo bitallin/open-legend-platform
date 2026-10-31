@@ -12,7 +12,7 @@ public class IndexModel(
     JsonEntityStore store,
     MediaLibraryService media,
     LookThumbResolver thumbs,
-    AssetManifestService manifest) : PageModel
+    AssetManifestService manifest, PackPreference packPref) : PageModel
 {
     public List<PackInfo> Packs { get; set; } = new();
     public string PackId { get; set; } = "sample-classic";
@@ -34,7 +34,7 @@ public class IndexModel(
     public async Task OnGetAsync(string? packId, string? q, string? mediaKind, bool missingOnly = false, CancellationToken ct = default)
     {
         Packs = packs.ListPacks().ToList();
-        PackId = string.IsNullOrWhiteSpace(packId) ? (Packs.FirstOrDefault()?.Id ?? "sample-classic") : packId;
+        PackId = packPref.Resolve(packId);
         Q = q?.Trim() ?? "";
         MediaKind = string.IsNullOrWhiteSpace(mediaKind) ? "all" : mediaKind;
         MissingOnly = missingOnly;
