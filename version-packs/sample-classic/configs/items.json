@@ -367,6 +367,31 @@
       "kind": "material",
       "slot": "",
       "weight": 1
+    },
+    {
+      "itemId": "item_zodiac_rat",
+      "displayName": "子鼠玉佩",
+      "kind": "equipment",
+      "slot": "",
+      "atkBonus": 3,
+      "defBonus": 1,
+      "maxHpBonus": 10,
+      "allowedContainers": [
+        "zodiac"
+      ],
+      "preferredSlot": "zodiac_01",
+      "weight": 1
+    },
+    {
+      "itemId": "item_artifact_seal",
+      "displayName": "玄天印",
+      "kind": "artifact",
+      "slot": "artifact_main",
+      "atkBonus": 0,
+      "defBonus": 0,
+      "maxHpBonus": 0,
+      "requiredLevel": 1,
+      "weight": 1
     }
   ],
   "enhanceRules": [

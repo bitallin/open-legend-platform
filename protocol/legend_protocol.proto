@@ -1618,6 +1618,8 @@ message RepairResp {
 
 message StorageListReq {
   string npc_entity_id = 1;
+  // "" / "warehouse" = NPC warehouse; "zodiac" = character zodiac box (docs/site/07). Protocol stays 1.21.0.
+  string container_id = 2;
 }
 
 message StorageListResp {
@@ -1626,12 +1628,16 @@ message StorageListResp {
   string message = 3;
   repeated InventoryItem items = 4;
   int32 capacity = 5;
+  string container_id = 6;
 }
 
 message StorageDepositReq {
   string npc_entity_id = 1;
   string item_id = 2;
   int32 count = 3;
+  string container_id = 4;
+  // Optional preferred slot (e.g. zodiac_01).
+  string slot = 5;
 }
 
 message StorageDepositResp {
@@ -1640,12 +1646,15 @@ message StorageDepositResp {
   string message = 3;
   repeated InventoryItem inventory = 4;
   repeated InventoryItem storage = 5;
+  string container_id = 6;
 }
 
 message StorageWithdrawReq {
   string npc_entity_id = 1;
   string item_id = 2;
   int32 count = 3;
+  string container_id = 4;
+  string slot = 5;
 }
 
 message StorageWithdrawResp {
@@ -1654,6 +1663,7 @@ message StorageWithdrawResp {
   string message = 3;
   repeated InventoryItem inventory = 4;
   repeated InventoryItem storage = 5;
+  string container_id = 6;
 }
 
 // 28. Phase M attack mode, identify, face-to-face trade (version string stays 1.21.0)

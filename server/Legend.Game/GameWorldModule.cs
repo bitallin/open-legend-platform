@@ -532,7 +532,7 @@ public sealed partial class GameWorldModule : IGameModule
         }
         LevelCurve.ApplyBaseStats(entity, cls, _versionPack.Levels);
         ApplyCastleLordBuffOnEnterIfEligible(entity);
-        EquipmentHelper.RecalculateStats(entity, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(entity, _versionPack);
         if (entity.Hp > entity.MaxHp) entity.Hp = entity.MaxHp;
         if (entity.Mp > entity.MaxMp) entity.Mp = entity.MaxMp;
 
@@ -2026,9 +2026,10 @@ public sealed partial class GameWorldModule : IGameModule
 
         if (string.IsNullOrWhiteSpace(req.ItemId) ||
             !_versionPack.Items.TryGetValue(req.ItemId, out var tmpl) ||
-            !string.Equals(tmpl.Kind, "equipment", StringComparison.OrdinalIgnoreCase) ||
+            !(string.Equals(tmpl.Kind, "equipment", StringComparison.OrdinalIgnoreCase)
+              || string.Equals(tmpl.Kind, "artifact", StringComparison.OrdinalIgnoreCase)) ||
             string.IsNullOrWhiteSpace(tmpl.Slot) ||
-            !EquipmentHelper.ValidSlots.Contains(tmpl.Slot))
+            !EquipmentHelper.IsValidEquipSlot(tmpl.Slot, _versionPack.EquipmentSlots))
         {
             await session.SendAsync(MsgId.EquipResp, frame.Seq, new EquipResp
             {
@@ -2091,12 +2092,15 @@ public sealed partial class GameWorldModule : IGameModule
         var existingSlot = player.Equipment.FirstOrDefault(e =>
             string.Equals(e.Slot, targetSlot, StringComparison.OrdinalIgnoreCase));
         int preservedEnhance = 0;
+        bool isArtifact = string.Equals(tmpl.Kind, "artifact", StringComparison.OrdinalIgnoreCase);
         if (existingSlot != null)
         {
             if (!string.IsNullOrEmpty(existingSlot.ItemId))
                 InventoryHelper.AddItem(player.Inventory, existingSlot.ItemId, 1);
             preservedEnhance = existingSlot.EnhanceLevel;
             existingSlot.ItemId = tmpl.ItemId;
+            existingSlot.EnhanceLevel = isArtifact ? 0 : preservedEnhance;
+            existingSlot.ArtifactLevel = isArtifact ? 1 : 0;
             existingSlot.Durability = PhaseMRules.DurabilityMax;
             existingSlot.MaxDurability = PhaseMRules.DurabilityMax;
             existingSlot.Identified = !tmpl.NeedsIdentify;
@@ -2108,13 +2112,14 @@ public sealed partial class GameWorldModule : IGameModule
                 Slot = targetSlot,
                 ItemId = tmpl.ItemId,
                 EnhanceLevel = 0,
+                ArtifactLevel = isArtifact ? 1 : 0,
                 Durability = PhaseMRules.DurabilityMax,
                 MaxDurability = PhaseMRules.DurabilityMax,
                 Identified = !tmpl.NeedsIdentify
             });
         }
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await PersistEquipmentAsync(player, ct);
 
         var resp = new EquipResp
@@ -2175,7 +2180,7 @@ public sealed partial class GameWorldModule : IGameModule
         InventoryHelper.AddItem(player.Inventory, existingSlot.ItemId, 1);
         player.Equipment.Remove(existingSlot);
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await PersistEquipmentAsync(player, ct);
 
         var resp = new UnequipResp
@@ -2279,7 +2284,7 @@ public sealed partial class GameWorldModule : IGameModule
         if (succeeded)
             equipped.EnhanceLevel = targetLevel;
 
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
         await _storage.Characters.SaveEquipmentAsync(
             player.CharacterId, EquipmentHelper.Serialize(player.Equipment), ct);
@@ -2388,7 +2393,7 @@ public sealed partial class GameWorldModule : IGameModule
                 };
             }
             LevelCurve.ApplyBaseStats(player, cls, _versionPack.Levels);
-            EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+            EquipmentHelper.RecalculateStats(player, _versionPack);
             player.Hp = player.MaxHp;
             player.Mp = player.MaxMp;
 

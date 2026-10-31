@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openlegend.local/schemas/equipment_slots.schema.json",
+  "title": "Open Legend equipment slots",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "extraSlots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "displayName": { "type": "string", "maxLength": 64 },
+          "kind": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "maxLevel": { "type": "integer", "minimum": 0, "maximum": 1000 },
+          "visible": { "type": "boolean" }
+        }
+      }
+    },
+    "zodiac": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containerId": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "slotCount": { "type": "integer", "minimum": 1, "maximum": 24 },
+        "slotIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 32 }
+        },
+        "unlockedByDefault": { "type": "boolean" },
+        "deathDrop": { "type": "boolean" }
+      }
+    }
+  }
+}

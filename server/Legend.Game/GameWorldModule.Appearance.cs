@@ -98,6 +98,24 @@ public sealed partial class GameWorldModule
                     kv => (kv.Value ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                     StringComparer.OrdinalIgnoreCase),
             StringComparer.OrdinalIgnoreCase);
+        var zodiacAllowed = new HashSet<string>(
+            (_versionPack.EquipmentSlots.Zodiac?.SlotIds ?? new List<string>()),
+            StringComparer.OrdinalIgnoreCase);
+        player.ZodiacSlots = (state.ZodiacSlots ?? new())
+            .Where(z => !string.IsNullOrWhiteSpace(z.Slot)
+                        && !string.IsNullOrWhiteSpace(z.ItemId)
+                        && (zodiacAllowed.Count == 0 || zodiacAllowed.Contains(z.Slot)))
+            .Select(z => new EquippedItemState
+            {
+                Slot = z.Slot,
+                ItemId = z.ItemId,
+                EnhanceLevel = z.EnhanceLevel,
+                ArtifactLevel = z.ArtifactLevel,
+                Durability = z.Durability > 0 ? z.Durability : PhaseMRules.DurabilityMax,
+                MaxDurability = z.MaxDurability > 0 ? z.MaxDurability : PhaseMRules.DurabilityMax,
+                Identified = z.Identified
+            })
+            .ToList();
         CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
         ApplyFashionBonus(player);
         player.MoveIntervalMs = ComputeMoveIntervalMs(player);
@@ -126,7 +144,8 @@ public sealed partial class GameWorldModule
             InternalLevel = player.InternalLevel,
             InternalExp = player.InternalExp,
             UnlockedMeridians = player.UnlockedMeridians ?? new(),
-            TalentUnlocked = player.TalentUnlocked ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            TalentUnlocked = player.TalentUnlocked ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase),
+            ZodiacSlots = player.ZodiacSlots ?? new()
         };
         await _storage.Characters.SaveAppearanceAsync(
             player.CharacterId, AppearanceJson.Serialize(state), ct);
@@ -340,7 +359,7 @@ public sealed partial class GameWorldModule
             // unequip
             player.EquippedFashionId = string.Empty;
             ApplyFashionBonus(player);
-            EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+            EquipmentHelper.RecalculateStats(player, _versionPack);
             await PersistAppearanceAsync(player, ct);
 
             await session.SendAsync(MsgId.FashionEquipResp, frame.Seq, new FashionEquipResp
@@ -382,7 +401,7 @@ public sealed partial class GameWorldModule
 
         player.EquippedFashionId = def.FashionId;
         ApplyFashionBonus(player);
-        EquipmentHelper.RecalculateStats(player, _versionPack.Items, _versionPack.Buffs);
+        EquipmentHelper.RecalculateStats(player, _versionPack);
         await PersistAppearanceAsync(player, ct);
 
         await session.SendAsync(MsgId.FashionEquipResp, frame.Seq, new FashionEquipResp

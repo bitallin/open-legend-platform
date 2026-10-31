@@ -1,0 +1,22 @@
+{
+  "upgrades": [
+    {
+      "artifactItemId": "item_artifact_seal",
+      "level": 1,
+      "materials": [],
+      "statBonuses": [
+        { "statId": "atk", "value": 5 },
+        { "statId": "maxHp", "value": 30 }
+      ]
+    },
+    {
+      "artifactItemId": "item_artifact_seal",
+      "level": 2,
+      "materials": [{ "itemId": "item_copper_coin", "count": 5 }],
+      "statBonuses": [
+        { "statId": "atk", "value": 10 },
+        { "statId": "maxHp", "value": 60 }
+      ]
+    }
+  ]
+}

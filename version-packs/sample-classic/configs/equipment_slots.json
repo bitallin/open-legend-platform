@@ -1,0 +1,31 @@
+{
+  "extraSlots": [
+    {
+      "id": "artifact_main",
+      "displayName": "神器",
+      "kind": "artifact",
+      "maxLevel": 5,
+      "visible": true
+    }
+  ],
+  "zodiac": {
+    "containerId": "zodiac",
+    "slotCount": 12,
+    "slotIds": [
+      "zodiac_01",
+      "zodiac_02",
+      "zodiac_03",
+      "zodiac_04",
+      "zodiac_05",
+      "zodiac_06",
+      "zodiac_07",
+      "zodiac_08",
+      "zodiac_09",
+      "zodiac_10",
+      "zodiac_11",
+      "zodiac_12"
+    ],
+    "unlockedByDefault": true,
+    "deathDrop": false
+  }
+}

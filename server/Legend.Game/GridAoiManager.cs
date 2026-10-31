@@ -43,6 +43,8 @@ public sealed class WorldPlayerEntity
     public long InternalExp { get; set; }
     public List<string> UnlockedMeridians { get; set; } = new();
     public Dictionary<string, List<string>> TalentUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Zodiac container (appearance_json). Slot ids from equipment_slots.json.</summary>
+    public List<EquippedItemState> ZodiacSlots { get; set; } = new();
     public List<QuestProgressState> Quests { get; set; } = new();
     public List<EquippedItemState> Equipment { get; set; } = new();
     public string GuildId { get; set; } = string.Empty;

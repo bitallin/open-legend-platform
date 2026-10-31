@@ -227,6 +227,18 @@ public static class EquipmentHelper
         "torch"
     };
 
+    public static bool IsValidEquipSlot(string slot, EquipmentSlotsConfigFile? slotsConfig = null)
+    {
+        if (string.IsNullOrWhiteSpace(slot))
+            return false;
+        if (ValidSlots.Contains(slot))
+            return true;
+        if (slotsConfig?.ExtraSlots is null)
+            return false;
+        return slotsConfig.ExtraSlots.Any(s =>
+            string.Equals(s.Id, slot, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -260,7 +272,9 @@ public static class EquipmentHelper
         => JsonSerializer.Serialize(list, JsonOpts);
 
     public static (int AtkBonus, int DefBonus, int MaxHpBonus) ComputeSlotBonus(
-        EquippedItemState eq, IReadOnlyDictionary<string, ItemTemplate> items)
+        EquippedItemState eq,
+        IReadOnlyDictionary<string, ItemTemplate> items,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>>? artifactUpgrades = null)
     {
         if (!items.TryGetValue(eq.ItemId, out var tmpl))
             return (0, 0, 0);
@@ -268,8 +282,32 @@ public static class EquipmentHelper
         int atk = tmpl.AtkBonus + lvl * tmpl.EnhanceAtkPerLevel;
         int def = tmpl.DefBonus + lvl * tmpl.EnhanceDefPerLevel;
         int hp = tmpl.MaxHpBonus + lvl * tmpl.EnhanceHpPerLevel;
+        if (string.Equals(tmpl.Kind, "artifact", StringComparison.OrdinalIgnoreCase)
+            && artifactUpgrades is not null
+            && artifactUpgrades.TryGetValue(tmpl.ItemId, out var byLevel))
+        {
+            int artLvl = Math.Max(1, eq.ArtifactLevel);
+            if (byLevel.TryGetValue(artLvl, out var up))
+            {
+                foreach (var bonus in up.StatBonuses ?? new List<ArtifactStatBonusConfig>())
+                {
+                    if (string.IsNullOrWhiteSpace(bonus.StatId))
+                        continue;
+                    if (bonus.StatId.Equals("atk", StringComparison.OrdinalIgnoreCase))
+                        atk += bonus.Value;
+                    else if (bonus.StatId.Equals("def", StringComparison.OrdinalIgnoreCase))
+                        def += bonus.Value;
+                    else if (bonus.StatId.Equals("maxHp", StringComparison.OrdinalIgnoreCase)
+                             || bonus.StatId.Equals("max_hp", StringComparison.OrdinalIgnoreCase))
+                        hp += bonus.Value;
+                }
+            }
+        }
         if (tmpl.NeedsIdentify && !eq.Identified)
             return (0, 0, 0);
+        // Artifacts ignore durability break (no wear on artifact slots).
+        if (string.Equals(tmpl.Kind, "artifact", StringComparison.OrdinalIgnoreCase))
+            return (atk, def, hp);
         return PhaseMRules.ApplyBroken(atk, def, hp, eq.Durability, eq.MaxDurability);
     }
 
@@ -298,7 +336,8 @@ public static class EquipmentHelper
     public static void RecalculateStats(
         WorldPlayerEntity player,
         IReadOnlyDictionary<string, ItemTemplate> items,
-        IReadOnlyDictionary<string, BuffConfigItem>? buffs = null)
+        IReadOnlyDictionary<string, BuffConfigItem>? buffs = null,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<int, ArtifactUpgradeConfig>>? artifactUpgrades = null)
     {
         int totalAtk = player.BaseAtk + Math.Max(0, player.FashionAtkBonus);
         int totalDef = player.BaseDef;
@@ -307,12 +346,19 @@ public static class EquipmentHelper
         var setCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var eq in player.Equipment)
         {
-            var (atk, def, hp) = ComputeSlotBonus(eq, items);
+            var (atk, def, hp) = ComputeSlotBonus(eq, items, artifactUpgrades);
             totalAtk += atk;
             totalDef += def;
             totalMaxHp += hp;
             if (items.TryGetValue(eq.ItemId, out var tmpl) && !string.IsNullOrWhiteSpace(tmpl.SetId))
                 setCounts[tmpl.SetId] = setCounts.GetValueOrDefault(tmpl.SetId) + 1;
+        }
+        foreach (var z in player.ZodiacSlots ?? new List<EquippedItemState>())
+        {
+            var (atk, def, hp) = ComputeSlotBonus(z, items, artifactUpgrades: null);
+            totalAtk += atk;
+            totalDef += def;
+            totalMaxHp += hp;
         }
         foreach (var count in setCounts.Values)
         {
@@ -332,6 +378,9 @@ public static class EquipmentHelper
         if (buffs != null)
             BuffHelper.ApplyBuffModifiers(player, buffs);
     }
+
+    public static void RecalculateStats(WorldPlayerEntity player, LoadedVersionPack pack)
+        => RecalculateStats(player, pack.Items, pack.Buffs, pack.ArtifactUpgrades);
 }
 
 public sealed class LearnedSkillState

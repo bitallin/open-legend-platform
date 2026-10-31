@@ -33,7 +33,8 @@
               "fashion_unlock",
               "pet_unlock",
               "recall",
-              "random"
+              "random",
+              "artifact"
             ]
           },
           "slot": {
@@ -50,7 +51,8 @@
               "ring2",
               "belt",
               "boots",
-              "torch"
+              "torch",
+              "artifact_main"
             ]
           },
           "paperdoll": {
@@ -109,6 +111,15 @@
             "type": "string",
             "maxLength": 64,
             "pattern": "^$|^[a-z][a-z0-9_]*$"
+          },
+          "allowedContainers": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1, "maxLength": 32 }
+          },
+          "preferredSlot": { "type": "string", "maxLength": 32 },
+          "zodiacSlotMask": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1, "maxLength": 32 }
           }
         }
       }
