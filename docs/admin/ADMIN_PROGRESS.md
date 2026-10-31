@@ -65,8 +65,20 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 2. 真实支付渠道未接；订单/补单为运营演示闭环。
 3. 合区执行为计划表，不自动搬迁角色库（需后续运维脚本）。
 4. 结构化表单（非 JSON）按字段编辑可后续增强；当前通用 JSON 编辑器 + 分域摘要已覆盖配置闭环。
-5. 试玩服 `150.158.164.90` Admin 端口对接需用户授权后再配 Token/防火墙。
+5. 试玩服直连 `http://150.158.164.90/`：Caddy 已反代 Admin，但轻量侧 **TCP/80 入站到不了虚机**（本机/公网 curl 均 SYN 后无包；`tcpdump` 空）。需在轻量控制台确认/放行 HTTP 80（或改用 8080 并放行）。临时公网：`legend-admin-tunnel`（cloudflared quick tunnel，URL 见服务器 `/opt/legend-admin/DEPLOYED.txt`，重启会变）。
 6. DataProtection 密钥未加密落盘（本地开发警告）；生产应配置密钥环。
+
+## 试玩服部署（2026-11-01 Asia/Shanghai）
+
+| 项 | 值 |
+|----|-----|
+| SHA | `81ae76c` |
+| 路径 | `/opt/legend-admin` |
+| systemd | `legend-admin`（`127.0.0.1:7200`）· `legend-admin-tunnel`（cloudflared）· Caddy `:80,:8080`→7200 |
+| Host 联调 | `Legend__HostAdmin__*` 自 `legend-host` 的 `LEGEND_ADMIN_TOKEN` 注入（不入库） |
+| RepoRoot | `/opt/legend`（共享 version-packs/realms/data/admin） |
+| 本机冒烟 | 登录 `admin` 后 `/` `/Configs` `/Realms` 等 200；`7101` 仍仅 localhost |
+| 直连公网 | **受阻**（见上）；隧道 URL 见 `DEPLOYED.txt` |
 
 ## 是否建议父代理通知用户验收
 

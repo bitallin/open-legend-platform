@@ -38,3 +38,10 @@ Host 未启动时，配置编辑/区服/邮件队列/CDK/审计仍可用；在�
 ## 模块一览
 
 内容配置目录与分域列表、玩法数值合集、UI/特效/音效索引、商城与调账补单、区服与合区计划、热重载、在线/封禁、邮件、公告、沙巴克、CDK、操作审计、管理员 RBAC。
+
+## 试玩服
+
+生产发布目录：`/opt/legend-admin`（systemd `legend-admin`，只绑 `127.0.0.1:7200`）。  
+Caddy `:80` / `:8080` 反代到该端口；Host Admin `127.0.0.1:7101` **不对公网**。  
+直连 `http://<公网IP>/` 需轻量防火墙放行 TCP 80；当前试玩机若 80 入站不到虚机，用 `legend-admin-tunnel` 的 Cloudflare quick tunnel（URL 写在服务器 `/opt/legend-admin/DEPLOYED.txt`）。验收后请立刻修改默认 `admin` 密码。
+

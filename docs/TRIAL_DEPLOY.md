@@ -41,6 +41,11 @@ Legend.Host 默认游戏 TCP **7100**（`--port` 可改）；Admin 默认 `--adm
 
 轻量控制台 → 防火墙。本机可用 `ufw allow 7100/tcp` 与 `ufw allow from YOUR_IP to any port 22`。看 Admin：`ssh -L 7101:127.0.0.1:7101 user@公网IP`。
 
+### Legend.Admin 网站（运营后台）
+
+试玩机可另起 `legend-admin`（`/opt/legend-admin`，`127.0.0.1:7200`），由 Caddy 反代公网 **TCP 80**。Host 的 `7101` 仍只绑本机；网站通过本机 Token 调 Host Admin。  
+若控制台未真正放行 80（表现为 TCP 能握手但虚机 `tcpdump` 无包），先在轻量「防火墙」添加/确认 HTTP 80，或临时用 Cloudflare quick tunnel 单元 `legend-admin-tunnel`（见 `/opt/legend-admin/DEPLOYED.txt`）。
+
 ## ICP 备案边界
 
 大陆机房对大陆用户提供持续可访问的互联网信息服务，须完成网站/APP 等法定备案（ICP）及游戏相关许可，**未备案不得对大陆用户正式开服运营**。本手册只覆盖「买机 + 起服 + 自测」；不构成规避备案的方案。自测可用境外地域，或大陆机仅对自己 IP / 内网联调；正式对公开放前走完备案与资质。
