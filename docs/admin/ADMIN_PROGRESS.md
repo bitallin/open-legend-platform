@@ -140,4 +140,4 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 - 试玩服部署：`/opt/legend-admin` + `sample-classic/configs/monsters.json` @ **`12d7572`**（PR #49）；Login 200；怪物页有 18 条；地图刷怪 CRUD 探针 OK
 - **建议父代理通知用户验收：是**
 
-| 2026-11-01 | M12 试玩服部署 | **完成** | `/opt/legend-admin` + seed-media @ **`872adcc`**；怪物/地图/Studio/素材库缩略图探针 OK |
+| 2026-11-01 | M12 试玩服部署 | **完成** | `/opt/legend-admin` + seed-media @ **`bcd1fde`**（含 #50 素材 + #51 缩略图 API）；怪物/地图/Studio/素材库缩略图探针 OK |
