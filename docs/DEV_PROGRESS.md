@@ -5,7 +5,7 @@
 | 项 | 值 |
 |----|----|
 | 最后更新 | 2026-10-31 |
-| 阶段 | Phase R + 引擎 E0–E8 已完成；`c23e8a0` 收尾 Stall 商店选 NPC、试玩服与 Windows 客户端对齐。功能清单 100%。见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
+| 阶段 | Phase R + 引擎 E0–E13 已完成（DocOnly 扩展切片）。功能清单 100%。见 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md) |
 | 协议 | 1.21.0（新增 3971/3972 离开世界。`EntitySnapshot.title`、`CharacterSummary.gender`） |
 | 客户端 | Avalonia `client/Legend.Playable` |
 | 总体 | **100%**（217 / 217） |
@@ -40,15 +40,11 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 画面对照另见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。Phase R 起是斜 45° 菱形地图、装备分层和贴图主界面。VISUAL_PARITY_COMPLETE=true。
 
-## 下一批（5）
+## 下一批
 
-清单叶子条目已经全部是 Done（矩阵不计 DocOnly）。引擎 E0–E8 已合入。下一批为扩展规格实现排期（非本回合）：
+清单叶子条目已经全部是 Done（矩阵不计 DocOnly）。引擎 **E0–E13** 已合入（顺序与 [ENGINE_REFACTOR_PLAN.md](ENGINE_REFACTOR_PLAN.md)「E8 之后」一致：E9 多货币 → E10 天赋/内功 → E11 生肖/神器 → E12 英雄合击 → E13 内挂）。
 
-1. E9 多货币与商城结算（文档站货币篇）。
-2. E10 生肖 / 神器槽与属性汇总。
-3. E11 天赋树与加点校验。
-4. E12 英雄出战与合击。
-5. E13 内挂状态机与拾取过滤（客户端 + 服务端门闩）。
+后续可选（仍 DocOnly，一项一 PR）：离线挂机、拍卖行、翅膀/限时时装、坐骑状态机、宠物蛋、跨服等；原版向 Avalonia 观感改版等用户确认 todo 212。
 
 ## 日志
 
@@ -71,3 +67,9 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 2026-10-31：引擎重构 E7。进图/击杀/拾取/对话钩子异常隔离；`ScriptSandboxTests` 锁沙箱无 IO 与坏热更回滚后仍可移动。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：引擎重构 E8。地图 Schema 增加可选 `mapFlags`；服务端执行 `noPk`（安全区外禁玩家互攻，`ERR_INVALID_TARGET`）。样例地图行为不变。其它 flag 仅 Schema。矩阵仍 100%。协议仍是 1.21.0。
 - 2026-10-31：收尾。`Stall_OfflineSeller` / M3 商店路径误选 `npc_waygate`（无 shop）改为显式 `npc_village_merchant`（#21 → `c23e8a0`）。试玩服 `150.158.164.90:7100` 由 `3b97446` 升至 `c23e8a0`，CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 基于 `c23e8a0` 重打。矩阵仍 100%。协议仍是 1.21.0。
+
+- 2026-10-31：引擎扩展 E9（#23 → `012a4ac`）。`currencies.json` / 回收日限；运行时钱包；样例仍只启用 `gold`。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：引擎扩展 E10（#24 → `c50db2f`）。天赋 / 内功 Schema 与存档字段；不做法术。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：引擎扩展 E11（#25 → `579b7f2`）。生肖容器与神器槽；装备位扩展与属性汇总。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：引擎扩展 E12（#26 → `bd40255`）。英雄存档与合击；`AttackReq` skillId=`hero_combo`；`CombatSync.combo`；无新 MsgId。矩阵仍 100%。协议仍是 1.21.0。
+- 2026-10-31：引擎扩展 E13（#27 → `4849741`）。`client_assist.json` / `pickup_filters.json`；ClientCore 内挂状态机默认关；`map_no_hang` / `map_no_auto_pickup` 进世界同步。矩阵仍 100%。协议仍是 1.21.0。
