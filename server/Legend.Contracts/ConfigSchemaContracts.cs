@@ -25,6 +25,8 @@ public static class ConfigSchemaIds
     public const string Artifacts = "artifacts";
     public const string Heroes = "heroes";
     public const string Combos = "combos";
+    public const string ClientAssist = "client_assist";
+    public const string PickupFilters = "pickup_filters";
 }
 
 /// <summary>

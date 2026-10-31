@@ -559,7 +559,9 @@ public sealed partial class GameWorldModule : IGameModule
             GuildRank = entity.GuildRank,
             SiegeOwnerGuildId = _siegeOwnerGuildId,
             SiegeOwnerGuildName = _siegeOwnerGuildName,
-            IsCastleLordGuild = IsCastleLordGuild(entity.GuildId)
+            IsCastleLordGuild = IsCastleLordGuild(entity.GuildId),
+            MapNoHang = map.IsNoHang,
+            MapNoAutoPickup = map.IsNoAutoPickup
         };
         {
             var mod = await _storage.Moderation.GetByAccountIdAsync(character.AccountId, ct);
@@ -1206,7 +1208,9 @@ public sealed partial class GameWorldModule : IGameModule
             ToX = tx,
             ToY = ty,
             PortalId = portal.PortalId,
-            InSafeZone = entity.InSafeZone
+            InSafeZone = entity.InSafeZone,
+            MapNoHang = toMap.IsNoHang,
+            MapNoAutoPickup = toMap.IsNoAutoPickup
         };
         foreach (var n in nearby)
             notify.NearbyEntities.Add(n.ToSnapshot());

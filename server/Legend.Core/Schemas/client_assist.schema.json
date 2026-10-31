@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-legend.local/schemas/client_assist.schema.json",
+  "title": "ClientAssist",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": { "type": "boolean" },
+    "hotkey": { "type": "string" },
+    "mode": { "type": "string", "enum": ["anchor", "patrol"] },
+    "anchorRadiusCells": { "type": "integer", "minimum": 0 },
+    "patrolPoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["x", "y"],
+        "properties": {
+          "x": { "type": "integer" },
+          "y": { "type": "integer" }
+        }
+      }
+    },
+    "searchRangeCells": { "type": "integer", "minimum": 1 },
+    "maxPullCount": { "type": "integer", "minimum": 1 },
+    "ignoreTags": { "type": "array", "items": { "type": "string" } },
+    "doNotAttackEntityKinds": { "type": "array", "items": { "type": "string" } },
+    "stopOnPortal": { "type": "boolean" },
+    "stopOnMapChange": { "type": "boolean" },
+    "stopOnDeath": { "type": "boolean" },
+    "stopOnManualMove": { "type": "boolean" },
+    "globalCastGapMs": { "type": "integer", "minimum": 0 },
+    "comboPriority": { "type": "string", "enum": ["off", "low"] },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["skillId"],
+        "properties": {
+          "skillId": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean" },
+          "priority": { "type": "integer" },
+          "minMpPercent": { "type": "number" },
+          "minHpPercent": { "type": "number" },
+          "minMobCount": { "type": "integer", "minimum": 0 },
+          "requireBuffMissing": { "type": "string" }
+        }
+      }
+    },
+    "poison": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "applyRed": { "type": "boolean" },
+        "applyGreen": { "type": "boolean" },
+        "reapplyBeforeExpireMs": { "type": "integer", "minimum": 0 },
+        "onlyIfTargetMissingDebuff": { "type": "boolean" },
+        "consumesItemId": { "type": "string" }
+      }
+    },
+    "pickup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "pickupRangeCells": { "type": "integer", "minimum": 0 },
+        "delayMs": { "type": "integer", "minimum": 0 },
+        "pauseAttackWhilePicking": { "type": "boolean" },
+        "priorityItemIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "hpPotions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "hpPercent"],
+        "properties": {
+          "itemId": { "type": "string" },
+          "hpPercent": { "type": "number" },
+          "priority": { "type": "integer" },
+          "minIntervalMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "mpPotions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "mpPercent"],
+        "properties": {
+          "itemId": { "type": "string" },
+          "mpPercent": { "type": "number" },
+          "priority": { "type": "integer" },
+          "minIntervalMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "emergencyScrollHpPercent": { "type": "number" },
+    "emergencyScrollItemId": { "type": "string" },
+    "autoRecycleWhenSlotsBelow": { "type": "integer", "minimum": 0 }
+  }
+}
