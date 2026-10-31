@@ -141,6 +141,8 @@ public sealed partial class GameWorldModule
                 continue;
             if (other.InSafeZone || aoi.Map.IsInSafeZone(other.X, other.Y))
                 continue;
+            if (aoi.Map.IsNoPk)
+                continue;
             if (CombatMath.Chebyshev(cx, cy, other.X, other.Y) > radius)
                 continue;
             if (string.Equals(skill.AoeShape, "arc", StringComparison.OrdinalIgnoreCase) &&
@@ -237,6 +239,16 @@ public sealed partial class GameWorldModule
                 Success = false,
                 ErrorCode = ProtocolErrorCode.ErrSafeZone,
                 Message = "安全区内禁止攻击。"
+            }, ct);
+            return true;
+        }
+        if (aoi.Map.IsNoPk)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidTarget,
+                Message = "本地图禁止PK。"
             }, ct);
             return true;
         }

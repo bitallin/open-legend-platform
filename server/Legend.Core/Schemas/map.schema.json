@@ -75,6 +75,20 @@
           "targetY": { "type": "integer", "minimum": 0, "maximum": 511 }
         }
       }
+    },
+    "mapFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "noPk": { "type": "boolean" },
+        "noMount": { "type": "boolean" },
+        "noSummon": { "type": "boolean" },
+        "noTeleport": { "type": "boolean" },
+        "noTrade": { "type": "boolean" },
+        "instance": { "type": "boolean" },
+        "noHang": { "type": "boolean" },
+        "noAutoPickup": { "type": "boolean" }
+      }
     }
   }
 }

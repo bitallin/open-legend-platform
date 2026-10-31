@@ -274,7 +274,9 @@ Schema 文件：
 
 测试：`dotnet test server/Legend.Tests/Legend.Tests.csproj -c Release --filter "FullyQualifiedName~M19|FullyQualifiedName~ScriptSandbox"`，以及 `scripts/verify-m19.sh`。
 
-### E8 — 第一个 DocOnly 切片：地图 flag
+### E8 — 第一个 DocOnly 切片：地图 flag（已完成）
+
+状态：已完成。`map.schema.json` 增加可选 `mapFlags`（`noPk` 等，默认 false）；`MapConfig.IsNoPk` 在开放 PK、溅射与攻城 PvP 路径上拒绝玩家互攻，安全区仍返回 `ERR_SAFE_ZONE (1015)`，禁 PK 图返回 `ERR_INVALID_TARGET (1016)`。样例地图未改行为。未实现 noMount/noHang 等其它 flag 的运行时拒绝。
 
 范围：只做 `docs/site/04-map-movement.md` 已写明的地图布尔 flag 中的加载与服务端拒绝。建议先 `noPk`（安全区之外的禁 PK）或规格里已经点名、且不需要新 MsgId 的那一个。Schema 在 E1 的地图规则上增加可选布尔，默认 false。样例地图不改行为。
 
@@ -304,7 +306,7 @@ MVP 是矩阵里已经 Done 的登录、进世界、移动、战斗、物品、�
 
 下列能力在 site 各篇扩展路线和术语表里，**没有**矩阵叶子。它们不进入 E0，也不进入 E1–E7：
 
-多货币、生肖、神器槽、英雄、合击、内功、天赋、内挂、拾取过滤、三职业自动、自动施毒、保护吃药、离线挂机、翅膀与限时时装、坐骑状态机、宠物蛋、地图 flag（E8 才开始）、拍卖行、跨服。
+多货币、生肖、神器槽、英雄、合击、内功、天赋、内挂、拾取过滤、三职业自动、自动施毒、保护吃药、离线挂机、翅膀与限时时装、坐骑状态机、宠物蛋、地图 flag（E8 已落地 noPk；其余仍 DocOnly）、拍卖行、跨服。
 
 完成度仍然只由矩阵计算。扩展做完并要计分时，先改矩阵，再改文档（conventions）。
 

@@ -577,6 +577,17 @@ public sealed partial class GameWorldModule
             return true;
         }
 
+        if (aoi.Map.IsNoPk)
+        {
+            await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
+            {
+                Success = false,
+                ErrorCode = ProtocolErrorCode.ErrInvalidTarget,
+                Message = "本地图禁止PK。"
+            }, ct);
+            return true;
+        }
+
         if (targetPlayer.IsDead || targetPlayer.Hp <= 0)
         {
             await session.SendAsync(MsgId.AttackResp, frame.Seq, new AttackResp
