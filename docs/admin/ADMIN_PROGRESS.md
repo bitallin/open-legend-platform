@@ -134,6 +134,7 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 - 侧栏「地图刷怪」+ 地图编辑页入口；实体列表空态提示换包
 - 种子：`sample-classic` 18 模板 / 8 地图差异化 27 刷怪点
 
-- 冒烟：登录后 `/Entities/Monsters` 非空；`/Entities/MapSpawns?mapId=novice_plain` 与 `dark_forest` 刷怪不同
+- 冒烟：登录后 `/Entities/Monsters` 非空；`/Entities/MapSpawns?mapId=novice_plain` 与 `dark_forest` 刷怪不同；增删刷怪点 OK
+- 试玩服部署：`/opt/legend-admin` + `sample-classic/configs/monsters.json` @ **`12d7572`**（PR #49）；Login 200；怪物页有 18 条；地图刷怪 CRUD 探针 OK
 - **建议父代理通知用户验收：是**
 
