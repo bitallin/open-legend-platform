@@ -121,9 +121,16 @@ public static class MirChrome
             Width = contentWidth
         };
 
-        var grid = new Grid();
+        var grid = new Grid
+        {
+            // Explicit width: Auto+Star under a Center-aligned parent still measured at full HUD
+            // width, which stretched Titlebar/EdgeH into a 通栏横向暗条 (OL-16-N P0).
+            Width = contentWidth + corner * 2,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
         grid.ColumnDefinitions.Add(new ColumnDefinition(corner, GridUnitType.Pixel));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        // Auto (not Star): hug inner width — Star expanded to full available HUD width.
+        grid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Auto));
         grid.ColumnDefinitions.Add(new ColumnDefinition(corner, GridUnitType.Pixel));
         grid.RowDefinitions.Add(new RowDefinition(corner, GridUnitType.Pixel));
         // Auto (not Star): overlays/panels must hug content; Star stretched EdgeV to full HUD height.
@@ -237,6 +244,7 @@ public static class MirChrome
             MinWidth = 64,
             MinHeight = 26,
             FontSize = 12,
+            FontWeight = active ? FontWeight.Bold : FontWeight.Normal,
             Padding = new Thickness(10, 2),
             Foreground = new SolidColorBrush(Color.Parse(active ? "#1A1208" : "#F0D8A8")),
             Background = BrushOf(active ? TabActive : TabInactive)

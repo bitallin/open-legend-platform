@@ -40,7 +40,39 @@ public static class ContentCatalog
         => string.IsNullOrWhiteSpace(id) ? null : Skills.FirstOrDefault(s => string.Equals(s.SkillId, id, StringComparison.OrdinalIgnoreCase));
 
     public static string ItemName(string itemId)
-        => ItemNames.TryGetValue(itemId, out var name) ? name : itemId;
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return "";
+        if (ItemNames.TryGetValue(itemId, out var name))
+            return name;
+        // alias / chrome-seed ids → Chinese (never show bare asset ids in mail/stall)
+        string id = itemId.Trim();
+        if (ItemNames.TryGetValue("item_" + id, out name))
+            return name;
+        if (id.StartsWith("item_", StringComparison.OrdinalIgnoreCase)
+            && ItemNames.TryGetValue(id, out name))
+            return name;
+        string low = id.ToLowerInvariant();
+        if (low is "hp_potion_small" or "item_hp_potion_small" or "item_hp_potion")
+            return ItemNames.TryGetValue("item_hp_potion", out name) ? name : "金创药(小量)";
+        if (low is "mp_potion_small" or "item_mp_potion")
+            return ItemNames.TryGetValue("item_mp_potion", out name) ? name : "魔法药(小量)";
+        if (low.Contains("iron_sword"))
+            return ItemNames.TryGetValue("item_iron_sword", out name) ? name : "铁剑";
+        // last resort: strip item_ + underscores → still better than raw snake_case in HUD
+        string bare = id.StartsWith("item_", StringComparison.OrdinalIgnoreCase) ? id[5..] : id;
+        if (bare.Contains('_') || bare.Any(char.IsAsciiLetter) && bare.All(c => char.IsAsciiLetterOrDigit(c) || c == '_'))
+        {
+            // prefer catalog fuzzy
+            foreach (var kv in ItemNames)
+            {
+                if (kv.Key.EndsWith(bare, StringComparison.OrdinalIgnoreCase)
+                    || bare.EndsWith(kv.Key.Replace("item_", ""), StringComparison.OrdinalIgnoreCase))
+                    return kv.Value;
+            }
+        }
+        return id;
+    }
 
     public static string UnlockItemFor(string appearanceId)
         => Loaded.Value.Unlocks.TryGetValue(appearanceId, out var item) ? item : "";
