@@ -16,6 +16,8 @@ public sealed class LaunchOptions
     public bool UiSmoke { get; set; }
     public bool Probe { get; set; }
     public bool ShowHelp { get; set; }
+    /// <summary>When set, seed local InWorld chrome and dump key OL panel PNGs then exit.</summary>
+    public string UiCaptureDir { get; set; } = "";
 
     public static string HelpText =>
         """
@@ -32,6 +34,7 @@ public sealed class LaunchOptions
         --smoke      无窗口自检（编译与本地逻辑）
         --probe      只做握手（连上 --host/--port 后退出）
         --ui-smoke   打开窗口后立即退出（需显示器）
+        --ui-capture <dir>  本地种子进世界并截关键 OL 窗到目录后退出（离线）
         --help
         """;
 
@@ -68,6 +71,9 @@ public sealed class LaunchOptions
                     break;
                 case "--ui-smoke":
                     opt.UiSmoke = true;
+                    break;
+                case "--ui-capture":
+                    opt.UiCaptureDir = Next(args, ref i, a);
                     break;
                 case "--help":
                 case "-h":

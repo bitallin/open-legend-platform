@@ -538,8 +538,11 @@ public sealed partial class GameWindow
         }
         if (_assistFloat != null)
         {
+            // OL-16-N only when chrome is clear — hide under any panel / party-invite modal
+            bool invitePending = _session.PendingPartyId.Length > 0;
             _assistFloat.IsVisible = assistRun
-                && _openPanel != "assist"
+                && _openPanel.Length == 0
+                && !invitePending
                 && _session.Fsm.Phase == SessionPhase.InWorld;
         }
         if (_partyInviteHost != null)
@@ -1194,6 +1197,7 @@ public sealed partial class GameWindow
                         _selectedGuildMemberId = _session.GuildInfo.Members[0].CharacterId;
                     var selected = _session.GuildInfo.Members.FirstOrDefault(m => m.CharacterId == _selectedGuildMemberId)
                         ?? _session.GuildInfo.Members.FirstOrDefault();
+                    var memberList = new StackPanel { Spacing = 2 };
                     foreach (var member in _session.GuildInfo.Members)
                     {
                         bool isSelf = string.Equals(member.CharacterId, _session.CharacterId, StringComparison.Ordinal);
@@ -1230,8 +1234,14 @@ public sealed partial class GameWindow
                         string mid = member.CharacterId;
                         var row = MirChrome.ListRow(rowInner, sel);
                         row.PointerPressed += (_, _) => { _selectedGuildMemberId = mid; _panelFp = ""; RefreshPhaseL(); };
-                        left.Children.Add(row);
+                        memberList.Children.Add(row);
                     }
+                    left.Children.Add(new ScrollViewer
+                    {
+                        Content = memberList,
+                        MaxHeight = 280,
+                        VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+                    });
                     if (selected == null)
                         right.Children.Add(Block("点选左侧成员查看管理项。"));
                     else

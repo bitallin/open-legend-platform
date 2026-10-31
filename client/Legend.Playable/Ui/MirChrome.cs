@@ -126,7 +126,8 @@ public static class MirChrome
         grid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
         grid.ColumnDefinitions.Add(new ColumnDefinition(corner, GridUnitType.Pixel));
         grid.RowDefinitions.Add(new RowDefinition(corner, GridUnitType.Pixel));
-        grid.RowDefinitions.Add(new RowDefinition(1, GridUnitType.Star));
+        // Auto (not Star): overlays/panels must hug content; Star stretched EdgeV to full HUD height.
+        grid.RowDefinitions.Add(new RowDefinition(1, GridUnitType.Auto));
         grid.RowDefinitions.Add(new RowDefinition(corner, GridUnitType.Pixel));
 
         void Cell(int c, int r, Control? ctrl)
