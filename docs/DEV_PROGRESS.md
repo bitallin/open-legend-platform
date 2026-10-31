@@ -43,8 +43,11 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 - Avalonia 客户端导入原型 kit：`Assets/chrome/`（阴阳球 / 聊天 / BR / 小地图 / 背包人物整窗 / 九宫 / 按钮 / 物品格）。
 - 登录、选角、主 HUD、背包网格、人物环绕槽对齐 OL-01-A/B/C · OL-02-A/B · OL-03-C 硬门槛；禁墙纸平铺与浮空灰块。
+- 扩展窗：技能 OL-04-A、商店 OL-06-B、仓库 OL-06-E、交易 OL-08-A、行会 OL-09-A、大地图 OL-05-B、设置 OL-12-A — 九宫 Framed + Tab/双栏/格点布局（非整窗 AI 贴图）。
 - 协议仍 **1.21.0**；服务端无协议变更。矩阵仍 100%。
 - 进度对照 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
+
+- 2026-11-01：扩展窗布局刀 — OL-04-A 技能列表+F1–F8、OL-06-B 商店 Tab 双栏、OL-06-E 仓库双栏、OL-08-A 交易双格、OL-09-A 行会、OL-05-B 大地图示意、OL-12-A 设置 Tab。仅客户端 UI；服务端无变更。见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
 - 2026-11-01：Avalonia 石金壳合入 #32 → `686e207`。试玩服 `150.158.164.90:7100` 无服务端增量（仍跑既有 tip）；CliClient M3 冒烟通过。Windows `dist/windows-player/LegendClient.exe` 已按 `686e207` 重打并同步用户机。协议仍 1.21.0。
 
