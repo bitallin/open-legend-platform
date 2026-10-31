@@ -135,9 +135,27 @@ public sealed partial class GameWorldModule
         await PushInventoryAsync(session, player, "Recycle", ct);
     }
 
+    /// <summary>
+    /// Keep CharacterRecord.Gold and wallet["gold"] identical after any cash change.
+    /// Direct <c>player.Gold +=/-=</c> without this desyncs the wallet and lets a later
+    /// gold Credit reinflate Gold from the stale wallet balance.
+    /// </summary>
+    private static void AdjustGold(WorldPlayerEntity player, int delta)
+    {
+        if (delta == 0)
+            return;
+        long next = (long)player.Gold + delta;
+        player.Gold = (int)Math.Clamp(next, 0, int.MaxValue);
+        player.Wallet ??= new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
+    }
+
     private void CreditCurrency(WorldPlayerEntity player, string currencyId, long amount)
     {
         player.Wallet ??= new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        // Mirror first so a prior Gold-only debit cannot be erased by Credit.
+        if (string.Equals(currencyId, CurrencyWallet.GoldId, StringComparison.OrdinalIgnoreCase))
+            CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
         CurrencyWallet.Credit(player.Wallet, currencyId, amount);
         if (string.Equals(currencyId, CurrencyWallet.GoldId, StringComparison.OrdinalIgnoreCase))
             player.Gold = CurrencyWallet.GetGold(player.Wallet);
@@ -191,7 +209,7 @@ public sealed partial class GameWorldModule
             }, ct);
             return;
         }
-        player.Gold -= cost;
+        AdjustGold(player, -cost);
         foreach (var piece in player.Equipment)
         {
             if (!string.IsNullOrWhiteSpace(req.Slot) &&

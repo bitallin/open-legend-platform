@@ -421,7 +421,7 @@ public sealed partial class GameWorldModule
             }, ct);
             return;
         }
-        player.Gold -= cost;
+        AdjustGold(player, -(cost));
         piece.Identified = true;
         EquipmentHelper.RecalculateStats(player, _versionPack);
         await PersistEconomyAsync(player, ct);
@@ -727,8 +727,8 @@ public sealed partial class GameWorldModule
             InventoryHelper.AddItem(a.Inventory, stack.ItemId, stack.Count);
         foreach (var stack in trade.AItems)
             InventoryHelper.AddItem(b.Inventory, stack.ItemId, stack.Count);
-        a.Gold += trade.BGold;
-        b.Gold += trade.AGold;
+        AdjustGold(a, trade.BGold);
+        AdjustGold(b, trade.AGold);
         await PersistEconomyAsync(a, ct);
         await PersistEconomyAsync(b, ct);
         await SendTradeResultAsync(a, "交易完成", ct);
@@ -751,7 +751,7 @@ public sealed partial class GameWorldModule
             if (!InventoryHelper.TryRemoveItem(player.Inventory, stack.ItemId, stack.Count))
                 return false;
         }
-        player.Gold -= gold;
+        AdjustGold(player, -(gold));
         return true;
     }
 

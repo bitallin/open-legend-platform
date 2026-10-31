@@ -135,6 +135,26 @@ public class MultiCurrencyTests
         Assert.Contains("limit", sellOver.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+
+    [Fact]
+    public void CreditGold_AfterUnsyncedSpend_DoesNotInflate()
+    {
+        // Reproduces the E9 wallet desync: Gold was debited without mirroring wallet,
+        // then CreditCurrency(gold) used to Credit onto the stale wallet and overwrite Gold.
+        var wallet = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { ["gold"] = 100 };
+        int gold = 100;
+        gold -= 30; // buggy spend left wallet at 100
+        Assert.Equal(70, gold);
+        Assert.Equal(100, wallet["gold"]);
+
+        // Fixed credit path (mirror first).
+        CurrencyWallet.EnsureGoldMirror(wallet, gold);
+        CurrencyWallet.Credit(wallet, CurrencyWallet.GoldId, 10);
+        gold = CurrencyWallet.GetGold(wallet);
+        Assert.Equal(80, gold);
+        Assert.Equal(80, wallet["gold"]);
+    }
+
     private static async Task WalkToAsync(LegendTcpClient client, int tx, int ty, CancellationToken ct = default)
     {
         Assert.NotNull(client.SelfEntity);

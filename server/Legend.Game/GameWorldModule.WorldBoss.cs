@@ -336,7 +336,7 @@ public sealed partial class GameWorldModule
             {
                 if (rewardGold > 0)
                 {
-                    creditPlayer.Gold += rewardGold;
+                    AdjustGold(creditPlayer, rewardGold);
                     await _storage.Characters.SaveGoldAsync(creditPlayer.CharacterId, creditPlayer.Gold, ct);
                 }
 

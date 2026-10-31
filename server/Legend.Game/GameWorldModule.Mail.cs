@@ -219,7 +219,7 @@ public sealed partial class GameWorldModule
             int claimedGold = Math.Max(0, snapshot.AttachGold);
             lock (_combatLock)
             {
-                player.Gold += claimedGold;
+                AdjustGold(player, claimedGold);
                 foreach (var it in MailItemsJson.Parse(snapshot.AttachItemsJson))
                     InventoryHelper.AddItem(player.Inventory, it.ItemId, it.Count);
             }

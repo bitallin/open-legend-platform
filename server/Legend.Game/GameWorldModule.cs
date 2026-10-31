@@ -698,6 +698,7 @@ public sealed partial class GameWorldModule : IGameModule
         entity.LastMoveUnixMs = decision.LastMoveUnixMs;
 
         var (leftViewers, enteredViewers, currentViewers) = aoi.MoveEntity(entity.EntityId, toX, toY, req.Direction);
+        SyncHeroFollow(entity);
 
         var moveSync = new MoveSync
         {
@@ -854,9 +855,7 @@ public sealed partial class GameWorldModule : IGameModule
             if (attacker.ActiveHero.Deployed
                 && !string.Equals(attacker.ActiveHero.Mode, "rest", StringComparison.OrdinalIgnoreCase))
             {
-                // Keep companion near the owner for heji range checks.
-                attacker.ActiveHeroX = attacker.X + 1;
-                attacker.ActiveHeroY = attacker.Y;
+                // Hero position follows on move/enter — do not teleport before heji range check.
                 comboCfg = HeroCombo.FindCombo(
                     _versionPack.Combos,
                     skill.SkillId,
@@ -1193,6 +1192,7 @@ public sealed partial class GameWorldModule : IGameModule
         entity.MapId = toMap.MapId;
         entity.X = tx;
         entity.Y = ty;
+        SyncHeroFollow(entity);
 
         var toAoi = GetAoi(toMap.MapId);
         var nearby = toAoi.AddOrUpdateEntity(entity);
@@ -1480,6 +1480,15 @@ public sealed partial class GameWorldModule : IGameModule
         return false;
     }
 
+
+    private static void SyncHeroFollow(WorldPlayerEntity player)
+    {
+        if (player.ActiveHero is null || !player.ActiveHero.Deployed)
+            return;
+        player.ActiveHeroX = player.X + 1;
+        player.ActiveHeroY = player.Y;
+    }
+
     private async Task PersistEconomyAsync(WorldPlayerEntity player, CancellationToken ct)
     {
         CurrencyWallet.EnsureGoldMirror(player.Wallet, player.Gold);
@@ -1687,7 +1696,7 @@ public sealed partial class GameWorldModule : IGameModule
             }
             else
             {
-                player.Gold -= cost;
+                AdjustGold(player, -(cost));
                 InventoryHelper.AddItem(player.Inventory, offer.ItemId, count);
                 if (offer.Stock > 0)
                     offer.Stock -= count;
@@ -1948,7 +1957,7 @@ public sealed partial class GameWorldModule : IGameModule
         state.Status = "completed";
         state.Progress = tmpl.TargetCount;
         state.CompletedOn = DateTime.UtcNow.ToString("yyyyMMdd");
-        player.Gold += Math.Max(0, tmpl.RewardGold);
+        AdjustGold(player, Math.Max(0, tmpl.RewardGold));
         foreach (var reward in tmpl.RewardItems)
         {
             if (reward.Count > 0 && !string.IsNullOrEmpty(reward.ItemId))
@@ -2338,7 +2347,7 @@ public sealed partial class GameWorldModule : IGameModule
             return;
         }
 
-        player.Gold -= rule.CostGold;
+        AdjustGold(player, -(rule.CostGold));
         bool succeeded;
         if (rule.SuccessRate >= 1.0)
         {

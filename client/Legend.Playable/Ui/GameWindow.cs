@@ -233,6 +233,7 @@ public sealed partial class GameWindow : Window
         if (_session.Fsm.Phase == SessionPhase.InWorld)
         {
             TickMove();
+            _session.TickAssist(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             TrackSafeZone();
             MaybePollBoss();
             SyncGear();

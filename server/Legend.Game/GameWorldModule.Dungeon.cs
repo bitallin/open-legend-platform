@@ -96,6 +96,7 @@ public sealed partial class GameWorldModule
         entity.MapId = toMap.MapId;
         entity.X = tx;
         entity.Y = ty;
+        SyncHeroFollow(entity);
 
         var toAoi = GetAoi(toMap.MapId);
         var nearby = toAoi.AddOrUpdateEntity(entity);
@@ -173,7 +174,7 @@ public sealed partial class GameWorldModule
     {
         if (def.EntryCostGold > 0)
         {
-            player.Gold -= def.EntryCostGold;
+            AdjustGold(player, -(def.EntryCostGold));
             await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
         }
 
@@ -722,7 +723,7 @@ public sealed partial class GameWorldModule
         var rewardItems = def.RewardItems ?? new List<DungeonRewardItemConfig>();
         bool mailed = false;
 
-        player.Gold += rewardGold;
+        AdjustGold(player, rewardGold);
         await _storage.Characters.SaveGoldAsync(player.CharacterId, player.Gold, ct);
 
         int maxSlots = Math.Max(1, _versionPack.Mail.MaxInventorySlots);

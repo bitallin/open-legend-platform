@@ -1,3 +1,4 @@
+using System.Linq;
 using Legend.ClientCore;
 using Legend.Contracts.Proto;
 using Legend.Playable.Net;
@@ -36,6 +37,9 @@ public sealed partial class PlayableSession : IDisposable
     public string PendingInviter { get; private set; } = "";
     public IReadOnlyList<CharacterSummary> Characters => _characters;
     public PlayableNetClient Net => _net;
+    /// <summary>Client-only assist FSM (docs/site/19). Default off; respects MapNoHang / MapNoAutoPickup.</summary>
+    public ClientAssistEngine Assist { get; } = new(new ClientAssistSettings { Enabled = false });
+    bool _assistBusy;
 
     public event Action? EnteredWorld;
     public event Action<CombatSync>? CombatSeen;
@@ -138,10 +142,12 @@ public sealed partial class PlayableSession : IDisposable
         }
     }
 
-    public async Task<MoveSync?> MoveAsync(int toX, int toY, int direction)
+    public async Task<MoveSync?> MoveAsync(int toX, int toY, int direction, bool fromAssist = false)
     {
         if (Fsm.Phase != SessionPhase.InWorld)
             return null;
+        if (!fromAssist)
+            Assist.NotifyManualMove();
         World.PredictSelfMove(toX, toY, direction);
         var sync = await _net.RequestMoveAsync(toX, toY, direction);
         World.ApplyMove(sync);
@@ -684,6 +690,115 @@ public sealed partial class PlayableSession : IDisposable
             }
         };
     }
+    public AssistWorldView BuildAssistWorldView(long nowUnixMs)
+    {
+        var self = World.Self;
+        var monsters = new List<AssistEntity>();
+        var loot = new List<AssistLoot>();
+        foreach (var a in World.Actors.Values)
+        {
+            if (a.IsSelf) continue;
+            if (a.Kind == EntityKind.EntityMonster)
+            {
+                monsters.Add(new AssistEntity
+                {
+                    EntityId = a.EntityId,
+                    X = a.GridX,
+                    Y = a.GridY,
+                    Kind = "monster",
+                    Alive = a.Hp > 0
+                });
+            }
+            else if (a.Kind == EntityKind.EntityLoot)
+            {
+                loot.Add(new AssistLoot
+                {
+                    EntityId = a.EntityId,
+                    ItemId = string.IsNullOrEmpty(a.TemplateId) ? a.Name : a.TemplateId,
+                    X = a.GridX,
+                    Y = a.GridY
+                });
+            }
+        }
+        var inv = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in Inventory.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item.ItemId) || item.Count <= 0) continue;
+            inv.TryGetValue(item.ItemId, out int c);
+            inv[item.ItemId] = c + item.Count;
+        }
+        var skills = new HashSet<string>(
+            _net.Skills.Select(s => s.SkillId).Where(id => !string.IsNullOrWhiteSpace(id)),
+            StringComparer.OrdinalIgnoreCase);
+        return new AssistWorldView
+        {
+            SelfX = self?.GridX ?? 0,
+            SelfY = self?.GridY ?? 0,
+            Hp = self?.Hp ?? 0,
+            MaxHp = self?.MaxHp ?? 1,
+            Mp = Mp,
+            MaxMp = MaxMp,
+            IsDead = self is not null && self.Hp <= 0,
+            MapNoHang = _net.MapNoHang,
+            MapNoAutoPickup = _net.MapNoAutoPickup,
+            MapId = World.Map.MapId,
+            Monsters = monsters,
+            Loot = loot,
+            LearnedSkills = skills,
+            InventoryCounts = inv,
+            NowUnixMs = nowUnixMs
+        };
+    }
+
+    /// <summary>
+    /// Advance assist FSM when running. Dispatches Move/Attack/Pickup/UseItem intents.
+    /// No-op while default-off / not Running. Stops immediately when MapNoHang is set.
+    /// </summary>
+    public void TickAssist(long nowUnixMs)
+    {
+        if (!Assist.Running || _assistBusy || Fsm.Phase != SessionPhase.InWorld)
+            return;
+        var cmd = Assist.Tick(BuildAssistWorldView(nowUnixMs));
+        if (cmd.Kind == AssistCommandKind.None || cmd.Kind == AssistCommandKind.Stop)
+            return;
+        _assistBusy = true;
+        _ = DispatchAssistAsync(cmd);
+    }
+
+    async Task DispatchAssistAsync(AssistCommand cmd)
+    {
+        try
+        {
+            switch (cmd.Kind)
+            {
+                case AssistCommandKind.Move:
+                    await MoveAsync(cmd.ToX, cmd.ToY, direction: 4, fromAssist: true);
+                    break;
+                case AssistCommandKind.Attack:
+                    if (!string.IsNullOrWhiteSpace(cmd.TargetEntityId))
+                        await AttackAsync(cmd.TargetEntityId, cmd.SkillId);
+                    break;
+                case AssistCommandKind.Pickup:
+                    if (!string.IsNullOrWhiteSpace(cmd.TargetEntityId))
+                        await PickupAsync(cmd.TargetEntityId);
+                    break;
+                case AssistCommandKind.UseItem:
+                    if (!string.IsNullOrWhiteSpace(cmd.ItemId))
+                        await UseItemAsync(cmd.ItemId);
+                    break;
+            }
+        }
+        catch
+        {
+            /* assist is best-effort */
+        }
+        finally
+        {
+            _assistBusy = false;
+        }
+    }
+
+
 }
 
 public static class PlayableTuning
