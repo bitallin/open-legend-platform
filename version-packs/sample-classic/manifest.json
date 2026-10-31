@@ -54,5 +54,7 @@
   "worldBossConfigFile": "configs/world_boss.json",
   "mountsConfigFile": "configs/mounts.json",
   "fashionsConfigFile": "configs/fashions.json",
-  "petsConfigFile": "configs/pets.json"
+  "petsConfigFile": "configs/pets.json",
+  "currenciesConfigFile": "configs/currencies.json",
+  "recycleConfigFile": "configs/recycle.json"
 }

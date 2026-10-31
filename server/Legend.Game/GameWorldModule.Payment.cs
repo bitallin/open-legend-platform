@@ -219,6 +219,15 @@ public sealed partial class GameWorldModule
                 });
             }
 
+            var product = PaymentCatalog.Find(existing.ProductId);
+            string rewardCurrencyId = product?.RewardCurrencyId?.Trim() ?? "";
+            bool multiCurrencyGrant = !string.IsNullOrEmpty(rewardCurrencyId)
+                && !string.Equals(rewardCurrencyId, CurrencyWallet.GoldId, StringComparison.OrdinalIgnoreCase)
+                && CurrencyWallet.IsEnabled(_versionPack.Currencies, rewardCurrencyId);
+
+            // Sample / default: gold via mail. Multi-currency packs may grant a non-gold currency into the wallet.
+            int mailGold = multiCurrencyGrant ? 0 : existing.RewardGold;
+
             var charRec = await _storage.Characters.GetByIdAsync(existing.CharacterId, ct);
             string nameHint = charRec?.Name ?? "";
 
@@ -227,8 +236,10 @@ public sealed partial class GameWorldModule
                 nameHint,
                 "系统充值",
                 $"充值发货：{existing.ProductId}",
-                $"订单 {existing.OrderId} 已支付，附件请查收。",
-                existing.RewardGold,
+                multiCurrencyGrant
+                    ? $"订单 {existing.OrderId} 已支付，{rewardCurrencyId} x{existing.RewardGold} 已入账。"
+                    : $"订单 {existing.OrderId} 已支付，附件请查收。",
+                mailGold,
                 items,
                 ct);
 
@@ -244,15 +255,30 @@ public sealed partial class GameWorldModule
                 p => string.Equals(p.CharacterId, existing.CharacterId, StringComparison.Ordinal));
             if (online != null)
             {
+                if (multiCurrencyGrant && existing.RewardGold > 0)
+                {
+                    CreditCurrency(online, rewardCurrencyId, existing.RewardGold);
+                    await PersistEconomyAsync(online, ct);
+                }
                 await online.Session.SendAsync(MsgId.PaymentFulfilledNotify, 0, new PaymentFulfilledNotify
                 {
                     OrderId = fulfilled.OrderId,
                     ProductId = fulfilled.ProductId,
                     MailId = mail.MailId,
-                    RewardGold = fulfilled.RewardGold,
+                    RewardGold = multiCurrencyGrant ? 0 : fulfilled.RewardGold,
                     RewardItemId = fulfilled.RewardItemId ?? "",
                     RewardItemCount = fulfilled.RewardItemCount
                 }, ct);
+            }
+            else if (multiCurrencyGrant && existing.RewardGold > 0 && charRec != null)
+            {
+                // Offline: fold currency into appearance_json wallet.
+                var state = AppearanceJson.Parse(charRec.AppearanceJson);
+                state.Wallet ??= new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+                CurrencyWallet.Credit(state.Wallet, rewardCurrencyId, existing.RewardGold);
+                CurrencyWallet.EnsureGoldMirror(state.Wallet, charRec.Gold);
+                await _storage.Characters.SaveAppearanceAsync(
+                    charRec.CharacterId, AppearanceJson.Serialize(state), ct);
             }
 
             return (true, "fulfilled", fulfilled);

@@ -447,6 +447,70 @@ public sealed class VersionPackLoader : IVersionPackLoader
         }
 
 
+
+        var currencyDict = new Dictionary<string, CurrencyConfigItem>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.CurrenciesConfigFile))
+        {
+            string currenciesPath = Path.Combine(baseDir, manifest.CurrenciesConfigFile);
+            if (!File.Exists(currenciesPath))
+                throw new FileNotFoundException($"Currencies config not found: {currenciesPath}");
+            string currenciesJson = File.ReadAllText(currenciesPath, Encoding.UTF8);
+            hashInput.Append(currenciesJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Currencies, currenciesJson, manifest.CurrenciesConfigFile);
+            var currencyList = JsonSerializer.Deserialize<List<CurrencyConfigItem>>(currenciesJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize currencies.json");
+            foreach (var c in currencyList)
+            {
+                if (string.IsNullOrWhiteSpace(c.CurrencyId))
+                    throw new InvalidDataException("CurrencyConfigItem.CurrencyId cannot be empty.");
+                if (currencyDict.ContainsKey(c.CurrencyId))
+                    throw new InvalidDataException($"Duplicate currencyId '{c.CurrencyId}'.");
+                if (string.IsNullOrWhiteSpace(c.DeductGroup))
+                    c.DeductGroup = c.CurrencyId;
+                currencyDict[c.CurrencyId] = c;
+            }
+        }
+        else
+        {
+            // Implicit gold when pack omits currencies.json (legacy packs).
+            currencyDict[CurrencyWallet.GoldId] = new CurrencyConfigItem
+            {
+                CurrencyId = CurrencyWallet.GoldId,
+                DisplayName = "金币",
+                Tradable = true,
+                StallAllowed = true,
+                AuctionAllowed = true,
+                DeductGroup = CurrencyWallet.GoldId
+            };
+        }
+
+        var recycleDict = new Dictionary<string, RecycleConfigItem>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(manifest.RecycleConfigFile))
+        {
+            string recyclePath = Path.Combine(baseDir, manifest.RecycleConfigFile);
+            if (!File.Exists(recyclePath))
+                throw new FileNotFoundException($"Recycle config not found: {recyclePath}");
+            string recycleJson = File.ReadAllText(recyclePath, Encoding.UTF8);
+            hashInput.Append(recycleJson);
+            _schemaValidator.Validate(ConfigSchemaIds.Recycle, recycleJson, manifest.RecycleConfigFile);
+            var recycleList = JsonSerializer.Deserialize<List<RecycleConfigItem>>(recycleJson, JsonOptions)
+                ?? throw new InvalidDataException("Failed to deserialize recycle.json");
+            foreach (var r in recycleList)
+            {
+                if (string.IsNullOrWhiteSpace(r.ItemId))
+                    throw new InvalidDataException("RecycleConfigItem.ItemId cannot be empty.");
+                if (recycleDict.ContainsKey(r.ItemId))
+                    throw new InvalidDataException($"Duplicate recycle itemId '{r.ItemId}'.");
+                if (string.IsNullOrWhiteSpace(r.CurrencyId))
+                    r.CurrencyId = CurrencyWallet.GoldId;
+                if (!currencyDict.ContainsKey(r.CurrencyId))
+                    throw new InvalidDataException($"Recycle item '{r.ItemId}' currencyId '{r.CurrencyId}' not in currencies.json.");
+                if (itemDict.Count > 0 && !itemDict.ContainsKey(r.ItemId))
+                    throw new InvalidDataException($"Recycle item '{r.ItemId}' not in items.json.");
+                recycleDict[r.ItemId] = r;
+            }
+        }
+
         var mountsConfig = new MountsConfigFile();
         if (!string.IsNullOrWhiteSpace(manifest.MountsConfigFile))
         {
@@ -531,6 +595,8 @@ public sealed class VersionPackLoader : IVersionPackLoader
             Mounts = mountsConfig,
             Fashions = fashionsConfig,
             Pets = petsConfig,
+            Currencies = currencyDict,
+            Recycle = recycleDict,
             LuaScripts = luaScripts,
             PackHash = packHash
         };

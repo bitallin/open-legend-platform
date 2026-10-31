@@ -573,6 +573,20 @@ public sealed class LegendTcpClient : IAsyncDisposable
         return resp;
     }
 
+    public async Task<ShopSellResp> ShopSellAsync(string npcEntityId, string itemId, int count = 1, CancellationToken ct = default)
+    {
+        var frame = await SendRequestAsync(MsgId.ShopSellReq, new ShopSellReq
+        {
+            NpcEntityId = npcEntityId,
+            ItemId = itemId,
+            Count = count
+        }, ct);
+        var resp = ShopSellResp.Parser.ParseFrom(frame.Payload);
+        if (resp.Success)
+            Gold = resp.Gold;
+        return resp;
+    }
+
     public async Task<QuestAcceptResp> QuestAcceptAsync(string npcEntityId, string questId, CancellationToken ct = default)
     {
         var frame = await SendRequestAsync(MsgId.QuestAcceptReq, new QuestAcceptReq

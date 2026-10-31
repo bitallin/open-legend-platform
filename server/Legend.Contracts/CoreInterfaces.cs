@@ -85,6 +85,8 @@ public sealed class VersionPackManifest
     public string MountsConfigFile { get; set; } = "";
     public string FashionsConfigFile { get; set; } = "";
     public string PetsConfigFile { get; set; } = "";
+    public string CurrenciesConfigFile { get; set; } = "";
+    public string RecycleConfigFile { get; set; } = "";
     public List<string> ScriptFiles { get; set; } = new();
     public int MaxCharactersPerAccount { get; set; } = 3;
 }
@@ -707,6 +709,30 @@ public sealed class EquippedItemState
     public bool Identified { get; set; } = true;
 }
 
+/// <summary>One currency declared in configs/currencies.json (docs/site/11).</summary>
+public sealed class CurrencyConfigItem
+{
+    public string CurrencyId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public bool Tradable { get; set; } = true;
+    public bool StallAllowed { get; set; } = true;
+    public bool AuctionAllowed { get; set; } = true;
+    /// <summary>Deduct group: bound currency of the same group is preferred before unbound.</summary>
+    public string DeductGroup { get; set; } = "gold";
+}
+
+/// <summary>NPC recycle row in configs/recycle.json (docs/site/11). Daily limit is per character per itemId.</summary>
+public sealed class RecycleConfigItem
+{
+    public string ItemId { get; set; } = string.Empty;
+    public string CurrencyId { get; set; } = "gold";
+    public int Amount { get; set; }
+    public int GrantExp { get; set; }
+    /// <summary>0 = unlimited. Counts pieces recycled today (Asia/Shanghai day).</summary>
+    public int DailyLimit { get; set; }
+    public bool DestroyItem { get; set; } = true;
+}
+
 public sealed class LoadedVersionPack
 {
     public required VersionPackManifest Manifest { get; init; }
@@ -735,6 +761,12 @@ public sealed class LoadedVersionPack
     public MountsConfigFile Mounts { get; init; } = new();
     public FashionsConfigFile Fashions { get; init; } = new();
     public PetsConfigFile Pets { get; init; } = new();
+    /// <summary>Enabled currencies. Sample packs usually only declare gold.</summary>
+    public IReadOnlyDictionary<string, CurrencyConfigItem> Currencies { get; init; } =
+        new Dictionary<string, CurrencyConfigItem>(StringComparer.OrdinalIgnoreCase);
+    /// <summary>NPC recycle table keyed by itemId.</summary>
+    public IReadOnlyDictionary<string, RecycleConfigItem> Recycle { get; init; } =
+        new Dictionary<string, RecycleConfigItem>(StringComparer.OrdinalIgnoreCase);
     public required IReadOnlyDictionary<string, string> LuaScripts { get; init; }
     public required string PackHash { get; init; }
 

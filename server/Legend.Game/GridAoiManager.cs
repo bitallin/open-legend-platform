@@ -35,6 +35,10 @@ public sealed class WorldPlayerEntity
     /// <summary>Personal warehouse stacks. Persisted inside appearance JSON.</summary>
     public List<InventorySlot> Storage { get; set; } = new();
     public int Gold { get; set; }
+    /// <summary>Runtime multi-currency balances. Gold is mirrored with <see cref="Gold"/>.</summary>
+    public Dictionary<string, long> Wallet { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Recycle daily counters keyed by itemId.</summary>
+    public Dictionary<string, RecycleDailyJson.Entry> RecycleDaily { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<QuestProgressState> Quests { get; set; } = new();
     public List<EquippedItemState> Equipment { get; set; } = new();
     public string GuildId { get; set; } = string.Empty;
