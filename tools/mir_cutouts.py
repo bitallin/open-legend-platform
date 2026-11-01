@@ -192,6 +192,40 @@ def load_class_row() -> dict[str, Image.Image | None]:
     return {n: sprites[i] for i, n in enumerate(names)}
 
 
+
+def load_mobs_distinct() -> dict[str, dict[str, Image.Image | None]]:
+    """Prefer high-contrast distinct slime/boar/bone sheet (3 horizontal bands)."""
+    path = SHOTS / "mir-mobs-distinct.jpg"
+    if not path.exists():
+        return {}
+    bands = equal_bands(Image.open(path), 3)
+    names = ["slime", "boar", "bone"]
+    out = {}
+    for name, band in zip(names, bands):
+        out[name] = {"idle": band, "walk": band, "attack": band, "cast": band, "hit": band}
+    return out
+
+
+def load_village_decor() -> dict[str, Image.Image | None]:
+    """4x3 village tile/prop sheet -> named cutouts."""
+    path = SHOTS / "mir-village-decor.jpg"
+    if not path.exists():
+        return {}
+    im = to_rgba_knock_black(Image.open(path), 28)
+    W, H = im.size
+    cols, rows = 4, 3
+    cw, ch = W // cols, H // rows
+    names = [
+        "grass", "grass_b", "dirt", "path",
+        "stone", "flowers", "water", "fence",
+        "lamp", "bush", "campfire", "rocks",
+    ]
+    out = {}
+    for i, name in enumerate(names):
+        c, r = i % cols, i // cols
+        out[name] = im.crop((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch))
+    return out
+
 def load_mob_poses() -> dict[str, dict[str, Image.Image | None]]:
     path = SHOTS / "mir-mob-poses.jpg"
     if not path.exists():

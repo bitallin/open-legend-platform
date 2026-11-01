@@ -197,10 +197,34 @@ public sealed class WorldCanvas : Control
             return "portal";
         if (world.Map.IsSafe(x, y))
             return ((x + y) % 5) == 0 ? "stone" : "safe";
-        int n = (x * 13 + y * 7) & 15;
-        if (n == 0) return "path";
-        if (n == 1) return "dirt";
-        return ((x + y) & 1) == 0 ? "grass" : "grass_b";
+        // Dense village ground: paths form soft corridors; flowers/ponds/dirt break grass bands.
+        int n = (x * 13 + y * 7) & 31;
+        int m = (x * 3 + y * 11) & 15;
+        // Soft winding path
+        if (((x + y * 2) % 9) == 0 || ((x * 2 + y) % 11) == 0)
+            return "path";
+        if (n == 2 || n == 17) return "dirt";
+        if (n == 5 || n == 21) return "stone";
+        if (n == 8) return "water";
+        if (n == 11 || n == 27) return "flowers";
+        if (m <= 4) return "grass";
+        if (m <= 9) return "grass_b";
+        return "grass_c";
+    }
+
+    private static string? DecorName(WorldState world, int x, int y)
+    {
+        if (world.Map.IsBlocked(x, y) || world.Map.IsPortal(x, y))
+            return null;
+        string ground = TileName(world, x, y);
+        if (ground is "water" or "path" or "stone")
+            return null;
+        int h = (x * 17 + y * 29) & 63;
+        if (h == 3) return "lamp";
+        if (h == 7 || h == 35) return "bush";
+        if (h == 12) return "fence";
+        if (h == 18 || h == 50) return "rocks";
+        return null;
     }
 
 
@@ -235,12 +259,21 @@ public sealed class WorldCanvas : Control
         for (int x = minX; x <= maxX; x++)
         {
             string name = TileName(world, x, y);
-            if (name is not ("tree" or "wall"))
-                continue;
-            int px = x, py = y;
-            string prop = name;
-            double depth = px + py + 0.15;
-            items.Add((depth, tie++, () => DrawTallProp(context, prop, px, py, camX, camY, w, h)));
+            if (name is "tree" or "wall")
+            {
+                int px = x, py = y;
+                string prop = name;
+                double depth = px + py + 0.15;
+                items.Add((depth, tie++, () => DrawTallProp(context, prop, px, py, camX, camY, w, h)));
+            }
+            string? decor = DecorName(world, x, y);
+            if (decor != null)
+            {
+                int px = x, py = y;
+                string prop = decor;
+                double depth = px + py + 0.12;
+                items.Add((depth, tie++, () => DrawTallProp(context, prop, px, py, camX, camY, w, h)));
+            }
         }
         foreach (var item in items.OrderByDescending(i => i.depth).ThenBy(i => i.tie))
             item.draw();
@@ -272,9 +305,16 @@ public sealed class WorldCanvas : Control
         if (Sheet == null || !Sheet.TryTile(name, out var obj))
             return;
         var (sx, sy) = IsoProjection.ToScreen(x, y, camX, camY, w, h);
-        double dw = name == "tree" ? 60 : 56;
-        double dh = name == "tree" ? 72 : 64;
-        context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - dw / 2, sy - dh + 6, dw, dh));
+        (double dw, double dh, double foot) = name switch
+        {
+            "tree" => (60, 72, 6.0),
+            "lamp" => (40, 64, 4.0),
+            "fence" => (52, 48, 8.0),
+            "bush" => (48, 44, 8.0),
+            "rocks" => (50, 40, 10.0),
+            _ => (56, 64, 6.0)
+        };
+        context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - dw / 2, sy - dh + foot, dw, dh));
     }
 
     private void DrawMarker(DrawingContext context, int gx, int gy, double camX, double camY, double w, double h)
@@ -291,7 +331,9 @@ public sealed class WorldCanvas : Control
 
     private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h, double opacity = 1.0)
     {
-        var (sx, sy) = IsoProjection.ToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h);
+        double drawX = actor.DrawX + actor.HitNudgeX;
+        double drawY = actor.DrawY + actor.HitNudgeY;
+        var (sx, sy) = IsoProjection.ToScreen(drawX, drawY, camX, camY, w, h);
         if (actor.Kind == EntityKind.EntityLoot)
         {
             DrawLoot(context, sx, sy, actor.TemplateId);
@@ -313,7 +355,10 @@ public sealed class WorldCanvas : Control
         context.DrawEllipse(Brush("#66000000"), null, new Point(sx, sy + 2), dw * 0.28, 7);
         // Prefer animated MirSheet (idle/walk/attack/hit). Pack "portrait" sprites are icons only —
         // drawing them as world entities made square cards stand on the ground with no combat poses.
-        using (context.PushOpacity(Math.Clamp(opacity, 0.25, 1.0)))
+        double fade = opacity * (actor.Hp <= 0 ? Math.Clamp(actor.DeathFade, 0, 1) : 1.0);
+        if (fade <= 0.02)
+            return;
+        using (context.PushOpacity(Math.Clamp(fade, 0.08, 1.0)))
         {
         bool drew = DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
         if (!drew && actor.Kind == EntityKind.EntityMonster)
@@ -375,8 +420,11 @@ public sealed class WorldCanvas : Control
         if (string.IsNullOrEmpty(armor))
             armor = "arm_cloth"; // always show at least a clothes layer for visible paperdoll
         DrawSprite(context, armor, action, direction, phase, poseLock, sx, sy, dw, dh);
-        if (!FashionOn && !string.IsNullOrEmpty(HelmetLayer))
-            DrawSprite(context, HelmetLayer, action, direction, phase, poseLock, sx, sy, dw, dh);
+        if (!FashionOn)
+        {
+            string helm = string.IsNullOrEmpty(HelmetLayer) ? "helm_cloth" : HelmetLayer;
+            DrawSprite(context, helm, action, direction, phase, poseLock, sx, sy, dw, dh);
+        }
         string weapon = string.IsNullOrEmpty(WeaponLayer) ? "wep_sword" : WeaponLayer;
         DrawSprite(context, weapon, action, direction, phase, poseLock, sx, sy, dw, dh);
     }
@@ -428,7 +476,7 @@ public sealed class WorldCanvas : Control
     {
         int frames = Math.Max(1, Sheet?.FxFrames ?? 4);
         int frame = Math.Clamp((int)(fx.Age * 12), 0, frames - 1);
-        double size = string.Equals(fx.Kind, "slash", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(fx.Kind) ? 72 : 64;
+        double size = string.Equals(fx.Kind, "slash", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(fx.Kind) ? 88 : 78;
         DrawFxAt(context, string.IsNullOrEmpty(fx.Kind) ? "slash" : fx.Kind, frame, fx.GridX, fx.GridY, camX, camY, w, h, size);
     }
 
@@ -450,14 +498,23 @@ public sealed class WorldCanvas : Control
         {
             FloatKind.Miss => "#C8C8C8",
             FloatKind.Heal => "#7EE0E0",
-            FloatKind.Kill => "#E070E8",
+            FloatKind.Kill => "#FF6AD5",
             _ => "#FFE36A"
         };
-        var text = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 18,
+        double size = floater.Kind == FloatKind.Kill ? 26 : floater.Kind == FloatKind.Miss ? 16 : 22;
+        double drift = floater.Age * 18;
+        double rise = 48 + floater.Age * 42;
+        // slight pop then ease
+        double pop = floater.Age < 0.12 ? 1.0 + (0.12 - floater.Age) * 2.5 : 1.0;
+        size *= pop;
+        var text = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, size,
             Brush(hex));
-        var shadow = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 18, Brush("#1A100C"));
-        context.DrawText(shadow, new Point(sx - text.Width / 2 + 1, sy - 40 - floater.Age * 36 + 1));
-        context.DrawText(text, new Point(sx - text.Width / 2, sy - 40 - floater.Age * 36));
+        var shadow = new FormattedText(floater.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, size, Brush("#1A100C"));
+        double tx = sx - text.Width / 2 + drift * 0.35;
+        double ty = sy - rise;
+        context.DrawText(shadow, new Point(tx + 2, ty + 2));
+        context.DrawText(shadow, new Point(tx + 1, ty + 1));
+        context.DrawText(text, new Point(tx, ty));
     }
 
     private static void DrawMinimap(DrawingContext context, WorldState world, double w, double h)

@@ -71,7 +71,13 @@ public sealed class ActorView
     public string FashionId { get; set; } = "";
     public string Title { get; set; } = "";
     public int MoveIntervalMs { get; set; }
+    /// <summary>Transient screen-space hit knock (grid units), decays each tick.</summary>
+    public double HitNudgeX { get; set; }
+    public double HitNudgeY { get; set; }
+    /// <summary>0..1 death dissolve; 0 = fully gone.</summary>
+    public double DeathFade { get; set; } = 1;
 }
+
 
 public sealed class WorldState
 {
@@ -294,13 +300,34 @@ public sealed class WorldState
             kind = FloatKind.Damage;
             text = "-" + cs.Damage;
             if (actor.PoseLock < 0.2)
-                actor.PlayPose("hit", 0.22);
+                actor.PlayPose("hit", 0.28);
+            // Knock slightly away from self (or east if no self).
+            double kx = 0.22, ky = 0.08;
+            if (Self != null)
+            {
+                double ddx = actor.DrawX - Self.DrawX;
+                double ddy = actor.DrawY - Self.DrawY;
+                double len = Math.Sqrt(ddx * ddx + ddy * ddy);
+                if (len > 0.01)
+                {
+                    kx = ddx / len * 0.28;
+                    ky = ddy / len * 0.28;
+                }
+            }
+            actor.HitNudgeX += kx;
+            actor.HitNudgeY += ky;
+        }
+
+        if (kind == FloatKind.Kill)
+        {
+            actor.HitNudgeX += 0.12;
+            actor.DeathFade = 1;
         }
 
         Floats.Add(new FloatText
         {
-            GridX = actor.DrawX,
-            GridY = actor.DrawY,
+            GridX = actor.DrawX + actor.HitNudgeX,
+            GridY = actor.DrawY + actor.HitNudgeY,
             Text = text,
             Kind = kind
         });
@@ -401,31 +428,39 @@ public sealed class WorldState
             if (actor.Hp <= 0)
             {
                 if (actor.Pose != "death")
-                    actor.PlayPose("death", 1.2);
+                    actor.PlayPose("death", 1.35);
+                actor.DeathFade = Math.Max(0, actor.DeathFade - dt * 0.55);
             }
-            else if (actor.PoseLock > 0)
+            else
             {
-                actor.PoseLock -= dt;
-            }
-            else if (step < 0.04 && actor.Pose is "walk" or "run")
-            {
-                actor.Pose = "idle";
-                actor.AnimPhase = 0;
+                actor.DeathFade = 1;
+                if (actor.PoseLock > 0)
+                    actor.PoseLock -= dt;
+                else if (step < 0.04 && actor.Pose is "walk" or "run")
+                {
+                    actor.Pose = "idle";
+                    actor.AnimPhase = 0;
+                }
             }
             actor.DrawX += dx * k;
             actor.DrawY += dy * k;
+            // Decay hit knockback toward 0.
+            actor.HitNudgeX *= Math.Max(0, 1 - dt * 8);
+            actor.HitNudgeY *= Math.Max(0, 1 - dt * 8);
+            if (Math.Abs(actor.HitNudgeX) < 0.01) actor.HitNudgeX = 0;
+            if (Math.Abs(actor.HitNudgeY) < 0.01) actor.HitNudgeY = 0;
         }
 
         for (int i = Floats.Count - 1; i >= 0; i--)
         {
             Floats[i].Age += dt;
-            if (Floats[i].Age > 0.9)
+            if (Floats[i].Age > 1.25)
                 Floats.RemoveAt(i);
         }
         for (int i = Effects.Count - 1; i >= 0; i--)
         {
             Effects[i].Age += dt;
-            if (Effects[i].Age > 0.62)
+            if (Effects[i].Age > 0.85)
                 Effects.RemoveAt(i);
         }
         for (int i = Grounds.Count - 1; i >= 0; i--)

@@ -26,7 +26,7 @@ ACTORS = [
     "helm_cloth", "helm_iron",
     "wep_blade", "wep_sword", "wep_iron", "wep_staff",
 ]
-TILES = ["grass", "grass_b", "dirt", "path", "stone", "safe", "water", "wall", "tree", "portal"]
+TILES = ["grass", "grass_b", "grass_c", "dirt", "path", "stone", "safe", "water", "flowers", "fence", "lamp", "bush", "rocks", "wall", "tree", "portal"]
 FX = ["slash", "fire", "lightning", "heal", "level", "portal", "buff"]
 FX_FRAMES = 6
 TILE = 48
@@ -354,9 +354,10 @@ def draw_slime(img, ox, oy, action, frame) -> None:
         return
     squash = 2 if action in ("walk", "run", "hit") and frame % 2 == 0 else 0
     stretch = 2 if action == "attack" else 0
-    body = (64, 168, 62, 255)
-    light = (140, 220, 120, 255)
-    w, h = 22 + stretch, 18 - squash
+    body = (48, 190, 58, 255)
+    light = (170, 255, 140, 255)
+    # bigger gooey silhouette vs other mobs
+    w, h = 26 + stretch, 20 - squash
     x, y = 13 - stretch // 2, 34 + squash
     c.ellipse(x, y, w, h, body, OUT)
     c.ellipse(x + 4, y + 2, 10, 6, light)
@@ -378,14 +379,15 @@ def draw_boar(img, ox, oy, facing, action, frame) -> None:
         c.ellipse(8, 46, 32, 12, (120, 64, 40, 255), OUT)
         return
     bob = [0, 1, 0, 1][frame % 4]
-    body = (138, 78, 46, 255)
-    dark = (90, 50, 28, 255)
-    light = (168, 110, 74, 255)
-    y = 30 + bob
-    c.ellipse(10, y + 4, 26, 16, body, OUT)
-    c.ellipse(12, y + 6, 14, 8, light)
-    # head
-    c.ellipse(30, y + 2, 12, 12, light, OUT)
+    body = (110, 58, 28, 255)
+    dark = (60, 30, 14, 255)
+    light = (160, 96, 52, 255)
+    y = 28 + bob
+    # bulkier side-profile boar
+    c.ellipse(6, y + 4, 30, 18, body, OUT)
+    c.ellipse(8, y + 6, 16, 10, light)
+    # head + tusks
+    c.ellipse(30, y, 14, 14, light, OUT)
     c.pix(36, y + 6, OUT)
     c.pix(38, y + 8, WHITE)  # tusk
     c.pix(38, y + 10, WHITE)
@@ -407,11 +409,13 @@ def draw_bone(img, ox, oy, action, frame) -> None:
         c.pix(20, 50, (200, 40, 40, 255))
         return
     bob = frame % 2
-    bone = (230, 226, 210, 255)
-    y = 12 + bob
-    c.ellipse(18, y, 12, 12, bone, OUT)
-    c.pix(21, y + 4, (180, 30, 30, 255))
-    c.pix(26, y + 4, (180, 30, 30, 255))
+    bone = (236, 232, 214, 255)
+    rust = (160, 70, 40, 255)
+    y = 10 + bob
+    c.ellipse(17, y, 14, 14, bone, OUT)
+    c.ellipse(20, y + 3, 3, 4, (40, 10, 10, 255))
+    c.ellipse(27, y + 3, 3, 4, (40, 10, 10, 255))
+    c.rect(16, y + 8, 6, 4, rust, OUT)  # pauldron
     c.rect(21, y + 12, 6, 14, bone, OUT)
     c.rect(14, y + 14, 6, 12, bone, OUT)
     c.rect(28, y + 14, 6, 12, bone, OUT)
@@ -619,6 +623,61 @@ def paint_portal_tile() -> Image.Image:
     return im
 
 
+
+def paint_flowers_tile() -> Image.Image:
+    im = noise_tile((52, 108, 44), 120, 91)
+    d = ImageDraw.Draw(im, "RGBA")
+    for x, y, col in [(8, 10, (220, 80, 120, 255)), (18, 16, (240, 220, 80, 255)), (28, 8, (180, 100, 220, 255)),
+                      (12, 24, (240, 140, 60, 255)), (22, 28, (220, 80, 120, 255)), (34, 22, (240, 220, 80, 255)),
+                      (6, 34, (180, 100, 220, 255)), (30, 34, (240, 140, 60, 255))]:
+        d.ellipse([x, y, x + 4, y + 4], fill=col)
+        d.point((x + 1, y + 1), fill=(255, 255, 255, 180))
+    return im
+
+
+def paint_fence_tile() -> Image.Image:
+    im = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im, "RGBA")
+    wood, dark = (140, 96, 52, 255), (90, 58, 28, 255)
+    for x in (10, 34):
+        d.rectangle([x, 10, x + 4, 40], fill=wood, outline=OUT)
+    d.rectangle([8, 14, 40, 18], fill=wood, outline=OUT)
+    d.rectangle([8, 26, 40, 30], fill=dark, outline=OUT)
+    d.ellipse([14, 40, 34, 46], fill=SHADOW)
+    return im
+
+
+def paint_lamp_tile() -> Image.Image:
+    im = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im, "RGBA")
+    stone, glow = (110, 110, 120, 255), (255, 220, 120, 220)
+    d.rectangle([20, 28, 28, 42], fill=stone, outline=OUT)
+    d.rectangle([16, 16, 32, 28], fill=stone, outline=OUT)
+    d.ellipse([18, 10, 30, 20], fill=glow, outline=(255, 240, 180, 255))
+    d.ellipse([14, 40, 34, 46], fill=SHADOW)
+    return im
+
+
+def paint_bush_tile() -> Image.Image:
+    im = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im, "RGBA")
+    d.ellipse([8, 18, 40, 42], fill=(36, 100, 40, 255), outline=OUT)
+    d.ellipse([12, 14, 28, 30], fill=(60, 140, 55, 255))
+    for x, y in [(14, 22), (22, 18), (28, 26), (18, 30)]:
+        d.ellipse([x, y, x + 4, y + 4], fill=(180, 40, 50, 255))
+    d.ellipse([14, 40, 34, 46], fill=SHADOW)
+    return im
+
+
+def paint_rocks_tile() -> Image.Image:
+    im = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im, "RGBA")
+    d.polygon([(10, 36), (18, 20), (30, 22), (36, 36)], fill=(120, 118, 110, 255), outline=OUT)
+    d.polygon([(20, 38), (28, 26), (40, 30), (38, 40)], fill=(90, 100, 88, 255), outline=OUT)
+    d.ellipse([12, 40, 36, 46], fill=SHADOW)
+    return im
+
+
 def build_tiles(img: Image.Image, tile_y: int) -> None:
     strips = load_tile_strips()
     mapping = {
@@ -634,22 +693,36 @@ def build_tiles(img: Image.Image, tile_y: int) -> None:
     fallbacks = {
         "grass": (58, 110, 48),
         "grass_b": (48, 96, 42),
+        "grass_c": (66, 122, 52),
         "dirt": (112, 84, 52),
         "path": (150, 132, 96),
         "stone": (120, 114, 104),
         "safe": (168, 150, 110),
         "water": (48, 110, 150),
+        "flowers": (52, 108, 44),
         "wall": (92, 84, 74),
+    }
+    painters = {
+        "tree": paint_tree_tile,
+        "portal": paint_portal_tile,
+        "flowers": paint_flowers_tile,
+        "fence": paint_fence_tile,
+        "lamp": paint_lamp_tile,
+        "bush": paint_bush_tile,
+        "rocks": paint_rocks_tile,
     }
     for i, name in enumerate(TILES):
         ox = i * TILE
-        if name == "tree":
-            tile = paint_tree_tile()
-        elif name == "portal":
-            tile = paint_portal_tile()
+        if name in painters:
+            tile = painters[name]()
+        elif name == "grass_c":
+            tile = noise_tile(fallbacks["grass_c"], 200, 77)
+            # taller tufts
+            d = ImageDraw.Draw(tile, "RGBA")
+            for x in range(6, 42, 5):
+                d.line([(x, 30), (x - 1, 18)], fill=(40, 90, 36, 255), width=2)
         elif strips and name in mapping:
             tile = strips[mapping[name]].copy()
-            # slight sharpen for pixel feel
             tile = ImageEnhance.Sharpness(tile).enhance(1.4)
             tile = tile.filter(ImageFilter.SMOOTH_MORE)
         else:
