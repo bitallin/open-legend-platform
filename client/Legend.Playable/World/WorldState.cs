@@ -69,6 +69,10 @@ public sealed class ActorView
     }
     public string MountId { get; set; } = "";
     public string FashionId { get; set; } = "";
+    /// <summary>Paperdoll layer ids (arm_/wep_/helm_). Self from equipment; others class defaults.</summary>
+    public string WeaponLayer { get; set; } = "";
+    public string ArmorLayer { get; set; } = "";
+    public string HelmetLayer { get; set; } = "";
     public string Title { get; set; } = "";
     public int MoveIntervalMs { get; set; }
     /// <summary>Transient screen-space hit knock (grid units), decays each tick.</summary>
@@ -159,7 +163,28 @@ public sealed class WorldState
             actor.Title = e.Title;
         if (e.MoveIntervalMs > 0)
             actor.MoveIntervalMs = e.MoveIntervalMs;
+        if (e.Kind == EntityKind.EntityPlayer && !isSelf)
+            ApplyRemotePlayerLook(actor);
         return actor;
+    }
+
+
+    /// <summary>
+    /// EntitySnapshot has fashion_id + class_id but no equip appearance slots.
+    /// Remote players get readable class defaults + fashion robe when equipped.
+    /// </summary>
+    public static void ApplyRemotePlayerLook(ActorView actor)
+    {
+        string cls = (actor.ClassId ?? "").ToLowerInvariant();
+        if (string.IsNullOrEmpty(actor.WeaponLayer))
+        {
+            actor.WeaponLayer = cls.Contains("mage") ? "wep_staff"
+                : cls.Contains("tao") ? "wep_blade" : "wep_sword";
+        }
+        if (string.IsNullOrEmpty(actor.ArmorLayer))
+            actor.ArmorLayer = "arm_cloth";
+        if (string.IsNullOrEmpty(actor.HelmetLayer))
+            actor.HelmetLayer = "helm_cloth";
     }
 
     public void SetNameColor(string entityId, string color)

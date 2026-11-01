@@ -194,15 +194,28 @@ def load_class_row() -> dict[str, Image.Image | None]:
 
 
 def load_mobs_distinct() -> dict[str, dict[str, Image.Image | None]]:
-    """Prefer high-contrast distinct slime/boar/bone sheet (3 horizontal bands)."""
+    """Prefer high-contrast distinct slime/boar/bone sheet (3 horizontal bands).
+    Merge pose sheet attack/idle when available so walk vs attack bases differ.
+    """
     path = SHOTS / "mir-mobs-distinct.jpg"
     if not path.exists():
         return {}
     bands = equal_bands(Image.open(path), 3)
     names = ["slime", "boar", "bone"]
+    poses = load_mob_poses()
     out = {}
     for name, band in zip(names, bands):
-        out[name] = {"idle": band, "walk": band, "attack": band, "cast": band, "hit": band}
+        pose = poses.get(name, {})
+        idle = pose.get("idle") or band
+        attack = pose.get("attack") or band
+        # walk uses distinct idle silhouette; attack uses attack pose when present
+        out[name] = {
+            "idle": idle,
+            "walk": idle,
+            "attack": attack,
+            "cast": attack,
+            "hit": idle,
+        }
     return out
 
 
@@ -252,6 +265,46 @@ def load_props() -> dict[str, Image.Image | None]:
     for n, s in zip(["campfire", "rocks", "bush"], bot):
         out[n] = s
     return out
+
+
+
+def animate_mob(base: Image.Image | None, action: str, frame: int, fw: int, fh: int, kind: str = "slime") -> Image.Image:
+    """Stronger walk/attack motion for main mobs so cycles read at a glance."""
+    fitted = fit_frame(base, fw, fh)
+    if base is None:
+        return fitted
+    if action in ("walk", "run"):
+        bob = (0, -2, -3, -1, 0, -2, -3, -1, 0, -2)[frame % 10]
+        sway = (0, 2, 0, -2, 0, 2, 0, -2, 0, 1)[frame % 10]
+        if kind == "boar":
+            bob = (0, 1, 2, 1, 0, 1, 2, 1, 0, 1)[frame % 10]
+            sway = (0, 1, 2, 1, 0, -1, -2, -1, 0, 1)[frame % 10]
+        if kind == "bone":
+            bob = (0, 1, 0, 1, 0, 1, 0, 1, 0, 1)[frame % 10]
+            sway = (0, 1, 2, 1, 0, -1, -2, -1, 0, 1)[frame % 10]
+        if action == "run":
+            bob = int(bob * 1.5)
+            sway = int(sway * 1.5)
+        # squash-stretch via vertical resize for slime hop
+        if kind == "slime" and frame % 2 == 0:
+            w, h = fitted.size
+            squashed = fitted.resize((w, max(8, h - 3)), Image.Resampling.NEAREST)
+            canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            canvas.paste(squashed, (0, 3), squashed)
+            fitted = canvas
+        return shift_frame(bob_frame(fitted, bob), sway)
+    if action == "attack":
+        dx = (0, -1, -2, 2, 4, 5, 3, 1, 0, 0)[frame % 10]
+        dy = (0, 1, 2, 0, -1, -2, -1, 0, 0, 0)[frame % 10]
+        if kind == "slime" and frame >= 4:
+            # lunge blob: widen
+            w, h = fitted.size
+            wide = fitted.resize((min(fw, w + 4), h), Image.Resampling.NEAREST)
+            canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            canvas.paste(wide, (-2, 0), wide)
+            fitted = canvas
+        return shift_frame(bob_frame(fitted, dy), dx)
+    return animate_base(base, action, frame, fw, fh)
 
 
 def animate_base(base: Image.Image | None, action: str, frame: int, fw: int, fh: int) -> Image.Image:

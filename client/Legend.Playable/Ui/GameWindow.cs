@@ -806,6 +806,13 @@ public sealed partial class GameWindow : Window
         _canvas.ArmorLayer = armor;
         _canvas.HelmetLayer = helmet;
         _canvas.FashionOn = !string.IsNullOrEmpty(_session.World.Self?.FashionId);
+        if (_session.World.Self is { } self)
+        {
+            self.WeaponLayer = weapon;
+            self.ArmorLayer = armor;
+            self.HelmetLayer = helmet;
+            // FashionId already synced from net snapshots
+        }
     }
 
     private void MaybePollBoss()

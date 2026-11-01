@@ -127,3 +127,8 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 - 密地表 + 村外装饰物；distinct slime/boar/bone；受击击退/大飘字/死亡消散；默认头盔层。
 - 见 `docs/client/PLAYABLE_VISUAL_PLAN.md`。
+
+## Playable visual P3 (2026-11-01)
+
+- 新手村 `clientGround`/`clientDecor` 手摆；主怪 walk/attack 补帧；远程玩家职业默认纸娃娃 + fashion。
+- 见 `docs/client/PLAYABLE_VISUAL_PLAN.md`。
