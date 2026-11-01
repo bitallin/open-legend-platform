@@ -122,3 +122,8 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 纸娃娃默认衣服/武器层；gear AI 层 enrich。
 - `DrawSortedWorld` 树/墙高度遮挡 + 身后半透明。
 - 见 `docs/client/PLAYABLE_VISUAL_PLAN.md`。
+
+## Playable visual P2 (2026-11-01)
+
+- 密地表 + 村外装饰物；distinct slime/boar/bone；受击击退/大飘字/死亡消散；默认头盔层。
+- 见 `docs/client/PLAYABLE_VISUAL_PLAN.md`。

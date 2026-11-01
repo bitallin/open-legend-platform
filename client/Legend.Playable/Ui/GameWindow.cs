@@ -800,6 +800,8 @@ public sealed partial class GameWindow : Window
         }
         if (armor.Length == 0)
             armor = "arm_cloth";
+        if (helmet.Length == 0)
+            helmet = "helm_cloth";
         _canvas.WeaponLayer = weapon;
         _canvas.ArmorLayer = armor;
         _canvas.HelmetLayer = helmet;

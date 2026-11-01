@@ -58,11 +58,17 @@
   "tiles": [
     "grass",
     "grass_b",
+    "grass_c",
     "dirt",
     "path",
     "stone",
     "safe",
     "water",
+    "flowers",
+    "fence",
+    "lamp",
+    "bush",
+    "rocks",
     "wall",
     "tree",
     "portal"
@@ -79,5 +85,5 @@
   ],
   "fxFrames": 6,
   "fxSize": 48,
-  "note": "Original sheet + AI cutouts; 8 stored dirs via orient_frame; gear paperdoll layers. Not official Mir art."
+  "note": "P2: dense village tiles/decor, distinct slime/boar/bone, 8-dir+gear. Not official Mir art."
 }

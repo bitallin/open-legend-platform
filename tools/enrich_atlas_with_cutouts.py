@@ -14,8 +14,10 @@ from mir_cutouts import (  # noqa: E402
     load_war_poses,
     load_class_row,
     load_mob_poses,
+    load_mobs_distinct,
     load_props,
     load_gear_layers,
+    load_village_decor,
     animate_base,
     flip_h,
     orient_frame,
@@ -69,6 +71,12 @@ def build_map() -> dict:
     }
     for name, poses in mobs.items():
         m[name] = poses
+    for name, poses in load_mobs_distinct().items():
+        # Distinct sheet wins for slime/boar/bone recognition.
+        base = m.get(name, {})
+        merged = dict(base)
+        merged.update({k: v for k, v in poses.items() if v is not None})
+        m[name] = merged
     # extra mob sheet 2x3
     extra_path = SHOTS / "mir-mob-extra.jpg"
     if extra_path.exists():
@@ -201,9 +209,23 @@ def main() -> None:
                     img.paste(framed, (ox, oy), framed)
                     stamped += 1
 
+
+    # Village decor tiles (flowers/fence/lamp/bush/rocks/water/path variants).
+    decor = load_village_decor()
+    tile_names = meta.get("tiles", [])
+    ts = meta["tileSize"]
+    ty = meta["tileY"]
+    for tname, src in decor.items():
+        if tname not in tile_names or src is None:
+            continue
+        ti = tile_names.index(tname)
+        tile = fit_frame(src, ts, ts, foot_pad=2)
+        clear_rect(img, ti * ts, ty, ts, ts)
+        img.paste(tile, (ti * ts, ty), tile)
+
     stamp_fx(img, meta)
     img.save(png, optimize=True)
-    meta["note"] = "Original sheet + AI cutouts; 8 stored dirs via orient_frame; gear paperdoll layers. Not official Mir art."
+    meta["note"] = "P2: dense village tiles/decor, distinct slime/boar/bone, 8-dir+gear. Not official Mir art."
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"enriched {png} stamped_frames={stamped} size={img.size} bytes={png.stat().st_size}")
 
