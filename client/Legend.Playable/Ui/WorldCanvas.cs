@@ -195,18 +195,20 @@ public sealed class WorldCanvas : Control
             return ((x * 3 + y) & 1) == 0 ? "wall" : "tree";
         if (world.Map.IsPortal(x, y))
             return "portal";
+        if (world.Map.GroundOverrides.TryGetValue((x, y), out var authored) && !string.IsNullOrEmpty(authored))
+            return authored;
         if (world.Map.IsSafe(x, y))
             return ((x + y) % 5) == 0 ? "stone" : "safe";
-        // Dense village ground: paths form soft corridors; flowers/ponds/dirt break grass bands.
+        // Filler grass variety outside authored cells (no fake path noise when map has hand paths).
         int n = (x * 13 + y * 7) & 31;
         int m = (x * 3 + y * 11) & 15;
-        // Soft winding path
-        if (((x + y * 2) % 9) == 0 || ((x * 2 + y) % 11) == 0)
+        bool hasPaths = world.Map.GroundOverrides.Count > 0;
+        if (!hasPaths && (((x + y * 2) % 9) == 0 || ((x * 2 + y) % 11) == 0))
             return "path";
         if (n == 2 || n == 17) return "dirt";
-        if (n == 5 || n == 21) return "stone";
-        if (n == 8) return "water";
-        if (n == 11 || n == 27) return "flowers";
+        if (!hasPaths && (n == 5 || n == 21)) return "stone";
+        if (!hasPaths && n == 8) return "water";
+        if (!hasPaths && (n == 11 || n == 27)) return "flowers";
         if (m <= 4) return "grass";
         if (m <= 9) return "grass_b";
         return "grass_c";
@@ -215,6 +217,11 @@ public sealed class WorldCanvas : Control
     private static string? DecorName(WorldState world, int x, int y)
     {
         if (world.Map.IsBlocked(x, y) || world.Map.IsPortal(x, y))
+            return null;
+        if (world.Map.DecorOverrides.TryGetValue((x, y), out var authored) && !string.IsNullOrEmpty(authored))
+            return authored;
+        // Maps with hand-placed decor skip hash scatter so roads/settlements stay readable.
+        if (world.Map.HasAuthoredDecor)
             return null;
         string ground = TileName(world, x, y);
         if (ground is "water" or "path" or "stone")
@@ -372,9 +379,9 @@ public sealed class WorldCanvas : Control
         }
         if (!drew)
             context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
-        // Paperdoll: self always; other players show weapon/armor when layers known (self-driven SyncGear today).
-        if (actor.IsSelf && actor.Kind == EntityKind.EntityPlayer)
-            DrawGear(context, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
+        // Paperdoll: every player — self from equipment; others from class/fashion on snapshot.
+        if (actor.Kind == EntityKind.EntityPlayer)
+            DrawGear(context, actor, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
         } // opacity
         if (string.Equals(action, "hit", StringComparison.OrdinalIgnoreCase))
             context.FillRectangle(Brush("#55FFFFFF"), new Rect(sx - dw / 2, sy - dh + 14 - lift, dw, dh));
@@ -414,19 +421,28 @@ public sealed class WorldCanvas : Control
         return true;
     }
 
-    private void DrawGear(DrawingContext context, string action, int direction, double phase, double poseLock, double sx, double sy, double dw, double dh)
+    private void DrawGear(DrawingContext context, ActorView actor, string action, int direction, double phase, double poseLock, double sx, double sy, double dw, double dh)
     {
-        string armor = FashionOn ? "arm_fashion" : ArmorLayer;
+        bool fashion = !string.IsNullOrEmpty(actor.FashionId);
+        string armor = fashion ? "arm_fashion" : actor.ArmorLayer;
         if (string.IsNullOrEmpty(armor))
-            armor = "arm_cloth"; // always show at least a clothes layer for visible paperdoll
+            armor = "arm_cloth";
         DrawSprite(context, armor, action, direction, phase, poseLock, sx, sy, dw, dh);
-        if (!FashionOn)
+        if (!fashion)
         {
-            string helm = string.IsNullOrEmpty(HelmetLayer) ? "helm_cloth" : HelmetLayer;
+            string helm = string.IsNullOrEmpty(actor.HelmetLayer) ? "helm_cloth" : actor.HelmetLayer;
             DrawSprite(context, helm, action, direction, phase, poseLock, sx, sy, dw, dh);
         }
-        string weapon = string.IsNullOrEmpty(WeaponLayer) ? "wep_sword" : WeaponLayer;
+        string weapon = string.IsNullOrEmpty(actor.WeaponLayer) ? DefaultWeaponForClass(actor.ClassId) : actor.WeaponLayer;
         DrawSprite(context, weapon, action, direction, phase, poseLock, sx, sy, dw, dh);
+    }
+
+    private static string DefaultWeaponForClass(string? classId)
+    {
+        string cls = (classId ?? "").ToLowerInvariant();
+        if (cls.Contains("mage")) return "wep_staff";
+        if (cls.Contains("tao")) return "wep_blade";
+        return "wep_sword";
     }
 
     private void DrawLoot(DrawingContext context, double sx, double sy, string? templateId = null)

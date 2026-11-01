@@ -11,6 +11,11 @@ public sealed class MapLayout
     public HashSet<(int X, int Y)> Blocked { get; init; } = new();
     public List<(int X1, int Y1, int X2, int Y2, string Name)> SafeZones { get; init; } = new();
     public List<(int X, int Y, string Id)> Portals { get; init; } = new();
+    /// <summary>Hand-authored ground tile overrides (path/plaza/pond). Empty = procedural only.</summary>
+    public Dictionary<(int X, int Y), string> GroundOverrides { get; init; } = new();
+    /// <summary>Hand-authored decor props (lamp/fence/bush/rocks). Empty = hash scatter fallback.</summary>
+    public Dictionary<(int X, int Y), string> DecorOverrides { get; init; } = new();
+    public bool HasAuthoredDecor => DecorOverrides.Count > 0;
 
     public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;
 
@@ -101,6 +106,26 @@ public static class MapCatalog
                 portals.Add((p.GetProperty("x").GetInt32(), p.GetProperty("y").GetInt32(), pid));
             }
         }
+        var ground = new Dictionary<(int, int), string>();
+        if (root.TryGetProperty("clientGround", out var groundEl))
+        {
+            foreach (var g in groundEl.EnumerateArray())
+            {
+                string kind = g.TryGetProperty("kind", out var kEl) ? kEl.GetString() ?? "" : "";
+                if (kind.Length == 0) continue;
+                ground[(g.GetProperty("x").GetInt32(), g.GetProperty("y").GetInt32())] = kind;
+            }
+        }
+        var decor = new Dictionary<(int, int), string>();
+        if (root.TryGetProperty("clientDecor", out var decorEl))
+        {
+            foreach (var d in decorEl.EnumerateArray())
+            {
+                string kind = d.TryGetProperty("kind", out var kEl) ? kEl.GetString() ?? "" : "";
+                if (kind.Length == 0) continue;
+                decor[(d.GetProperty("x").GetInt32(), d.GetProperty("y").GetInt32())] = kind;
+            }
+        }
         return new MapLayout
         {
             MapId = id,
@@ -109,7 +134,9 @@ public static class MapCatalog
             Height = Math.Max(1, height),
             Blocked = blocked,
             SafeZones = safes,
-            Portals = portals
+            Portals = portals,
+            GroundOverrides = ground,
+            DecorOverrides = decor
         };
     }
 }

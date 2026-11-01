@@ -350,80 +350,87 @@ def draw_slime(img, ox, oy, action, frame) -> None:
     c = Canvas(img, ox, oy)
     c.ellipse(14, 54, 20, 7, SHADOW)
     if action == "death":
-        c.ellipse(10, 48, 28, 10, (40, 120, 48, 200), OUT)
+        fall = min(3, frame)
+        c.ellipse(10, 48 + fall, 28, 10 - fall // 2, (40, 120, 48, 200), OUT)
         return
-    squash = 2 if action in ("walk", "run", "hit") and frame % 2 == 0 else 0
-    stretch = 2 if action == "attack" else 0
+    # walk: hop cycle; attack: windup flatten then lunge blob
+    hop = [0, -2, -3, -1, 0, -2, -3, -1, 0, -2][frame % 10] if action in ("walk", "run") else 0
+    squash = [0, 2, 3, 1, 0, 2, 3, 1, 0, 2][frame % 10] if action in ("walk", "run") else 0
+    atk = action == "attack"
+    stretch = [0, -2, -3, 1, 4, 6, 4, 2, 0, 0][frame % 10] if atk else 0
     body = (48, 190, 58, 255)
     light = (170, 255, 140, 255)
-    # bigger gooey silhouette vs other mobs
-    w, h = 26 + stretch, 20 - squash
-    x, y = 13 - stretch // 2, 34 + squash
+    w, h = 26 + stretch, max(12, 20 - squash + (2 if atk and frame >= 4 else 0))
+    x, y = 13 - stretch // 2, 34 + squash + hop
     c.ellipse(x, y, w, h, body, OUT)
     c.ellipse(x + 4, y + 2, 10, 6, light)
-    # eyes
     c.ellipse(x + 5, y + 7, 4, 5, (20, 20, 20, 255))
     c.ellipse(x + 13, y + 7, 4, 5, (20, 20, 20, 255))
     c.pix(x + 6, y + 8, WHITE)
     c.pix(x + 14, y + 8, WHITE)
-    # highlight blob
     c.ellipse(x + 8, y + 3, 5, 3, (210, 255, 200, 180))
-    if action == "attack":
-        c.ellipse(x + w - 2, y + 6, 8, 8, (90, 200, 80, 220), OUT)
+    if atk and frame >= 3:
+        c.ellipse(x + w - 2, y + 6, 8 + (frame % 3), 8, (90, 220, 80, 220), OUT)
 
 
 def draw_boar(img, ox, oy, facing, action, frame) -> None:
     c = Canvas(img, ox, oy)
     c.ellipse(12, 54, 24, 7, SHADOW)
     if action == "death":
-        c.ellipse(8, 46, 32, 12, (120, 64, 40, 255), OUT)
+        c.ellipse(8, 46 + min(4, frame), 32, 12, (120, 64, 40, 255), OUT)
         return
-    bob = [0, 1, 0, 1][frame % 4]
+    gait = [0, 1, 2, 1, 0, 1, 2, 1, 0, 1][frame % 10]
+    bob = gait if action in ("walk", "run", "attack") else 0
     body = (110, 58, 28, 255)
     dark = (60, 30, 14, 255)
     light = (160, 96, 52, 255)
     y = 28 + bob
-    # bulkier side-profile boar
-    c.ellipse(6, y + 4, 30, 18, body, OUT)
-    c.ellipse(8, y + 6, 16, 10, light)
-    # head + tusks
-    c.ellipse(30, y, 14, 14, light, OUT)
-    c.pix(36, y + 6, OUT)
-    c.pix(38, y + 8, WHITE)  # tusk
-    c.pix(38, y + 10, WHITE)
-    # mane
+    lunge = [0, 0, 1, 3, 5, 4, 2, 0, 0, 0][frame % 10] if action == "attack" else 0
+    c.ellipse(6 + lunge, y + 4, 30, 18, body, OUT)
+    c.ellipse(8 + lunge, y + 6, 16, 10, light)
+    c.ellipse(30 + lunge, y, 14, 14, light, OUT)
+    c.pix(36 + lunge, y + 6, OUT)
+    c.pix(38 + lunge, y + 8, WHITE)
+    c.pix(38 + lunge, y + 10, WHITE)
     for i in range(5):
-        c.pix(14 + i * 3, y + 2, dark)
-    # legs
-    c.rect(14, y + 16, 4, 8, BOOT, OUT)
-    c.rect(28, y + 16, 4, 8, BOOT, OUT)
-    if action == "attack":
-        c.ellipse(38, y + 6, 8, 6, WHITE, OUT)
+        c.pix(14 + i * 3 + lunge, y + 2, dark)
+    # alternating legs for walk
+    leg_a = 8 + (2 if frame % 2 == 0 and action in ("walk", "run") else 0)
+    leg_b = 8 + (0 if frame % 2 == 0 and action in ("walk", "run") else 2)
+    c.rect(14 + lunge, y + 16, 4, leg_a, BOOT, OUT)
+    c.rect(28 + lunge, y + 16, 4, leg_b, BOOT, OUT)
+    if action == "attack" and frame >= 3:
+        c.ellipse(38 + lunge, y + 6, 8, 6, WHITE, OUT)
 
 
 def draw_bone(img, ox, oy, action, frame) -> None:
     c = Canvas(img, ox, oy)
     c.ellipse(14, 54, 20, 7, SHADOW)
     if action == "death":
-        c.ellipse(10, 48, 28, 8, WHITE, OUT)
-        c.pix(20, 50, (200, 40, 40, 255))
+        c.ellipse(10, 48 + min(3, frame), 28, 8, WHITE, OUT)
+        c.pix(20, 50 + min(3, frame), (200, 40, 40, 255))
         return
-    bob = frame % 2
+    bob = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1][frame % 10] if action in ("walk", "run", "attack") else 0
+    stride = [0, 1, 2, 1, 0, -1, -2, -1, 0, 1][frame % 10] if action in ("walk", "run") else 0
     bone = (236, 232, 214, 255)
     rust = (160, 70, 40, 255)
     y = 10 + bob
     c.ellipse(17, y, 14, 14, bone, OUT)
     c.ellipse(20, y + 3, 3, 4, (40, 10, 10, 255))
     c.ellipse(27, y + 3, 3, 4, (40, 10, 10, 255))
-    c.rect(16, y + 8, 6, 4, rust, OUT)  # pauldron
+    c.rect(16, y + 8, 6, 4, rust, OUT)
     c.rect(21, y + 12, 6, 14, bone, OUT)
-    c.rect(14, y + 14, 6, 12, bone, OUT)
-    c.rect(28, y + 14, 6, 12, bone, OUT)
-    c.rect(18, y + 26, 5, 12, bone, OUT)
-    c.rect(25, y + 26, 5, 12, bone, OUT)
-    # sword
+    c.rect(14 + stride, y + 14, 6, 12, bone, OUT)
+    c.rect(28 - stride, y + 14, 6, 12, bone, OUT)
+    c.rect(18 + stride, y + 26, 5, 12, bone, OUT)
+    c.rect(25 - stride, y + 26, 5, 12, bone, OUT)
+    # sword swing arc across attack frames
     if action == "attack":
-        c.line(32, y + 10, 42, y + 2, (200, 200, 210, 255), 2)
+        tip = [
+            (34, y + 22), (36, y + 16), (40, y + 10), (42, y + 4), (44, y + 2),
+            (42, y + 8), (38, y + 14), (34, y + 18), (32, y + 20), (32, y + 22),
+        ][frame % 10]
+        c.line(28, y + 16, tip[0], tip[1], (200, 200, 210, 255), 2)
     else:
         c.line(32, y + 14, 34, y + 28, (200, 200, 210, 255), 2)
 
@@ -835,7 +842,7 @@ def main() -> None:
         "fx": FX,
         "fxFrames": FX_FRAMES,
         "fxSize": TILE,
-        "note": "Original sheet generated by tools/gen_mir_sheet.py (48x64). Not official Mir art.",
+        "note": "P3: authored village paths/decor, smoother mob walk/attack, remote paperdoll. Not official Mir art.",
     }
     out_json.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {out_png} {img.size} bytes={out_png.stat().st_size}")

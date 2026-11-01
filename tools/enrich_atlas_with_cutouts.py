@@ -19,6 +19,7 @@ from mir_cutouts import (  # noqa: E402
     load_gear_layers,
     load_village_decor,
     animate_base,
+    animate_mob,
     flip_h,
     orient_frame,
     fit_frame,
@@ -155,7 +156,10 @@ def main() -> None:
                     base = pose_pick(poses, action)
                     if base is None:
                         continue
-                    framed = animate_base(base, action, src_f, fw, fh)
+                    if ai_name in ("slime", "boar", "bone"):
+                        framed = animate_mob(base, action, src_f, fw, fh, kind=ai_name)
+                    else:
+                        framed = animate_base(base, action, src_f, fw, fh)
                     # Store all 8 facings in atlas (shear/mirror/brightness), no runtime flip needed.
                     framed = orient_frame(framed, d)
                     ox = (d * slots + f) * fw
