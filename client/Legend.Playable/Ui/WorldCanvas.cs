@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Legend.Contracts.Proto;
 using Legend.Playable.Data;
 using Legend.Playable.Session;
@@ -158,6 +159,7 @@ public sealed class WorldCanvas : Control
             string name = TileName(world, x, y);
             var (sx, sy) = IsoProjection.ToScreen(x, y, camX, camY, w, h);
             string ground = name is "tree" or "wall" ? "dirt" : name;
+            // Iso MirSheet diamonds only — pack cinematic map art must not replace ground tiles.
             DrawDiamond(context, sx, sy, ground);
             if (name is "tree" or "wall" && Sheet != null && Sheet.TryTile(name, out var obj))
                 context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - 18, sy - 36, 36, 40));
@@ -233,17 +235,19 @@ public sealed class WorldCanvas : Control
         string action = string.IsNullOrEmpty(actor.Pose) ? "idle" : actor.Pose;
         double dw = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 64 : 48;
         double dh = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 72 : 64;
-        bool drew = false;
-        if (actor.Kind == EntityKind.EntityMonster)
+        // Prefer animated MirSheet (idle/walk/attack/hit). Pack "portrait" sprites are icons only —
+        // drawing them as world entities made square cards stand on the ground with no combat poses.
+        bool drew = DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
+        if (!drew && actor.Kind == EntityKind.EntityMonster)
         {
             var ov = PackAssetOverrides.Current?.MonsterSprite(actor.TemplateId);
-            if (ov != null)
+            if (ov != null && LooksLikeWorldSprite(ov))
             {
                 context.DrawImage(ov, new Rect(sx - dw / 2, sy - dh + 14 - lift, dw, dh));
                 drew = true;
             }
         }
-        if (!drew && !DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh))
+        if (!drew)
             context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
         if (actor.IsSelf && actor.Kind == EntityKind.EntityPlayer)
             DrawGear(context, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
@@ -376,20 +380,18 @@ public sealed class WorldCanvas : Control
 
     private static void DrawMinimap(DrawingContext context, WorldState world, double w, double h)
     {
-        const double size = 132;
-        double x0 = w - size - 14;
-        double y0 = 28;
-        if (MirChrome.MapFrame != null)
-            context.FillRectangle(MirChrome.MapFrame, new Rect(x0 - 8, y0 - 22, size + 16, size + 36));
-        else
-        {
-            context.FillRectangle(Brush("#E8C872"), new Rect(x0 - 4, y0 - 18, size + 8, size + 22));
-            context.FillRectangle(Brush("#1A120C"), new Rect(x0 - 2, y0 - 16, size + 4, size + 18));
-        }
-        var caption = new FormattedText("小地图", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 11, Brush("#E8C872"));
+        // Compact radar only — never stretch cinematic city/minimap art into this slot.
+        const double size = 128;
+        double x0 = w - size - 18;
+        double y0 = 36;
+        context.FillRectangle(Brush("#CC120E0A"), new Rect(x0 - 6, y0 - 20, size + 12, size + 28));
+        context.DrawRectangle(null, new Pen(Brush("#E8C872"), 1.5), new Rect(x0 - 6, y0 - 20, size + 12, size + 28));
+        string title = string.IsNullOrWhiteSpace(world.Map.MapName) ? "小地图" : world.Map.MapName;
+        if (title.Length > 10) title = title[..10];
+        var caption = new FormattedText(title, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Face, 11, Brush("#E8C872"));
         context.DrawText(caption, new Point(x0, y0 - 16));
-        double scale = size / Math.Max(world.Map.Width, world.Map.Height);
-        context.FillRectangle(Brush("#2A241C"), new Rect(x0, y0, world.Map.Width * scale, world.Map.Height * scale));
+        double scale = size / Math.Max(1, Math.Max(world.Map.Width, world.Map.Height));
+        context.FillRectangle(Brush("#1A1610"), new Rect(x0, y0, world.Map.Width * scale, world.Map.Height * scale));
         foreach (var zone in world.Map.SafeZones)
         {
             double zx = x0 + zone.X1 * scale;
@@ -404,6 +406,21 @@ public sealed class WorldCanvas : Control
             double py = y0 + (world.Map.Height - 1 - actor.GridY) * scale;
             context.FillRectangle(Brush(actor.IsSelf ? "#FFFFFF" : ColorFor(actor)), new Rect(px - 1.5, py - 1.5, 3, 3));
         }
+    }
+
+    /// <summary>Pack icons/portraits are not combat sprites; only accept cut-out RGBA sheets.</summary>
+    private static bool LooksLikeWorldSprite(Bitmap bmp)
+    {
+        try
+        {
+            var size = bmp.PixelSize;
+            if (size.Width < 24 || size.Height < 24 || size.Width > 160 || size.Height > 160)
+                return false;
+            // Avalonia: Bgra8888/Rgba8888 imply alpha channel suitable for cut-outs.
+            var fmt = bmp.Format;
+            return fmt == PixelFormats.Bgra8888 || fmt == PixelFormats.Rgba8888;
+        }
+        catch { return false; }
     }
 
     private void DrawToast(DrawingContext context, double w)

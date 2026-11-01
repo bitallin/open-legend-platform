@@ -558,6 +558,12 @@ public sealed partial class GameWindow : Window
                 _ => support ? "heal" : "slash"
             };
             _session.World.AddCast(self.DrawX, self.DrawY, def?.School ?? "warrior", fx);
+            if (!support && target != null)
+            {
+                _session.World.AddCast(target.DrawX, target.DrawY, def?.School ?? "warrior", fx);
+                if (target.PoseLock < 0.15)
+                    target.PlayPose("hit", 0.28);
+            }
         }
         if (def != null && def.CastMs > 0)
             await Task.Delay(Math.Min(def.CastMs, 400));
@@ -1348,20 +1354,20 @@ public sealed partial class GameWindow : Window
             VerticalAlignment = VerticalAlignment.Top
         };
 
-        // TR minimap frame
-        var mapInner = new StackPanel { Spacing = 2 };
-        mapInner.Children.Add(new TextBlock { Text = "小地图", FontSize = 12, Foreground = Brush("#E8C872"), HorizontalAlignment = HorizontalAlignment.Center });
-        mapInner.Children.Add(_target);
-        var mapChrome = new Grid { Width = 190, Height = 160 };
-        if (MirChrome.MinimapFrame != null)
-            mapChrome.Children.Add(new Image { Source = MirChrome.MinimapFrame, Stretch = Stretch.Fill });
-        mapChrome.Children.Add(new Border { Padding = new Avalonia.Thickness(18, 22, 18, 18), Child = mapInner });
+        // TR: target chip only — radar is drawn by WorldCanvas (hollow chrome would double-cover).
+        _target.FontSize = 12;
+        _target.Foreground = Brush("#F6E6C0");
         var topRight = new Border
         {
-            Child = mapChrome,
+            Background = Brush("#CC120E0A"),
+            BorderBrush = Brush("#E8C872"),
+            BorderThickness = new Avalonia.Thickness(1),
+            Padding = new Avalonia.Thickness(8, 4),
+            Child = _target,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Avalonia.Thickness(0, 8, 8, 0)
+            Margin = new Avalonia.Thickness(0, 8, 160, 0),
+            MaxWidth = 220
         };
 
         var worldBtn = Small("世界");
@@ -1374,21 +1380,27 @@ public sealed partial class GameWindow : Window
         var channel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         channel.Children.Add(worldBtn);
         channel.Children.Add(nearBtn);
-        var chat = new StackPanel { Spacing = 4, Width = 520 };
+        _chatScroll.Height = 78;
+        _chatLog.Foreground = Brush("#E8DCC0");
+        var chat = new StackPanel { Spacing = 3, Width = 440 };
         chat.Children.Add(channel);
         chat.Children.Add(_chatScroll);
         chat.Children.Add(_chatInput);
         chat.Children.Add(_hint);
         var bottom = new Border
         {
-            Background = MirChrome.ChatBrush ?? Brush("#CC16110E"),
-            Padding = new Avalonia.Thickness(14, 10, 14, 10),
-            Margin = new Avalonia.Thickness(170, 0, 200, 10),
+            // Solid dark panel — do not use parchment/white baked chat art as fill.
+            Background = Brush("#DD14100C"),
+            BorderBrush = Brush("#C8A050"),
+            BorderThickness = new Avalonia.Thickness(1.5),
+            Padding = new Avalonia.Thickness(10, 8, 10, 8),
+            Margin = new Avalonia.Thickness(186, 0, 230, 12),
             Child = chat,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Width = 560,
-            MinHeight = 130
+            Width = 460,
+            MaxHeight = 150,
+            Opacity = 0.96
         };
 
         var grid = new Grid();
