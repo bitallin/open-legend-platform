@@ -49,8 +49,8 @@
     }
   ],
   "look": {
-    "minimapAssetId": "7ce0bcd823c0a2f7e3a13be44011e452",
-    "backdropAssetId": "7ce0bcd823c0a2f7e3a13be44011e452",
-    "tileAssetId": "7ce0bcd823c0a2f7e3a13be44011e452"
+    "minimapAssetId": "",
+    "backdropAssetId": "",
+    "tileAssetId": ""
   }
 }

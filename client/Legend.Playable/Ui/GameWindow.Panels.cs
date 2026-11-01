@@ -112,48 +112,71 @@ public sealed partial class GameWindow
             _potionButtons[i] = button;
             potions.Children.Add(button);
         }
-        var systems = new WrapPanel { MaxWidth = 200 };
-        void AddSys(string text, Action action) => systems.Children.Add(Sys(text, action));
-        AddSys("背包", () => { _bagOpen = !_bagOpen; _audio.PlayOpen(); });
-        AddSys("人物", () => ShowPanel("char"));
-        AddSys("技能", () => ShowPanel("skills"));
-        AddSys("任务", () => ShowPanel("quest"));
-        AddSys("组队", () => ShowPanel("party"));
-        AddSys("行会", () => ShowPanel("guild"));
-        AddSys("好友", () => ShowPanel("friends"));
-        AddSys("摆摊", () => ShowPanel("stall"));
-        AddSys("商城", () => ShowPanel("mall"));
-        AddSys("外观", () => ShowPanel("looks"));
-        AddSys("英雄", () => ShowPanel("hero"));
-        AddSys("邮件", () => ShowPanel("mail"));
-        AddSys("内挂", () => ShowPanel("assist"));
-        AddSys("地图", () => ShowPanel("map"));
-        AddSys("世界", () => ShowPanel("world"));
-        AddSys("交易", () => ShowPanel("trade"));
-        AddSys("攻城", () => { ShowPanel("siege"); _ = Safe(async () => { await _session.SiegeStatusAsync(); }); });
-        AddSys("名色", () => ShowPanel("names"));
-        AddSys("设置", () => ShowPanel("settings"));
+        // Compact Mir-style dock: primary row + secondary wrap. No baked BR art under the grid
+        // (old br-cluster.png baked buttons/text and caused density collapse with live controls).
+        var primary = new WrapPanel { MaxWidth = 204 };
+        void AddPri(string text, Action action)
+        {
+            var b = Sys(text, action);
+            b.Width = 46; b.Height = 24; b.FontSize = 11;
+            primary.Children.Add(b);
+        }
+        AddPri("背包", () => { _bagOpen = !_bagOpen; _audio.PlayOpen(); });
+        AddPri("人物", () => ShowPanel("char"));
+        AddPri("技能", () => ShowPanel("skills"));
+        AddPri("任务", () => ShowPanel("quest"));
+        AddPri("组队", () => ShowPanel("party"));
+        AddPri("行会", () => ShowPanel("guild"));
+        AddPri("地图", () => ShowPanel("map"));
+        AddPri("设置", () => ShowPanel("settings"));
 
-        var dock = new StackPanel { Spacing = 4, Width = 210 };
+        var secondary = new WrapPanel { MaxWidth = 204 };
+        void AddSec(string text, Action action)
+        {
+            var b = Sys(text, action);
+            b.Width = 46; b.Height = 22; b.FontSize = 10; b.Opacity = 0.92;
+            secondary.Children.Add(b);
+        }
+        AddSec("好友", () => ShowPanel("friends"));
+        AddSec("摆摊", () => ShowPanel("stall"));
+        AddSec("商城", () => ShowPanel("mall"));
+        AddSec("外观", () => ShowPanel("looks"));
+        AddSec("英雄", () => ShowPanel("hero"));
+        AddSec("邮件", () => ShowPanel("mail"));
+        AddSec("内挂", () => ShowPanel("assist"));
+        AddSec("世界", () => ShowPanel("world"));
+        AddSec("交易", () => ShowPanel("trade"));
+        AddSec("攻城", () => { ShowPanel("siege"); _ = Safe(async () => { await _session.SiegeStatusAsync(); }); });
+        AddSec("名色", () => ShowPanel("names"));
+
+        _modeLabel.FontSize = 12;
+        _modeLabel.Foreground = Brush("#F0D8A8");
+        _expLabel.FontSize = 11;
+        _expLabel.Foreground = Brush("#C8B48A");
+
+        var dock = new StackPanel { Spacing = 3, Width = 208 };
         dock.Children.Add(_modeLabel);
         dock.Children.Add(skills);
         dock.Children.Add(potions);
-        dock.Children.Add(systems);
+        dock.Children.Add(primary);
+        dock.Children.Add(secondary);
         dock.Children.Add(_expLabel);
 
-        var br = new Grid { Width = 210, Height = 250 };
-        if (MirChrome.BrCluster != null)
-            br.Children.Add(new Image { Source = MirChrome.BrCluster, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom });
-        br.Children.Add(new Border
+        var br = new Border
         {
-            Child = dock,
+            Width = 220,
+            Background = Brush("#CC16110E"),
+            BorderBrush = Brush("#C8A050"),
+            BorderThickness = new Avalonia.Thickness(1.5),
+            CornerRadius = new Avalonia.CornerRadius(8),
             Padding = new Avalonia.Thickness(8, 8, 8, 8),
+            Child = dock,
             VerticalAlignment = VerticalAlignment.Bottom
-        });
+        };
         var bar = new Border
         {
             Child = br,
-            Margin = new Avalonia.Thickness(0, 0, 6, 6),
+            Margin = new Avalonia.Thickness(0, 0, 8, 10),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom
         };
