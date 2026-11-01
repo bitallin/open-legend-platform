@@ -107,6 +107,68 @@ def flip_h(frame: Image.Image) -> Image.Image:
     return frame.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
 
+
+def orient_frame(frame: Image.Image, dir_i: int) -> Image.Image:
+    """Synthesize a distinct 8-dir facing from a mostly-front/side base.
+    0 N,1 NE,2 E,3 SE,4 S,5 SW,6 W,7 NW — avoids pure runtime mirroring.
+    """
+    from PIL import ImageOps, ImageEnhance
+    d = dir_i % 8
+    im = frame.convert("RGBA")
+    w, h = im.size
+    # Start from facing-specific mirror so west-side dirs are not identical flips of east at runtime
+    if d in (5, 6, 7):
+        im = ImageOps.mirror(im)
+    # Direction-unique shear / scale / tint
+    shear = {
+        0: 0.00, 1: 0.12, 2: 0.18, 3: 0.10,
+        4: 0.00, 5: -0.10, 6: -0.18, 7: -0.12,
+    }[d]
+    scale_x = {0: 0.88, 1: 0.94, 2: 1.0, 3: 0.96, 4: 1.0, 5: 0.96, 6: 1.0, 7: 0.94}[d]
+    # back views darker / slightly smaller
+    bright = {0: 0.72, 1: 0.88, 2: 0.95, 3: 1.0, 4: 1.05, 5: 1.0, 6: 0.95, 7: 0.88}[d]
+    # affine shear around center
+    nw = max(8, int(w * scale_x))
+    scaled = im.resize((nw, h), Image.Resampling.NEAREST)
+    canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    canvas.paste(scaled, ((w - nw) // 2, 0), scaled)
+    # shear via transform
+    sh = shear
+    # x' = x + sh*(y-cy)
+    cy = h / 2
+    coeffs = (1, sh, -sh * cy, 0, 1, 0)
+    sheared = canvas.transform((w, h), Image.Transform.AFFINE, coeffs, resample=Image.Resampling.NEAREST)
+    # brightness
+    rgb = sheared.convert("RGB")
+    rgb = ImageEnhance.Brightness(rgb).enhance(bright)
+    out = rgb.convert("RGBA")
+    out.putalpha(sheared.split()[3])
+    # north: slight vertical squash for back silhouette
+    if d == 0:
+        back = out.resize((w, max(8, int(h * 0.92))), Image.Resampling.NEAREST)
+        pad = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        pad.paste(back, (0, h - back.size[1]), back)
+        out = pad
+    return out
+
+
+def load_gear_layers() -> dict[str, Image.Image | None]:
+    path = SHOTS / "mir-gear-layers.jpg"
+    if not path.exists():
+        return {}
+    im = to_rgba_knock_black(Image.open(path), 28)
+    W, H = im.size
+    # 2 cols x 4 rows
+    cw, ch = W // 2, H // 4
+    names_left = ["arm_cloth", "arm_leather", "arm_plate", "arm_fashion"]
+    names_right = ["wep_sword", "wep_iron", "wep_staff", "wep_blade"]
+    out = {}
+    for i, name in enumerate(names_left):
+        out[name] = im.crop((0, i * ch, cw, (i + 1) * ch))
+    for i, name in enumerate(names_right):
+        out[name] = im.crop((cw, i * ch, W, (i + 1) * ch))
+    return out
+
 def load_war_poses() -> dict[str, Image.Image | None]:
     path = SHOTS / "mir-war-poses.jpg"
     if not path.exists():

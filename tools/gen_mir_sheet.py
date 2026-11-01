@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
 
 FRAME_W = 48
 FRAME_H = 64
-DIRS = 5
+DIRS = 8
 SLOTS = 10
 ACTIONS = ["idle", "walk", "run", "attack", "cast", "hit", "death"]
 ACTION_FRAMES = {"idle": 8, "walk": 10, "run": 8, "attack": 10, "cast": 8, "hit": 4, "death": 8}
@@ -59,7 +59,8 @@ def clamp(v, lo, hi):
 
 
 def facing_name(d: int) -> str:
-    return ["back", "ne", "side", "se", "front"][d]
+    # 8 isometric facings: N NE E SE S SW W NW
+    return ["back", "ne", "side", "se", "front", "sw", "west", "nw"][d % 8]
 
 
 def palette(actor: str) -> dict:
@@ -168,10 +169,12 @@ def draw_human(img, ox, oy, facing, action, frame, actor) -> None:
     bob, stride = motion(action, frame)
     flinch = 2 if action == "hit" and frame < 2 else 0
     y0 = 8 + bob
-    side = facing in ("side", "se", "ne")
-    front = facing in ("front", "se")
-    back = facing in ("back", "ne")
-    shift = -2 if facing in ("ne", "back") else 2 if facing in ("se", "side") else 0
+    side = facing in ("side", "se", "ne", "sw", "west", "nw")
+    front = facing in ("front", "se", "sw")
+    back = facing in ("back", "ne", "nw")
+    shift = -2 if facing in ("ne", "back", "nw") else 2 if facing in ("se", "side", "sw", "west") else 0
+    if facing in ("west", "sw", "nw"):
+        shift = -abs(shift) if facing != "sw" else -1
     shift += flinch if facing == "side" else 0
     cx = 24 + shift
 

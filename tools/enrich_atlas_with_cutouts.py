@@ -15,8 +15,10 @@ from mir_cutouts import (  # noqa: E402
     load_class_row,
     load_mob_poses,
     load_props,
+    load_gear_layers,
     animate_base,
     flip_h,
+    orient_frame,
     fit_frame,
     to_rgba_knock_black,
     equal_bands,
@@ -146,8 +148,8 @@ def main() -> None:
                     if base is None:
                         continue
                     framed = animate_base(base, action, src_f, fw, fh)
-                    if d == 1:
-                        framed = flip_h(framed)
+                    # Store all 8 facings in atlas (shear/mirror/brightness), no runtime flip needed.
+                    framed = orient_frame(framed, d)
                     ox = (d * slots + f) * fw
                     oy = (ai_index * len(actions) + ani) * fh
                     clear_rect(img, ox, oy, fw, fh)
@@ -179,9 +181,29 @@ def main() -> None:
                     oy = (gi * len(actions) + ani) * fh
                     clear_rect(img, ox, oy, fw, fh)
                     img.paste(framed, (ox, oy), framed)
+
+    # Paperdoll armor/weapon overlays from AI gear sheet (visible swap layers).
+    gear = load_gear_layers()
+    for gname, gsrc in gear.items():
+        if gname not in actors or gsrc is None:
+            continue
+        gi = actors.index(gname)
+        for ani, action in enumerate(actions):
+            usable = action_frames.get(action, 1)
+            for d in range(dirs):
+                for f in range(slots):
+                    src_f = min(f, usable - 1)
+                    framed = animate_base(gsrc, action if action in ("attack", "walk", "run", "idle") else "idle", src_f, fw, fh)
+                    framed = orient_frame(framed, d)
+                    ox = (d * slots + f) * fw
+                    oy = (gi * len(actions) + ani) * fh
+                    clear_rect(img, ox, oy, fw, fh)
+                    img.paste(framed, (ox, oy), framed)
+                    stamped += 1
+
     stamp_fx(img, meta)
     img.save(png, optimize=True)
-    meta["note"] = "Original sheet + AI cutout enrichment (actors/FX/props). Not official Mir art."
+    meta["note"] = "Original sheet + AI cutouts; 8 stored dirs via orient_frame; gear paperdoll layers. Not official Mir art."
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"enriched {png} stamped_frames={stamped} size={img.size} bytes={png.stat().st_size}")
 

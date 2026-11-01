@@ -116,3 +116,9 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 
 - 2026-10-31：审查加固合入 #30 → `06defcc`。试玩服 `150.158.164.90:7100` 已升至该 tip；CliClient M3 冒烟通过。Windows `dist/windows-player` 已在本机构建对齐 `06defcc`（用户机暂不可达时包在仓库 `dist/windows-player` / `/tmp/windows-player-06defcc.tar.gz`）。矩阵仍 100%。协议仍是 1.21.0。
 
+## Playable visual P1 (2026-11-01)
+
+- Atlas `dirSlots=8` + `orient_frame`；MirSheet 满八向不翻转移像。
+- 纸娃娃默认衣服/武器层；gear AI 层 enrich。
+- `DrawSortedWorld` 树/墙高度遮挡 + 身后半透明。
+- 见 `docs/client/PLAYABLE_VISUAL_PLAN.md`。
