@@ -141,3 +141,9 @@ Host Admin 代理默认 `http://127.0.0.1:7101`；未启动 Host 时配置/队�
 - **建议父代理通知用户验收：是**
 
 | 2026-11-01 | M12 试玩服部署 | **完成** | `/opt/legend-admin` + seed-media @ **`bcd1fde`**（含 #50 素材 + #51 缩略图 API）；怪物/地图/Studio/素材库缩略图探针 OK |
+
+## 2026-11-01 可玩画面 P0
+
+- 客户端默认 MirSheet 已 AI 切帧 enrich（角色/怪/FX/树屋）；WorldCanvas 阴影与放大精灵。
+- 不依赖 Admin 绑图才好看；HUD 保持 PR#53。
+- 详见 `docs/client/PLAYABLE_VISUAL_PLAN.md`。
