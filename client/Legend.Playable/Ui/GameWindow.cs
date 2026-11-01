@@ -798,6 +798,8 @@ public sealed partial class GameWindow : Window
                 _ => "wep_sword"
             };
         }
+        if (armor.Length == 0)
+            armor = "arm_cloth";
         _canvas.WeaponLayer = weapon;
         _canvas.ArmorLayer = armor;
         _canvas.HelmetLayer = helmet;

@@ -1,7 +1,7 @@
 {
   "frameW": 48,
   "frameH": 64,
-  "dirSlots": 5,
+  "dirSlots": 8,
   "framesPerDir": 10,
   "actions": [
     "idle",
@@ -79,5 +79,5 @@
   ],
   "fxFrames": 6,
   "fxSize": 48,
-  "note": "Original sheet + AI cutout enrichment (actors/FX/props). Not official Mir art."
+  "note": "Original sheet + AI cutouts; 8 stored dirs via orient_frame; gear paperdoll layers. Not official Mir art."
 }

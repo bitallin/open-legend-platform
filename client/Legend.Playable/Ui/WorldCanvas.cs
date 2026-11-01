@@ -117,8 +117,7 @@ public sealed class WorldCanvas : Control
             for (int gx = patch.X - patch.Radius; gx <= patch.X + patch.Radius; gx++)
                 DrawFxAt(context, "fire", (int)(world.Time * 8) % 4, gx, gy, camX, camY, w, h, 40);
         }
-        foreach (var actor in world.Actors.Values.OrderByDescending(a => a.DrawX + a.DrawY))
-            DrawActor(context, world, actor, camX, camY, w, h);
+        DrawSortedWorld(context, world, camX, camY, w, h);
         foreach (var fx in world.Effects)
             DrawFx(context, fx, camX, camY, w, h);
         if (IsNight())
@@ -161,8 +160,7 @@ public sealed class WorldCanvas : Control
             string ground = name is "tree" or "wall" ? "dirt" : name;
             // Iso MirSheet diamonds only — pack cinematic map art must not replace ground tiles.
             DrawDiamond(context, sx, sy, ground);
-            if ((name is "tree" or "wall") && Sheet != null && Sheet.TryTile(name, out var obj))
-                context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - 28, sy - 58, 56, 64));
+            // Tall props (tree/wall) are drawn in DrawSortedWorld with actors for height occlusion.
             if (name == "portal")
                 DrawFxAt(context, "portal", (int)(AnimTime * 8) % Math.Max(1, Sheet?.FxFrames ?? 4), x, y, camX, camY, w, h, 52);
         }
@@ -205,6 +203,80 @@ public sealed class WorldCanvas : Control
         return ((x + y) & 1) == 0 ? "grass" : "grass_b";
     }
 
+
+    private void DrawSortedWorld(DrawingContext context, WorldState world, double camX, double camY, double w, double h)
+    {
+        // Depth key = DrawX+DrawY (iso). Tall props interleave with actors so canopy covers people behind.
+        var items = new List<(double depth, int tie, Action draw)>();
+        int tie = 0;
+        int minX = world.Map.Width, maxX = 0, minY = world.Map.Height, maxY = 0;
+        void Grow(double sx, double sy)
+        {
+            var (gx, gy) = IsoProjection.ToGrid(sx, sy, camX, camY, w, h);
+            minX = Math.Min(minX, (int)Math.Floor(gx) - 3);
+            maxX = Math.Max(maxX, (int)Math.Ceiling(gx) + 3);
+            minY = Math.Min(minY, (int)Math.Floor(gy) - 3);
+            maxY = Math.Max(maxY, (int)Math.Ceiling(gy) + 3);
+        }
+        Grow(0, 0); Grow(w, 0); Grow(0, h); Grow(w, h);
+        minX = Math.Max(0, minX);
+        minY = Math.Max(0, minY);
+        maxX = Math.Min(world.Map.Width - 1, maxX);
+        maxY = Math.Min(world.Map.Height - 1, maxY);
+
+        foreach (var actor in world.Actors.Values)
+        {
+            var a = actor;
+            double depth = a.DrawX + a.DrawY;
+            double opacity = ActorOcclusionOpacity(world, a);
+            items.Add((depth, tie++, () => DrawActor(context, world, a, camX, camY, w, h, opacity)));
+        }
+        for (int y = minY; y <= maxY; y++)
+        for (int x = minX; x <= maxX; x++)
+        {
+            string name = TileName(world, x, y);
+            if (name is not ("tree" or "wall"))
+                continue;
+            int px = x, py = y;
+            string prop = name;
+            double depth = px + py + 0.15;
+            items.Add((depth, tie++, () => DrawTallProp(context, prop, px, py, camX, camY, w, h)));
+        }
+        foreach (var item in items.OrderByDescending(i => i.depth).ThenBy(i => i.tie))
+            item.draw();
+    }
+
+    private double ActorOcclusionOpacity(WorldState world, ActorView actor)
+    {
+        int ax = (int)Math.Round(actor.DrawX);
+        int ay = (int)Math.Round(actor.DrawY);
+        for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            int tx = ax + dx, ty = ay + dy;
+            if (tx < 0 || ty < 0 || tx >= world.Map.Width || ty >= world.Map.Height)
+                continue;
+            string name = TileName(world, tx, ty);
+            if (name is not ("tree" or "wall"))
+                continue;
+            double propDepth = tx + ty + 0.15;
+            double actorDepth = actor.DrawX + actor.DrawY;
+            if (actorDepth >= propDepth - 0.05 && Math.Abs(actor.DrawX - tx) < 1.15 && Math.Abs(actor.DrawY - ty) < 1.15)
+                return 0.45;
+        }
+        return 1.0;
+    }
+
+    private void DrawTallProp(DrawingContext context, string name, int x, int y, double camX, double camY, double w, double h)
+    {
+        if (Sheet == null || !Sheet.TryTile(name, out var obj))
+            return;
+        var (sx, sy) = IsoProjection.ToScreen(x, y, camX, camY, w, h);
+        double dw = name == "tree" ? 60 : 56;
+        double dh = name == "tree" ? 72 : 64;
+        context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - dw / 2, sy - dh + 6, dw, dh));
+    }
+
     private void DrawMarker(DrawingContext context, int gx, int gy, double camX, double camY, double w, double h)
     {
         var (sx, sy) = IsoProjection.ToScreen(gx, gy, camX, camY, w, h);
@@ -217,7 +289,7 @@ public sealed class WorldCanvas : Control
         context.DrawLine(pen, new Point(sx - hw, sy), new Point(sx, sy - hh));
     }
 
-    private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h)
+    private void DrawActor(DrawingContext context, WorldState world, ActorView actor, double camX, double camY, double w, double h, double opacity = 1.0)
     {
         var (sx, sy) = IsoProjection.ToScreen(actor.DrawX, actor.DrawY, camX, camY, w, h);
         if (actor.Kind == EntityKind.EntityLoot)
@@ -241,6 +313,8 @@ public sealed class WorldCanvas : Control
         context.DrawEllipse(Brush("#66000000"), null, new Point(sx, sy + 2), dw * 0.28, 7);
         // Prefer animated MirSheet (idle/walk/attack/hit). Pack "portrait" sprites are icons only —
         // drawing them as world entities made square cards stand on the ground with no combat poses.
+        using (context.PushOpacity(Math.Clamp(opacity, 0.25, 1.0)))
+        {
         bool drew = DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
         if (!drew && actor.Kind == EntityKind.EntityMonster)
         {
@@ -253,8 +327,10 @@ public sealed class WorldCanvas : Control
         }
         if (!drew)
             context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
+        // Paperdoll: self always; other players show weapon/armor when layers known (self-driven SyncGear today).
         if (actor.IsSelf && actor.Kind == EntityKind.EntityPlayer)
             DrawGear(context, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
+        } // opacity
         if (string.Equals(action, "hit", StringComparison.OrdinalIgnoreCase))
             context.FillRectangle(Brush("#55FFFFFF"), new Rect(sx - dw / 2, sy - dh + 14 - lift, dw, dh));
 
@@ -296,15 +372,13 @@ public sealed class WorldCanvas : Control
     private void DrawGear(DrawingContext context, string action, int direction, double phase, double poseLock, double sx, double sy, double dw, double dh)
     {
         string armor = FashionOn ? "arm_fashion" : ArmorLayer;
-        if (!string.IsNullOrEmpty(armor))
-            DrawSprite(context, armor, action, direction, phase, poseLock, sx, sy, dw, dh);
+        if (string.IsNullOrEmpty(armor))
+            armor = "arm_cloth"; // always show at least a clothes layer for visible paperdoll
+        DrawSprite(context, armor, action, direction, phase, poseLock, sx, sy, dw, dh);
         if (!FashionOn && !string.IsNullOrEmpty(HelmetLayer))
             DrawSprite(context, HelmetLayer, action, direction, phase, poseLock, sx, sy, dw, dh);
-        string weapon = WeaponLayer;
-        if (string.IsNullOrEmpty(weapon))
-            weapon = "";
-        if (!string.IsNullOrEmpty(weapon))
-            DrawSprite(context, weapon, action, direction, phase, poseLock, sx, sy, dw, dh);
+        string weapon = string.IsNullOrEmpty(WeaponLayer) ? "wep_sword" : WeaponLayer;
+        DrawSprite(context, weapon, action, direction, phase, poseLock, sx, sy, dw, dh);
     }
 
     private void DrawLoot(DrawingContext context, double sx, double sy, string? templateId = null)
