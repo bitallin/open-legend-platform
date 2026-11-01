@@ -55,14 +55,14 @@ public sealed class WorldCanvas : Control
         if (world == null || self == null)
             return null;
         string? best = null;
-        double bestD = 22;
+        double bestD = 36;
         foreach (var actor in world.Actors.Values)
         {
             var (sx, sy) = IsoProjection.ToScreen(actor.DrawX, actor.DrawY, self.DrawX, self.DrawY, Bounds.Width, Bounds.Height);
             double dx = sx - screen.X;
-            double dy = (sy - 12) - screen.Y;
+            double dy = (sy - 28) - screen.Y;
             double d = Math.Sqrt(dx * dx + dy * dy);
-            double limit = actor.Kind == EntityKind.EntityLoot ? 18 : 28;
+            double limit = actor.Kind == EntityKind.EntityLoot ? 18 : 42;
             if (d <= limit && d <= bestD)
             {
                 bestD = d;
@@ -161,10 +161,10 @@ public sealed class WorldCanvas : Control
             string ground = name is "tree" or "wall" ? "dirt" : name;
             // Iso MirSheet diamonds only — pack cinematic map art must not replace ground tiles.
             DrawDiamond(context, sx, sy, ground);
-            if (name is "tree" or "wall" && Sheet != null && Sheet.TryTile(name, out var obj))
-                context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - 18, sy - 36, 36, 40));
+            if ((name is "tree" or "wall") && Sheet != null && Sheet.TryTile(name, out var obj))
+                context.DrawImage(Sheet.Bitmap, obj, new Rect(sx - 28, sy - 58, 56, 64));
             if (name == "portal")
-                DrawFxAt(context, "portal", (int)(AnimTime * 8) % Math.Max(1, Sheet?.FxFrames ?? 4), x, y, camX, camY, w, h, 36);
+                DrawFxAt(context, "portal", (int)(AnimTime * 8) % Math.Max(1, Sheet?.FxFrames ?? 4), x, y, camX, camY, w, h, 52);
         }
     }
 
@@ -230,11 +230,15 @@ public sealed class WorldCanvas : Control
         bool mounted = !string.IsNullOrEmpty(actor.MountId) && actor.Kind == EntityKind.EntityPlayer;
         if (mounted)
             DrawSprite(context, "horse", actor.Pose is "run" or "walk" ? actor.Pose : "idle", actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - 6, 52, 40);
-        double lift = mounted ? 16 : 0;
+        double lift = mounted ? 18 : 0;
         string sprite = MirSheet.ActorId(actor);
         string action = string.IsNullOrEmpty(actor.Pose) ? "idle" : actor.Pose;
-        double dw = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 64 : 48;
-        double dh = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase) ? 72 : 64;
+        bool isDragon = actor.TemplateId.Contains("dragon", StringComparison.OrdinalIgnoreCase);
+        bool isPlayerLike = actor.Kind is EntityKind.EntityPlayer or EntityKind.EntityNpc;
+        double dw = isDragon ? 88 : isPlayerLike ? 72 : 64;
+        double dh = isDragon ? 96 : isPlayerLike ? 96 : 84;
+        // Soft oval shadow under feet so sprites sit in the world instead of floating cards.
+        context.DrawEllipse(Brush("#66000000"), null, new Point(sx, sy + 2), dw * 0.28, 7);
         // Prefer animated MirSheet (idle/walk/attack/hit). Pack "portrait" sprites are icons only —
         // drawing them as world entities made square cards stand on the ground with no combat poses.
         bool drew = DrawSprite(context, sprite, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
@@ -251,20 +255,23 @@ public sealed class WorldCanvas : Control
             context.DrawEllipse(Brush(ColorFor(actor)), null, new Point(sx, sy), 10, 14);
         if (actor.IsSelf && actor.Kind == EntityKind.EntityPlayer)
             DrawGear(context, action, actor.Direction, actor.AnimPhase, actor.PoseLock, sx, sy - lift, dw, dh);
+        if (string.Equals(action, "hit", StringComparison.OrdinalIgnoreCase))
+            context.FillRectangle(Brush("#55FFFFFF"), new Rect(sx - dw / 2, sy - dh + 14 - lift, dw, dh));
 
         if (world.SelectedId == actor.EntityId)
-            context.DrawEllipse(null, new Pen(Brush("#F0D060"), 2), new Point(sx, sy + 8), 16, 7);
+            context.DrawEllipse(null, new Pen(Brush("#F0D060"), 2), new Point(sx, sy + 6), Math.Max(18, dw * 0.32), 8);
         bool showBar = actor.Kind == EntityKind.EntityMonster || world.SelectedId == actor.EntityId;
         if (showBar && actor.MaxHp > 0)
         {
             double ratio = Math.Clamp(actor.Hp / (double)actor.MaxHp, 0, 1);
-            var bar = new Rect(sx - 16, sy - 52 - lift, 32, 4);
+            double barW = Math.Max(36, dw * 0.55);
+            var bar = new Rect(sx - barW / 2, sy - dh + 4 - lift, barW, 5);
             context.FillRectangle(Brush("#1A0A0A"), bar);
-            context.FillRectangle(Brush(actor.Hp > 0 ? "#D01818" : "#666666"), new Rect(bar.X, bar.Y, 32 * ratio, 4));
+            context.FillRectangle(Brush(actor.Hp > 0 ? "#D01818" : "#666666"), new Rect(bar.X, bar.Y, barW * ratio, 5));
         }
         if (world.Time < actor.BuffUntil && Sheet != null && Sheet.TryFx("buff", (int)(AnimTime * 6) % 4, out var buff))
-            context.DrawImage(Sheet.Bitmap, buff, new Rect(sx + 10, sy - 58 - lift, 16, 16));
-        DrawName(context, actor, sx, sy - 46 - lift);
+            context.DrawImage(Sheet.Bitmap, buff, new Rect(sx + dw * 0.28, sy - dh + 2 - lift, 22, 22));
+        DrawName(context, actor, sx, sy - dh + 10 - lift);
     }
 
     private bool DrawSprite(DrawingContext context, string actor, string action, int direction, double phase, double poseLock, double sx, double sy, double destW, double destH)
@@ -347,7 +354,8 @@ public sealed class WorldCanvas : Control
     {
         int frames = Math.Max(1, Sheet?.FxFrames ?? 4);
         int frame = Math.Clamp((int)(fx.Age * 12), 0, frames - 1);
-        DrawFxAt(context, string.IsNullOrEmpty(fx.Kind) ? "slash" : fx.Kind, frame, fx.GridX, fx.GridY, camX, camY, w, h, 56);
+        double size = string.Equals(fx.Kind, "slash", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(fx.Kind) ? 72 : 64;
+        DrawFxAt(context, string.IsNullOrEmpty(fx.Kind) ? "slash" : fx.Kind, frame, fx.GridX, fx.GridY, camX, camY, w, h, size);
     }
 
     private void DrawFxAt(DrawingContext context, string name, int frame, double gx, double gy, double camX, double camY, double w, double h, double size)

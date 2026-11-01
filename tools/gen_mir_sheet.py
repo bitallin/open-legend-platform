@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Original pixel sheet for the playable client. Not Mir WIL/WZL data."""
+"""Original higher-fidelity Mir-style sheet for the playable client.
+Not Mir WIL/WZL data. Frames 48x64 with shading; tiles may sample docs refs.
+"""
+from __future__ import annotations
+
 import json
+import math
+import random
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
 
-FRAME_W = 32
-FRAME_H = 48
-LOGICAL_W = 16
-LOGICAL_H = 24
+FRAME_W = 48
+FRAME_H = 64
 DIRS = 5
 SLOTS = 10
 ACTIONS = ["idle", "walk", "run", "attack", "cast", "hit", "death"]
@@ -25,18 +29,20 @@ ACTORS = [
 TILES = ["grass", "grass_b", "dirt", "path", "stone", "safe", "water", "wall", "tree", "portal"]
 FX = ["slash", "fire", "lightning", "heal", "level", "portal", "buff"]
 FX_FRAMES = 6
-TILE = 32
+TILE = 48
 
 OUT = (18, 10, 8, 255)
 SKIN = (232, 186, 142, 255)
 SKIN_D = (196, 142, 98, 255)
+SKIN_L = (245, 210, 175, 255)
 HAIR = (42, 24, 16, 255)
 HAIR_F = (92, 42, 28, 255)
 BOOT = (46, 30, 20, 255)
-SHADOW = (0, 0, 0, 70)
+SHADOW = (0, 0, 0, 90)
 GOLD = (214, 168, 64, 255)
 STEEL = (78, 104, 150, 255)
 STEEL_D = (42, 60, 96, 255)
+STEEL_L = (140, 170, 210, 255)
 CAPE = (128, 28, 26, 255)
 MAGE = (86, 62, 150, 255)
 MAGE_D = (48, 32, 96, 255)
@@ -45,61 +51,79 @@ TAO_D = (28, 64, 50, 255)
 FASH = (176, 36, 48, 255)
 FASH_D = (110, 18, 28, 255)
 WHITE = (236, 232, 220, 255)
+ROOT = Path(__file__).resolve().parents[1]
 
 
-def palette(actor: str) -> dict:
-    female = actor.endswith("_f")
-    hair = HAIR_F if female else HAIR
-    if actor.startswith("mage"):
-        cloth, dark, metal = MAGE, MAGE_D, (186, 170, 230, 255)
-    elif actor.startswith("tao"):
-        cloth, dark, metal = TAO, TAO_D, (220, 200, 120, 255)
-    elif actor.startswith("fashion"):
-        cloth, dark, metal = FASH, FASH_D, GOLD
-    elif actor == "npc":
-        cloth, dark, metal = (120, 78, 42, 255), (72, 44, 24, 255), GOLD
-        hair = (70, 48, 28, 255)
-    else:
-        cloth, dark, metal = STEEL, STEEL_D, GOLD
-    return {"cloth": cloth, "dark": dark, "metal": metal, "hair": hair, "female": female, "actor": actor}
-
-
-def new_canvas() -> Image.Image:
-    rows = len(ACTORS) * len(ACTIONS)
-    char_h = rows * FRAME_H
-    height = char_h + TILE + TILE
-    return Image.new("RGBA", (DIRS * SLOTS * FRAME_W, height), (0, 0, 0, 0)), char_h
-
-
-class Pen:
-    def __init__(self, img: Image.Image, ox: int, oy: int):
-        self.img = img
-        self.ox = ox
-        self.oy = oy
-
-    def p(self, lx: int, ly: int, color) -> None:
-        if not (0 <= lx < LOGICAL_W and 0 <= ly < LOGICAL_H):
-            return
-        for dy in range(2):
-            for dx in range(2):
-                self.img.putpixel((self.ox + lx * 2 + dx, self.oy + ly * 2 + dy), color)
-
-    def block(self, x, y, w, h, fill) -> None:
-        for yy in range(h):
-            for xx in range(w):
-                edge = xx == 0 or yy == 0 or xx == w - 1 or yy == h - 1
-                self.p(x + xx, y + yy, OUT if edge else fill)
-
-    def pix(self, x, y, color) -> None:
-        self.p(x, y, color)
+def clamp(v, lo, hi):
+    return lo if v < lo else hi if v > hi else v
 
 
 def facing_name(d: int) -> str:
     return ["back", "ne", "side", "se", "front"][d]
 
 
+def palette(actor: str) -> dict:
+    female = actor.endswith("_f")
+    hair = HAIR_F if female else HAIR
+    if actor.startswith("mage"):
+        cloth, dark, light, metal = MAGE, MAGE_D, (150, 120, 210, 255), (186, 170, 230, 255)
+    elif actor.startswith("tao"):
+        cloth, dark, light, metal = TAO, TAO_D, (110, 170, 130, 255), (220, 200, 120, 255)
+    elif actor.startswith("fashion"):
+        cloth, dark, light, metal = FASH, FASH_D, (220, 90, 100, 255), GOLD
+    elif actor == "npc":
+        cloth, dark, light, metal = (120, 78, 42, 255), (72, 44, 24, 255), (160, 110, 70, 255), GOLD
+        hair = (70, 48, 28, 255)
+    else:
+        cloth, dark, light, metal = STEEL, STEEL_D, STEEL_L, GOLD
+    return {
+        "cloth": cloth, "dark": dark, "light": light, "metal": metal,
+        "hair": hair, "female": female, "actor": actor,
+    }
+
+
+def new_canvas() -> tuple[Image.Image, int]:
+    rows = len(ACTORS) * len(ACTIONS)
+    char_h = rows * FRAME_H
+    height = char_h + TILE + TILE
+    return Image.new("RGBA", (DIRS * SLOTS * FRAME_W, height), (0, 0, 0, 0)), char_h
+
+
+class Canvas:
+    def __init__(self, img: Image.Image, ox: int, oy: int):
+        self.img = img
+        self.ox = ox
+        self.oy = oy
+        self.draw = ImageDraw.Draw(img, "RGBA")
+
+    def pix(self, x, y, c):
+        if 0 <= x < FRAME_W and 0 <= y < FRAME_H:
+            self.img.putpixel((self.ox + x, self.oy + y), c)
+
+    def rect(self, x, y, w, h, fill, outline=None):
+        if w <= 0 or h <= 0:
+            return
+        x0, y0 = self.ox + x, self.oy + y
+        self.draw.rectangle([x0, y0, x0 + w - 1, y0 + h - 1], fill=fill, outline=outline)
+
+    def ellipse(self, x, y, w, h, fill, outline=None):
+        if w <= 0 or h <= 0:
+            return
+        x0, y0 = self.ox + x, self.oy + y
+        self.draw.ellipse([x0, y0, x0 + w - 1, y0 + h - 1], fill=fill, outline=outline)
+
+    def line(self, x0, y0, x1, y1, fill, width=1):
+        self.draw.line(
+            [self.ox + x0, self.oy + y0, self.ox + x1, self.oy + y1],
+            fill=fill, width=width,
+        )
+
+    def poly(self, pts, fill, outline=None):
+        shifted = [(self.ox + x, self.oy + y) for x, y in pts]
+        self.draw.polygon(shifted, fill=fill, outline=outline)
+
+
 def motion(action: str, frame: int) -> tuple[int, int]:
-    import math
     count = ACTION_FRAMES.get(action, 6)
     if action not in ("walk", "run"):
         return 0, 0
@@ -126,305 +150,392 @@ def draw_human(img, ox, oy, facing, action, frame, actor) -> None:
     pal = palette(actor)
     part = layer_kind(actor)
     if actor.startswith("arm_cloth"):
-        pal = {**pal, "cloth": (176, 148, 96, 255), "dark": (120, 92, 54, 255), "metal": GOLD}
+        pal = {**pal, "cloth": (176, 148, 96, 255), "dark": (120, 92, 54, 255), "light": (210, 180, 120, 255), "metal": GOLD}
     elif actor.startswith("arm_leather"):
-        pal = {**pal, "cloth": (112, 68, 36, 255), "dark": (70, 40, 22, 255), "metal": (160, 120, 60, 255)}
+        pal = {**pal, "cloth": (112, 68, 36, 255), "dark": (70, 40, 22, 255), "light": (150, 100, 60, 255), "metal": (160, 120, 60, 255)}
     elif actor.startswith("arm_plate"):
-        pal = {**pal, "cloth": STEEL, "dark": STEEL_D, "metal": GOLD}
+        pal = {**pal, "cloth": STEEL, "dark": STEEL_D, "light": STEEL_L, "metal": GOLD}
     elif actor.startswith("arm_fashion"):
-        pal = {**pal, "cloth": FASH, "dark": FASH_D, "metal": GOLD}
-    pen = Pen(img, ox, oy)
+        pal = {**pal, "cloth": FASH, "dark": FASH_D, "light": (220, 90, 100, 255), "metal": GOLD}
+
+    c = Canvas(img, ox, oy)
     if action == "death" and part == "body":
-        draw_corpse(pen, min(frame, 3), pal)
+        draw_corpse(c, min(frame, 3), pal)
         return
     if action == "death" and part != "body":
         return
+
     bob, stride = motion(action, frame)
-    flinch = 1 if action == "hit" and frame == 0 else 0
-    y0 = 1 + bob
+    flinch = 2 if action == "hit" and frame < 2 else 0
+    y0 = 8 + bob
     side = facing in ("side", "se", "ne")
     front = facing in ("front", "se")
     back = facing in ("back", "ne")
-    shift = -1 if facing in ("ne", "back") else 1 if facing in ("se", "side") else 0
+    shift = -2 if facing in ("ne", "back") else 2 if facing in ("se", "side") else 0
     shift += flinch if facing == "side" else 0
+    cx = 24 + shift
 
-    for lx in range(5, 11):
-        if part == "body":
-            pen.pix(lx, 22, SHADOW)
+    # shadow
+    if part == "body":
+        c.ellipse(cx - 10, 56, 20, 7, SHADOW)
 
     if part in ("helm", "weapon"):
-        draw_weapon(pen, actor, facing, action, frame, shift, y0, pal) if part == "weapon" else draw_helmet(pen, actor, shift, y0, pal)
+        if part == "weapon":
+            draw_weapon(c, actor, facing, action, frame, cx, y0, pal)
+        else:
+            draw_helmet(c, actor, cx, y0, pal)
         return
 
     if part == "armor":
-        shoulder = 4
-        pen.block(shoulder + shift, 8 + y0, 9, 8, pal["cloth"])
-        pen.block(6 + shift, 14 + y0, 4, 2, pal["metal"])
-        pen.block(3 + shift, 8 + y0, 3, 3, pal["dark"])
-        pen.block(11 + shift, 8 + y0, 3, 3, pal["dark"])
+        draw_torso(c, pal, cx, y0, front, back, side, True)
         return
 
     # legs
+    leg_w = 5 if pal["female"] else 6
     if side:
-        pen.block(7 + shift, 15 + max(0, -stride // 2), 3, 6, BOOT)
-        pen.block(6 + shift, 14 + max(0, stride // 2), 3, 6, pal["dark"])
+        c.rect(cx - 2, y0 + 28 + max(0, -stride), leg_w, 14, BOOT, OUT)
+        c.rect(cx - 6, y0 + 28 + max(0, stride), leg_w, 14, pal["dark"], OUT)
+        c.rect(cx - 1, y0 + 30 + max(0, -stride), 3, 4, pal["light"])
     else:
-        pen.block(5, 15, 3, 6 + (stride // 2), BOOT)
-        pen.block(8, 15, 3, 6 - (stride // 2), BOOT)
+        c.rect(cx - 7, y0 + 28, leg_w, 14 + max(0, stride // 2), BOOT, OUT)
+        c.rect(cx + 1, y0 + 28, leg_w, 14 - min(0, stride // 2), BOOT, OUT)
+        c.rect(cx - 6, y0 + 36, 3, 3, (70, 48, 30, 255))
+        c.rect(cx + 2, y0 + 36, 3, 3, (70, 48, 30, 255))
 
-    # torso / robe
-    shoulder = 5 if pal["female"] else 4
-    pen.block(shoulder + shift, 8 + y0, 8 if pal["female"] else 9, 8, pal["cloth"])
-    pen.block(6 + shift, 14 + y0, 4, 2, pal["metal"])
-    if actor.startswith("war"):
-        pen.block(3 + shift, 8 + y0, 3, 3, pal["dark"])
-        pen.block(11 + shift, 8 + y0, 3, 3, pal["dark"])
-    if actor.startswith("fashion"):
-        pen.block(5 + shift, 10 + y0, 6, 2, GOLD)
+    draw_torso(c, pal, cx, y0, front, back, side, False)
 
-    # cape on back / 3/4
+    # cape
     if back or actor.startswith("war") or actor.startswith("fashion"):
         cape = CAPE if not actor.startswith("fashion") else FASH_D
-        sway = int(round(stride / 3)) if action in ("walk", "run") else 0
-        pen.block(4 + shift + sway, 9 + y0, 2, 8, cape)
+        sway = int(round(stride / 2)) if action in ("walk", "run") else 0
+        c.poly([
+            (cx - 10 + sway, y0 + 12),
+            (cx - 4, y0 + 10),
+            (cx - 6 + sway, y0 + 34),
+            (cx - 14 + sway, y0 + 32),
+        ], cape, OUT)
 
     # head
-    pen.block(6 + shift, 3 + y0, 4, 4, SKIN)
+    hx, hy = cx - 6, y0 + 2
+    c.ellipse(hx, hy, 12, 12, SKIN, OUT)
+    c.ellipse(hx + 2, hy + 2, 8, 6, SKIN_L)
     if front and action != "hit":
-        pen.pix(6 + shift, 4 + y0, OUT)
-        pen.pix(8 + shift, 4 + y0, OUT)
-    if not front:
-        pen.block(6 + shift, 3 + y0, 4, 2, pal["hair"])
+        c.pix(hx + 3, hy + 5, OUT)
+        c.pix(hx + 8, hy + 5, OUT)
+        c.pix(hx + 5, hy + 8, SKIN_D)
+    if action == "hit":
+        c.ellipse(hx, hy, 12, 12, (255, 220, 220, 200))
 
-    # hair / helmet
-    if actor.startswith("mage"):
-        pen.block(6 + shift, 1 + y0, 4, 3, pal["cloth"])
-        pen.pix(7 + shift, 0 + y0, pal["cloth"])
-        pen.pix(8 + shift, 0 + y0, GOLD)
+    # hair / hat
+    draw_hair(c, actor, pal, hx, hy, front, back)
+
+    # front arm / weapon for body layer (simple sword for war)
+    if actor.startswith("war") or actor.startswith("fashion"):
+        draw_weapon(c, "wep_sword", facing, action, frame, cx, y0, pal)
+    elif actor.startswith("mage"):
+        draw_weapon(c, "wep_staff", facing, action, frame, cx, y0, pal)
     elif actor.startswith("tao"):
-        pen.block(5 + shift, 2 + y0, 6, 3, pal["dark"])
-    elif actor.startswith("fashion"):
-        pen.block(5 + shift, 2 + y0, 6, 3, pal["hair"])
-        if pal["female"]:
-            pen.block(4 + shift, 5 + y0, 2, 6, pal["hair"])
-        pen.pix(7 + shift, 2 + y0, GOLD)
+        draw_weapon(c, "wep_blade", facing, action, frame, cx, y0, pal)
     elif actor == "npc":
-        pen.block(5 + shift, 1 + y0, 6, 2, (92, 48, 28, 255))
-        pen.block(4 + shift, 3 + y0, 8, 2, (70, 36, 20, 255))
-    else:
-        pen.block(5 + shift, 2 + y0, 6, 2, pal["hair"])
+        # satchel
+        c.rect(cx + 6, y0 + 18, 6, 8, (90, 60, 30, 255), OUT)
+
+
+def draw_torso(c: Canvas, pal, cx, y0, front, back, side, armor_only):
+    tw = 14 if pal["female"] else 16
+    th = 16
+    tx = cx - tw // 2
+    ty = y0 + 12
+    c.rect(tx, ty, tw, th, pal["cloth"], OUT)
+    c.rect(tx + 2, ty + 2, tw - 4, 4, pal["light"])
+    c.rect(tx + 4, ty + 10, tw - 8, 3, pal["metal"])
+    # shoulders
+    c.ellipse(tx - 3, ty, 7, 7, pal["dark"], OUT)
+    c.ellipse(tx + tw - 4, ty, 7, 7, pal["dark"], OUT)
+    if pal["actor"].startswith("war") or armor_only:
+        c.rect(tx + 1, ty + 1, 3, 5, STEEL_L)
+        c.rect(tx + tw - 4, ty + 1, 3, 5, STEEL_L)
+    if pal["actor"].startswith("fashion"):
+        c.rect(tx + 3, ty + 4, tw - 6, 2, GOLD)
+
+
+def draw_hair(c: Canvas, actor, pal, hx, hy, front, back):
+    if actor.startswith("mage"):
+        c.ellipse(hx - 1, hy - 2, 14, 10, pal["cloth"], OUT)
+        c.pix(hx + 6, hy - 3, GOLD)
+        c.pix(hx + 5, hy - 2, GOLD)
+    elif actor.startswith("tao"):
+        c.ellipse(hx - 1, hy - 1, 14, 8, pal["dark"], OUT)
+        c.rect(hx + 2, hy + 2, 8, 2, pal["metal"])
+    elif actor.startswith("fashion"):
+        c.ellipse(hx - 2, hy - 1, 16, 10, pal["hair"], OUT)
         if pal["female"]:
-            pen.block(4 + shift, 4 + y0, 2, 6, pal["hair"])
-
-
-def and_helmet(pal):
-    return pal["dark"]
-
-
-def draw_helmet(pen, actor, shift, y0, pal) -> None:
-    if "iron" in actor:
-        pen.block(5 + shift, 2 + y0, 6, 3, STEEL)
-        pen.pix(7 + shift, 1 + y0, GOLD)
-        pen.pix(8 + shift, 1 + y0, GOLD)
+            c.rect(hx - 3, hy + 6, 4, 12, pal["hair"], OUT)
+            c.rect(hx + 11, hy + 6, 4, 12, pal["hair"], OUT)
+        c.pix(hx + 6, hy, GOLD)
+    elif actor == "npc":
+        c.ellipse(hx - 1, hy - 2, 14, 8, (92, 48, 28, 255), OUT)
+        c.rect(hx - 2, hy + 4, 16, 3, (70, 36, 20, 255), OUT)
     else:
-        pen.block(5 + shift, 2 + y0, 6, 2, (150, 92, 48, 255))
-        pen.pix(7 + shift, 2 + y0, GOLD)
+        c.ellipse(hx - 1, hy - 1, 14, 8, pal["hair"], OUT)
+        if pal["female"]:
+            c.rect(hx - 2, hy + 6, 3, 10, pal["hair"], OUT)
+            c.rect(hx + 11, hy + 6, 3, 10, pal["hair"], OUT)
+        if not front:
+            c.rect(hx, hy, 12, 4, pal["hair"])
 
 
-def draw_weapon(pen, actor, facing, action, frame, shift, y0, pal) -> None:
+def draw_helmet(c: Canvas, actor, cx, y0, pal):
+    hx, hy = cx - 7, y0 + 1
+    if "iron" in actor:
+        c.ellipse(hx, hy, 14, 12, STEEL, OUT)
+        c.rect(hx + 2, hy + 4, 10, 3, STEEL_D)
+        c.pix(hx + 6, hy + 1, GOLD)
+        c.pix(hx + 7, hy + 1, GOLD)
+        c.rect(hx + 4, hy + 8, 6, 2, STEEL_L)
+    else:
+        c.ellipse(hx, hy, 14, 10, (150, 92, 48, 255), OUT)
+        c.pix(hx + 6, hy + 2, GOLD)
+
+
+def draw_weapon(c: Canvas, actor, facing, action, frame, cx, y0, pal):
     count = max(1, ACTION_FRAMES.get(action, 6))
-    t = frame / count
     if action == "attack":
-        arc = [(-2, -6), (-1, -8), (0, -8), (2, -7), (4, -4), (5, -2), (6, 0), (6, 2), (4, 3), (2, 2)]
+        arc = [(-8, -10), (-6, -14), (-2, -16), (4, -14), (10, -8), (12, -2), (12, 4), (10, 8), (6, 10), (2, 8)]
         dx, dy = arc[min(frame, len(arc) - 1)]
     elif action == "cast":
-        dx, dy = (3, -5 + int(t * 3))
+        dx, dy = (6, -10 + frame)
     else:
-        dx, dy = (4, 0)
-    length = 5 if "blade" in actor else 9 if "iron" in actor else 7
-    color = (150, 96, 48, 255) if "blade" in actor else (230, 232, 236, 255)
-    hx, hy = 11 + shift + dx, 10 + y0 + dy
-    if "staff" in actor or actor.startswith("mage") or actor == "npc":
-        pen.block(hx, hy, 1, 8, (92, 64, 40, 255))
-        pen.pix(hx, hy - 1, GOLD if action != "cast" else (255, 220, 120, 255))
+        dx, dy = (8, 2)
+
+    hx, hy = cx + 6 + dx, y0 + 16 + dy
+    if "staff" in actor:
+        c.line(hx, hy, hx, hy + 22, (92, 64, 40, 255), 2)
+        orb = (255, 220, 120, 255) if action == "cast" and frame % 2 == 0 else GOLD
+        c.ellipse(hx - 3, hy - 5, 7, 7, orb, OUT)
         if action == "cast":
-            pen.block(hx - 1, hy - 3, 3, 3, (255, 210, 90, 255) if frame % 2 == 0 else (255, 140, 40, 255))
-    elif actor.startswith("tao"):
-        pen.pix(8 + shift, 12 + y0, GOLD)
-        if action == "cast":
-            pen.block(8 + shift, 6 + y0, 3, 3, (140, 230, 190, 255) if frame % 2 == 0 else (80, 180, 140, 255))
-        else:
-            pen.block(hx, hy, 1, 6, (70, 90, 70, 255))
-    else:
-        pen.block(hx, hy, 1, length, color)
-        pen.pix(hx, hy, GOLD)
-        pen.pix(hx - 1, hy, GOLD)
+            c.ellipse(hx - 5, hy - 8, 11, 11, (255, 180, 60, 120))
+    elif "blade" in actor and "tao" not in actor:
+        # short blade / dao-style for tao when named wep_blade
+        c.line(hx, hy, hx + 2, hy + 14, (150, 96, 48, 255), 2)
+        c.pix(hx, hy, GOLD)
         if action == "attack" and frame in (2, 3, 4):
-            pen.pix(hx + 1, hy + 3, (255, 244, 200, 255))
-            pen.pix(hx + 2, hy + 4, (255, 220, 140, 180))
+            c.line(hx - 4, hy + 4, hx + 8, hy + 10, (255, 244, 200, 200), 2)
+    else:
+        # sword / iron
+        length = 20 if "iron" in actor else 16
+        c.line(hx, hy, hx + 1, hy + length, (230, 232, 236, 255), 2)
+        c.line(hx - 3, hy + 2, hx + 4, hy + 2, GOLD, 2)
+        c.pix(hx, hy, GOLD)
+        if action == "attack" and frame in (2, 3, 4, 5):
+            c.line(hx - 6, hy + 2, hx + 10, hy + 12, (255, 250, 210, 220), 2)
+            c.line(hx - 4, hy, hx + 8, hy + 10, (255, 220, 140, 160), 1)
 
 
-def draw_corpse(pen: Pen, frame: int, pal) -> None:
-    for lx in range(3, 13):
-        pen.pix(lx, 22, SHADOW)
+def draw_corpse(c: Canvas, frame: int, pal) -> None:
+    c.ellipse(10, 54, 28, 8, SHADOW)
     drop = min(3, frame)
-    y = 14 + drop * 2
-    pen.block(3, y, 10, 4, pal["cloth"])
-    pen.block(11, y + 1, 3, 3, SKIN)
-    pen.block(2, y + 2, 3, 2, BOOT)
+    y = 34 + drop * 3
+    c.ellipse(12, y, 24, 10, pal["cloth"], OUT)
+    c.ellipse(30, y + 2, 10, 8, SKIN, OUT)
+    c.rect(8, y + 4, 8, 4, BOOT, OUT)
     if frame >= 3:
-        pen.block(4, 18, 9, 3, pal["dark"])
+        c.ellipse(14, 48, 20, 8, pal["dark"], OUT)
 
 
 def draw_slime(img, ox, oy, action, frame) -> None:
-    pen = Pen(img, ox, oy)
-    squash = 1 if action in ("walk", "run", "hit") and frame % 2 == 0 else 0
+    c = Canvas(img, ox, oy)
+    c.ellipse(14, 54, 20, 7, SHADOW)
     if action == "death":
-        pen.block(3, 18, 10, 3, (40, 120, 48, 255))
+        c.ellipse(10, 48, 28, 10, (40, 120, 48, 200), OUT)
         return
-    pen.block(4, 12 + squash, 8, 8 - squash, (64, 168, 62, 255))
-    pen.block(6, 14 + squash, 2, 2, (210, 240, 180, 255))
-    pen.pix(6, 16 + squash, OUT)
-    pen.pix(9, 16 + squash, OUT)
+    squash = 2 if action in ("walk", "run", "hit") and frame % 2 == 0 else 0
+    stretch = 2 if action == "attack" else 0
+    body = (64, 168, 62, 255)
+    light = (140, 220, 120, 255)
+    w, h = 22 + stretch, 18 - squash
+    x, y = 13 - stretch // 2, 34 + squash
+    c.ellipse(x, y, w, h, body, OUT)
+    c.ellipse(x + 4, y + 2, 10, 6, light)
+    # eyes
+    c.ellipse(x + 5, y + 7, 4, 5, (20, 20, 20, 255))
+    c.ellipse(x + 13, y + 7, 4, 5, (20, 20, 20, 255))
+    c.pix(x + 6, y + 8, WHITE)
+    c.pix(x + 14, y + 8, WHITE)
+    # highlight blob
+    c.ellipse(x + 8, y + 3, 5, 3, (210, 255, 200, 180))
     if action == "attack":
-        pen.block(11, 14, 3, 3, (90, 200, 80, 255))
+        c.ellipse(x + w - 2, y + 6, 8, 8, (90, 200, 80, 220), OUT)
 
 
 def draw_boar(img, ox, oy, facing, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
+    c.ellipse(12, 54, 24, 7, SHADOW)
     if action == "death":
-        pen.block(2, 16, 12, 4, (120, 64, 40, 255))
+        c.ellipse(8, 46, 32, 12, (120, 64, 40, 255), OUT)
         return
     bob = [0, 1, 0, 1][frame % 4]
     body = (138, 78, 46, 255)
-    pen.block(3, 12 + bob, 10, 6, body)
-    pen.block(11, 13 + bob, 3, 3, (168, 110, 74, 255))
-    pen.pix(12, 14 + bob, OUT)
-    pen.pix(13, 15 + bob, WHITE)
-    pen.block(4, 17 + bob, 2, 3, BOOT)
-    pen.block(9, 17 + bob, 2, 3, BOOT)
+    dark = (90, 50, 28, 255)
+    light = (168, 110, 74, 255)
+    y = 30 + bob
+    c.ellipse(10, y + 4, 26, 16, body, OUT)
+    c.ellipse(12, y + 6, 14, 8, light)
+    # head
+    c.ellipse(30, y + 2, 12, 12, light, OUT)
+    c.pix(36, y + 6, OUT)
+    c.pix(38, y + 8, WHITE)  # tusk
+    c.pix(38, y + 10, WHITE)
+    # mane
+    for i in range(5):
+        c.pix(14 + i * 3, y + 2, dark)
+    # legs
+    c.rect(14, y + 16, 4, 8, BOOT, OUT)
+    c.rect(28, y + 16, 4, 8, BOOT, OUT)
     if action == "attack":
-        pen.block(14, 15, 2, 2, WHITE)
+        c.ellipse(38, y + 6, 8, 6, WHITE, OUT)
 
 
 def draw_bone(img, ox, oy, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
+    c.ellipse(14, 54, 20, 7, SHADOW)
     if action == "death":
-        pen.block(3, 18, 10, 2, WHITE)
-        pen.pix(6, 17, (200, 40, 40, 255))
+        c.ellipse(10, 48, 28, 8, WHITE, OUT)
+        c.pix(20, 50, (200, 40, 40, 255))
         return
     bob = frame % 2
     bone = (230, 226, 210, 255)
-    pen.block(6, 6 + bob, 4, 4, bone)
-    pen.pix(7, 7 + bob, (180, 30, 30, 255))
-    pen.pix(9, 7 + bob, (180, 30, 30, 255))
-    pen.block(7, 10 + bob, 2, 6, bone)
-    pen.block(5, 11 + bob, 2, 5, bone)
-    pen.block(9, 11 + bob, 2, 5, bone)
-    pen.block(6, 16 + bob, 2, 4, bone)
-    pen.block(8, 16 + bob, 2, 4, bone)
+    y = 12 + bob
+    c.ellipse(18, y, 12, 12, bone, OUT)
+    c.pix(21, y + 4, (180, 30, 30, 255))
+    c.pix(26, y + 4, (180, 30, 30, 255))
+    c.rect(21, y + 12, 6, 14, bone, OUT)
+    c.rect(14, y + 14, 6, 12, bone, OUT)
+    c.rect(28, y + 14, 6, 12, bone, OUT)
+    c.rect(18, y + 26, 5, 12, bone, OUT)
+    c.rect(25, y + 26, 5, 12, bone, OUT)
+    # sword
     if action == "attack":
-        pen.block(11, 8 + bob, 4, 1, bone)
+        c.line(32, y + 10, 42, y + 2, (200, 200, 210, 255), 2)
+    else:
+        c.line(32, y + 14, 34, y + 28, (200, 200, 210, 255), 2)
 
 
 def draw_crawler(img, ox, oy, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
+    c.ellipse(12, 54, 24, 6, SHADOW)
     if action == "death":
-        pen.block(2, 18, 12, 2, (40, 70, 40, 255))
+        c.ellipse(10, 48, 28, 8, (40, 70, 40, 255), OUT)
         return
     wob = [0, 1, 0, -1][frame % 4]
-    pen.block(3 + wob, 14, 10, 4, (48, 90, 48, 255))
-    pen.pix(5, 15, (220, 40, 40, 255))
-    pen.pix(8, 15, (220, 40, 40, 255))
-    for leg in range(4):
-        pen.pix(4 + leg * 2, 18 + (frame + leg) % 2, OUT)
+    y = 38
+    c.ellipse(10 + wob, y, 28, 12, (48, 90, 48, 255), OUT)
+    c.ellipse(14 + wob, y + 2, 12, 6, (80, 140, 70, 255))
+    c.ellipse(16 + wob, y + 4, 4, 4, (220, 40, 40, 255))
+    c.ellipse(24 + wob, y + 4, 4, 4, (220, 40, 40, 255))
+    for leg in range(5):
+        lx = 12 + leg * 5 + wob
+        ly = y + 10 + ((frame + leg) % 2)
+        c.line(lx, ly, lx - 2, ly + 6, OUT, 1)
 
 
 def draw_wraith(img, ox, oy, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
     if action == "death":
-        pen.block(5, 16, 6, 4, (120, 80, 180, 120))
+        c.ellipse(16, 40, 16, 16, (120, 80, 180, 100))
         return
     glow = (170, 120, 230, 200) if frame % 2 == 0 else (130, 80, 190, 170)
-    pen.block(5, 6, 6, 12, glow)
-    pen.pix(7, 9, (255, 255, 255, 230))
-    pen.pix(9, 9, (255, 255, 255, 230))
-    pen.block(6, 16, 4, 3, (100, 60, 150, 140))
+    c.ellipse(16, 12, 16, 28, glow, (60, 30, 90, 255))
+    c.ellipse(20, 18, 4, 4, (255, 255, 255, 230))
+    c.ellipse(26, 18, 4, 4, (255, 255, 255, 230))
+    c.ellipse(18, 36, 12, 10, (100, 60, 150, 140))
+    if action == "attack":
+        c.ellipse(28, 20, 12, 12, (200, 160, 255, 160))
 
 
 def draw_dragon(img, ox, oy, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
+    c.ellipse(8, 54, 32, 8, SHADOW)
     if action == "death":
-        pen.block(1, 16, 14, 4, (30, 90, 40, 255))
+        c.ellipse(6, 44, 36, 14, (30, 90, 40, 255), OUT)
         return
-    wing = 2 if action in ("attack", "cast") and frame % 2 == 0 else 0
+    wing = 4 if action in ("attack", "cast") and frame % 2 == 0 else 0
     body = (46, 130, 58, 255)
-    pen.block(2, 8 - wing, 4, 6, (70, 160, 80, 255))
-    pen.block(10, 8 - wing, 4, 6, (70, 160, 80, 255))
-    pen.block(5, 10, 6, 8, body)
-    pen.block(10, 8, 4, 4, (60, 150, 70, 255))
-    pen.pix(12, 9, (240, 40, 30, 255))
-    pen.pix(11, 12, GOLD)
+    wing_c = (70, 160, 80, 255)
+    c.ellipse(4, 18 - wing, 14, 16, wing_c, OUT)
+    c.ellipse(30, 18 - wing, 14, 16, wing_c, OUT)
+    c.ellipse(14, 22, 20, 24, body, OUT)
+    c.ellipse(28, 16, 14, 14, (60, 150, 70, 255), OUT)
+    c.pix(36, 20, (240, 40, 30, 255))
+    c.pix(32, 28, GOLD)
     if action == "attack":
-        pen.block(13, 12, 3, 2, (255, 120, 30, 255))
+        c.ellipse(38, 26, 10, 8, (255, 120, 30, 255), OUT)
 
 
 def draw_gate(img, ox, oy, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
     stone = (120, 108, 92, 255)
-    pen.block(2, 4, 12, 16, stone)
-    pen.block(5, 10, 6, 10, (28, 18, 12, 255))
-    pen.pix(4, 8, GOLD)
-    pen.pix(11, 8, GOLD)
+    c.rect(8, 8, 32, 48, stone, OUT)
+    c.rect(12, 8, 24, 8, (150, 136, 112, 255), OUT)
+    c.rect(16, 24, 16, 32, (28, 18, 12, 255), OUT)
+    c.pix(14, 18, GOLD)
+    c.pix(32, 18, GOLD)
     if frame % 2 == 0:
-        pen.pix(7, 14, (255, 200, 80, 255))
+        c.ellipse(20, 36, 8, 8, (255, 200, 80, 180))
 
 
-def draw_wall(img, ox, oy) -> None:
-    pen = Pen(img, ox, oy)
-    pen.block(1, 6, 14, 14, (110, 100, 88, 255))
-    pen.block(1, 6, 14, 3, (150, 136, 112, 255))
+def draw_wall_actor(img, ox, oy) -> None:
+    c = Canvas(img, ox, oy)
+    c.rect(4, 16, 40, 40, (110, 100, 88, 255), OUT)
+    c.rect(4, 16, 40, 8, (150, 136, 112, 255), OUT)
     for i in range(4):
-        pen.pix(3 + i * 3, 12, OUT)
+        c.rect(8 + i * 9, 28, 6, 4, (80, 72, 64, 255))
 
 
 def draw_flag(img, ox, oy, frame) -> None:
-    pen = Pen(img, ox, oy)
-    pen.block(4, 4, 1, 16, (80, 60, 40, 255))
+    c = Canvas(img, ox, oy)
+    c.rect(18, 8, 3, 48, (80, 60, 40, 255), OUT)
     wave = frame % 3
-    pen.block(5, 4, 6 + wave, 4, (180, 32, 28, 255))
-    pen.pix(8, 5, GOLD)
+    c.rect(21, 8, 16 + wave, 12, (180, 32, 28, 255), OUT)
+    c.pix(28, 12, GOLD)
 
 
 def draw_horse(img, ox, oy, facing, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
+    c.ellipse(10, 54, 28, 7, SHADOW)
     bob = [0, 1, 0, 1][frame % 4] if action in ("walk", "run") else 0
     body = (236, 232, 220, 255)
-    pen.block(3, 12 + bob, 9, 5, body)
-    pen.block(11, 8 + bob, 3, 4, body)
-    pen.pix(12, 9 + bob, OUT)
-    pen.block(4, 16 + bob, 2, 4, (90, 70, 50, 255))
-    pen.block(9, 16 + bob, 2, 4, (90, 70, 50, 255))
+    y = 28 + bob
+    c.ellipse(8, y + 4, 28, 16, body, OUT)
+    c.ellipse(30, y - 2, 12, 14, body, OUT)
+    c.pix(38, y + 4, OUT)
+    c.rect(12, y + 16, 5, 12, (90, 70, 50, 255), OUT)
+    c.rect(26, y + 16, 5, 12, (90, 70, 50, 255), OUT)
     if action == "run":
-        pen.block(2, 13 + bob, 2, 2, body)
+        c.ellipse(4, y + 8, 8, 6, body, OUT)
 
 
 def draw_wolf(img, ox, oy, action, frame) -> None:
-    pen = Pen(img, ox, oy)
+    c = Canvas(img, ox, oy)
+    c.ellipse(12, 54, 24, 7, SHADOW)
     if action == "death":
-        pen.block(3, 17, 10, 3, (70, 70, 78, 255))
+        c.ellipse(10, 46, 28, 10, (70, 70, 78, 255), OUT)
         return
     bob = frame % 2
-    pen.block(3, 13 + bob, 9, 4, (120, 124, 132, 255))
-    pen.block(11, 12 + bob, 3, 3, (150, 154, 160, 255))
-    pen.pix(12, 13 + bob, (220, 40, 40, 255))
-    pen.block(4, 17, 2, 3, (60, 60, 68, 255))
-    pen.block(9, 17, 2, 3, (60, 60, 68, 255))
+    y = 32 + bob
+    fur = (120, 124, 132, 255)
+    c.ellipse(10, y, 26, 14, fur, OUT)
+    c.ellipse(30, y - 2, 12, 12, (150, 154, 160, 255), OUT)
+    c.pix(36, y + 2, (220, 40, 40, 255))
+    c.rect(14, y + 12, 4, 8, (60, 60, 68, 255), OUT)
+    c.rect(28, y + 12, 4, 8, (60, 60, 68, 255), OUT)
 
 
 def draw_actor_frame(img, ox, oy, actor, facing_i, action, frame) -> None:
     facing = facing_name(facing_i)
     if actor in ("war_m", "war_f", "mage_m", "mage_f", "tao_m", "tao_f", "fashion_m", "fashion_f", "npc"):
+        draw_human(img, ox, oy, facing, action, frame, actor)
+    elif actor.startswith("arm_") or actor.startswith("helm_") or actor.startswith("wep_"):
         draw_human(img, ox, oy, facing, action, frame, actor)
     elif actor == "slime":
         draw_slime(img, ox, oy, action, frame)
@@ -441,7 +552,7 @@ def draw_actor_frame(img, ox, oy, actor, facing_i, action, frame) -> None:
     elif actor == "gate":
         draw_gate(img, ox, oy, frame)
     elif actor == "wall":
-        draw_wall(img, ox, oy)
+        draw_wall_actor(img, ox, oy)
     elif actor == "flag":
         draw_flag(img, ox, oy, frame)
     elif actor == "horse":
@@ -450,190 +561,164 @@ def draw_actor_frame(img, ox, oy, actor, facing_i, action, frame) -> None:
         draw_wolf(img, ox, oy, action, frame)
 
 
-def blit_tile(img, index, painter) -> None:
-    tile_y = len(ACTORS) * len(ACTIONS) * FRAME_H
-    ox = index * TILE
-    painter(img, ox, tile_y)
+def load_tile_strips() -> list[Image.Image] | None:
+    ref = ROOT / "docs/client/shots/mir-tile-ref.jpg"
+    if not ref.exists():
+        return None
+    im = Image.open(ref).convert("RGBA")
+    w, h = im.size
+    # eight vertical panels
+    strips = []
+    for i in range(8):
+        x0 = int(i * w / 8)
+        x1 = int((i + 1) * w / 8)
+        crop = im.crop((x0 + 4, 4, x1 - 4, h - 4))
+        # take square center
+        cw, ch = crop.size
+        side = min(cw, ch)
+        left = (cw - side) // 2
+        top = (ch - side) // 2
+        sq = crop.crop((left, top, left + side, top + side)).resize((TILE, TILE), Image.Resampling.LANCZOS)
+        strips.append(sq)
+    return strips
 
 
-def paint_grass(img, ox, oy, alt=False) -> None:
-    base = (58, 110, 48, 255) if not alt else (48, 96, 42, 255)
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), base)
-    tufts = (86, 150, 62, 255)
-    for x, y in ((4, 6), (14, 18), (22, 10), (8, 24), (26, 22)):
-        img.putpixel((ox + x, oy + y), tufts)
-        img.putpixel((ox + x, oy + y + 1), (30, 70, 28, 255))
+def noise_tile(base_rgb, speckles, seed) -> Image.Image:
+    rng = random.Random(seed)
+    im = Image.new("RGBA", (TILE, TILE), (*base_rgb, 255))
+    px = im.load()
+    for _ in range(speckles):
+        x, y = rng.randrange(TILE), rng.randrange(TILE)
+        d = rng.randint(-24, 24)
+        r = clamp(base_rgb[0] + d, 0, 255)
+        g = clamp(base_rgb[1] + d, 0, 255)
+        b = clamp(base_rgb[2] + d, 0, 255)
+        px[x, y] = (r, g, b, 255)
+    return im
 
 
-def paint_dirt(img, ox, oy) -> None:
-    base = (112, 84, 52, 255)
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), base)
-    for x, y in ((6, 8), (18, 14), (10, 22), (24, 6)):
-        img.putpixel((ox + x, oy + y), (86, 60, 36, 255))
+def paint_tree_tile() -> Image.Image:
+    im = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im, "RGBA")
+    d.ellipse([10, 4, 38, 28], fill=(36, 110, 40, 255), outline=OUT)
+    d.ellipse([14, 8, 28, 20], fill=(70, 150, 60, 255))
+    d.rectangle([22, 26, 26, 44], fill=(86, 58, 32, 255), outline=OUT)
+    d.ellipse([16, 40, 32, 46], fill=SHADOW)
+    return im
 
 
-def paint_path(img, ox, oy) -> None:
-    base = (150, 132, 96, 255)
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), base)
-    for x in range(0, TILE, 8):
-        for y in range(TILE):
-            img.putpixel((ox + x, oy + y), (120, 100, 70, 255))
+def paint_portal_tile() -> Image.Image:
+    im = Image.new("RGBA", (TILE, TILE), (40, 70, 120, 255))
+    d = ImageDraw.Draw(im, "RGBA")
+    d.ellipse([10, 8, 38, 40], fill=(20, 40, 80, 255), outline=(80, 200, 220, 255))
+    d.ellipse([16, 14, 32, 34], fill=(80, 200, 220, 180))
+    d.ellipse([20, 18, 28, 28], fill=(230, 255, 255, 220))
+    return im
 
 
-def paint_stone(img, ox, oy) -> None:
-    for y in range(TILE):
-        for x in range(TILE):
-            brick = ((x // 8) + (y // 8)) % 2 == 0
-            img.putpixel((ox + x, oy + y), (132, 124, 112, 255) if brick else (108, 100, 90, 255))
-            if x % 8 == 0 or y % 8 == 0:
-                img.putpixel((ox + x, oy + y), (80, 72, 64, 255))
+def build_tiles(img: Image.Image, tile_y: int) -> None:
+    strips = load_tile_strips()
+    mapping = {
+        "grass": 0,
+        "grass_b": 1,
+        "dirt": 2,
+        "path": 3,
+        "stone": 4,
+        "safe": 5,
+        "water": 6,
+        "wall": 7,
+    }
+    fallbacks = {
+        "grass": (58, 110, 48),
+        "grass_b": (48, 96, 42),
+        "dirt": (112, 84, 52),
+        "path": (150, 132, 96),
+        "stone": (120, 114, 104),
+        "safe": (168, 150, 110),
+        "water": (48, 110, 150),
+        "wall": (92, 84, 74),
+    }
+    for i, name in enumerate(TILES):
+        ox = i * TILE
+        if name == "tree":
+            tile = paint_tree_tile()
+        elif name == "portal":
+            tile = paint_portal_tile()
+        elif strips and name in mapping:
+            tile = strips[mapping[name]].copy()
+            # slight sharpen for pixel feel
+            tile = ImageEnhance.Sharpness(tile).enhance(1.4)
+            tile = tile.filter(ImageFilter.SMOOTH_MORE)
+        else:
+            tile = noise_tile(fallbacks.get(name, (80, 80, 80)), 180, hash(name) & 0xFFFF)
+        img.paste(tile, (ox, tile_y), tile if tile.mode == "RGBA" else None)
 
 
-def paint_safe(img, ox, oy) -> None:
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), (168, 150, 110, 255))
-            if (x + y) % 9 == 0:
-                img.putpixel((ox + x, oy + y), (196, 170, 90, 255))
-
-
-def paint_water(img, ox, oy) -> None:
-    for y in range(TILE):
-        for x in range(TILE):
-            wave = (x + y) % 6 == 0
-            img.putpixel((ox + x, oy + y), (48, 110, 150, 255) if not wave else (120, 190, 210, 255))
-
-
-def paint_wall_tile(img, ox, oy) -> None:
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), (92, 84, 74, 255))
-            if y < 6:
-                img.putpixel((ox + x, oy + y), (140, 126, 104, 255))
-            if x % 10 == 0:
-                img.putpixel((ox + x, oy + y), (60, 52, 44, 255))
-
-
-def paint_tree(img, ox, oy) -> None:
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), (0, 0, 0, 0))
-    for y in range(8, 18):
-        for x in range(8, 24):
-            if (x - 16) ** 2 + (y - 12) ** 2 < 70:
-                img.putpixel((ox + x, oy + y), (36, 110, 40, 255))
-    for y in range(18, 30):
-        img.putpixel((ox + 15, oy + y), (86, 58, 32, 255))
-        img.putpixel((ox + 16, oy + y), (110, 74, 40, 255))
-
-
-def paint_portal_tile(img, ox, oy) -> None:
-    for y in range(TILE):
-        for x in range(TILE):
-            img.putpixel((ox + x, oy + y), (40, 70, 120, 255))
-    for y in range(6, 26):
-        for x in range(10, 22):
-            img.putpixel((ox + x, oy + y), (80, 200, 220, 255) if (x + y) % 3 else (20, 40, 80, 255))
-
-
-def paint_fx(img, name, index, frame) -> None:
-    fx_y = len(ACTORS) * len(ACTIONS) * FRAME_H + TILE
+def paint_fx(img, name, index, frame, fx_y) -> None:
     ox = (index * FX_FRAMES + frame) * TILE
     oy = fx_y
+    d = ImageDraw.Draw(img, "RGBA")
+    # clear
     for y in range(TILE):
         for x in range(TILE):
             img.putpixel((ox + x, oy + y), (0, 0, 0, 0))
-
-    def dot(x, y, c):
-        if 0 <= x < TILE and 0 <= y < TILE:
-            img.putpixel((ox + x, oy + y), c)
-
-    cx = cy = 16
+    cx = cy = TILE // 2
     if name == "slash":
-        color = (255, 236, 180, 230)
-        for i in range(10 + frame * 2):
-            dot(6 + i, 22 - i // 2 - frame, color)
-            dot(7 + i, 21 - i // 2 - frame, (255, 255, 255, 200))
+        for i in range(4 + frame * 2):
+            x0 = 8 + i
+            y0 = 28 - i - frame
+            d.line([ox + x0, oy + y0, ox + x0 + 10, oy + y0 - 8], fill=(255, 250, 210, 230), width=3)
+            d.line([ox + x0 + 1, oy + y0 + 1, ox + x0 + 12, oy + y0 - 6], fill=(255, 220, 120, 160), width=2)
     elif name == "fire":
-        for r in range(4 + frame, 0, -1):
-            col = (255, 80 + frame * 20, 20, 220) if r > 2 else (255, 220, 80, 240)
-            for a in range(r * 2):
-                dot(cx - r + a, cy - r // 2, col)
-                dot(cx, cy - r + a // 2, col)
+        for r in range(10 + frame, 2, -1):
+            col = (255, 80 + frame * 15, 20, 200) if r > 5 else (255, 220, 80, 230)
+            d.ellipse([ox + cx - r, oy + cy - r - frame, ox + cx + r, oy + cy + r // 2], fill=col)
     elif name == "lightning":
-        col = (180, 220, 255, 240)
-        x = 16
-        for y in range(2, 30):
-            x += 1 if ((y + frame) % 3 == 0) else -1
-            dot(x, y, col)
-            dot(x + 1, y, (255, 255, 255, 255))
+        pts = []
+        x = cx
+        for y in range(4, 44, 3):
+            x += 4 if ((y // 3 + frame) % 2 == 0) else -4
+            pts.append((ox + x, oy + y))
+        if len(pts) >= 2:
+            d.line(pts, fill=(180, 220, 255, 240), width=2)
+            d.line([(p[0] + 1, p[1]) for p in pts], fill=(255, 255, 255, 200), width=1)
     elif name == "heal":
         col = (120, 230, 170, 230)
-        for i in range(-6, 7):
-            dot(cx + i, cy, col)
-            dot(cx, cy + i, col)
+        d.line([ox + cx - 10, oy + cy, ox + cx + 10, oy + cy], fill=col, width=3)
+        d.line([ox + cx, oy + cy - 10, ox + cx, oy + cy + 10], fill=col, width=3)
         if frame % 2 == 0:
-            dot(cx, cy - 8, (255, 255, 255, 255))
+            d.ellipse([ox + cx - 3, oy + cy - 14, ox + cx + 3, oy + cy - 8], fill=(255, 255, 255, 255))
     elif name == "level":
         col = (255, 210, 70, 240)
         for i in range(8):
-            dot(cx - 8 + i * 2, cy - 8 + frame, col)
-            dot(cx, cy - 10 + i, col)
+            d.ellipse([ox + cx - 2, oy + cy - 16 + i * 2 - frame, ox + cx + 2, oy + cy - 12 + i * 2 - frame], fill=col)
+        d.ellipse([ox + cx - 8, oy + cy - 4, ox + cx + 8, oy + cy + 8], outline=col, width=2)
     elif name == "portal":
-        col = (80, 210, 230, 230)
-        rad = 6 + frame
-        for a in range(rad * 4):
-            dot(cx - rad + (a % (rad * 2)), cy - 2, col)
-        dot(cx, cy, (230, 255, 255, 255))
+        rad = 8 + frame
+        d.ellipse([ox + cx - rad, oy + cy - rad, ox + cx + rad, oy + cy + rad], outline=(80, 210, 230, 230), width=2)
+        d.ellipse([ox + cx - 3, oy + cy - 3, ox + cx + 3, oy + cy + 3], fill=(230, 255, 255, 255))
     elif name == "buff":
         col = (240, 200, 80, 255) if frame % 2 == 0 else (120, 180, 255, 255)
-        for i in range(5):
-            dot(cx - 2 + i, cy - 2, col)
-            dot(cx, cy - 4 + i, col)
-
-
-def fill(im, x, y, w, h, color) -> None:
-    for yy in range(h):
-        for xx in range(w):
-            im.putpixel((x + xx, y + yy), color)
-
-
-def frame_box(im, x, y, w, h, fill_c, edge) -> None:
-    fill(im, x, y, w, h, fill_c)
-    for i in range(w):
-        im.putpixel((x + i, y), edge)
-        im.putpixel((x + i, y + h - 1), edge)
-        if h > 3:
-            im.putpixel((x + i, y + 1), (90, 62, 28, 255))
-            im.putpixel((x + i, y + h - 2), (40, 24, 12, 255))
-    for i in range(h):
-        im.putpixel((x, y + i), edge)
-        im.putpixel((x + w - 1, y + i), edge)
+        d.polygon([
+            (ox + cx, oy + cy - 8),
+            (ox + cx + 6, oy + cy),
+            (ox + cx, oy + cy + 8),
+            (ox + cx - 6, oy + cy),
+        ], fill=col)
 
 
 def paint_ui(path: Path) -> None:
+    # keep a lightweight chrome strip for fallbacks; main HUD uses kit PNGs
     im = Image.new("RGBA", (512, 360), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im, "RGBA")
     wood = (62, 38, 22, 255)
-    wood_d = (36, 22, 14, 255)
     edge = (214, 168, 64, 255)
-    frame_box(im, 0, 0, 80, 44, wood, edge)
-    frame_box(im, 8, 8, 64, 28, wood_d, (120, 86, 40, 255))
-    frame_box(im, 0, 48, 180, 18, (42, 12, 12, 255), edge)
-    frame_box(im, 0, 70, 180, 18, (12, 18, 48, 255), edge)
-    frame_box(im, 0, 96, 512, 110, wood, edge)
-    for x in range(16, 500, 36):
-        im.putpixel((x, 104), edge)
-        im.putpixel((x + 1, 104), edge)
-    frame_box(im, 200, 0, 150, 150, wood, edge)
-    frame_box(im, 208, 16, 134, 126, (18, 16, 14, 255), (120, 86, 40, 255))
-    frame_box(im, 360, 160, 148, 190, wood, edge)
-    frame_box(im, 368, 176, 132, 166, wood_d, (120, 86, 40, 255))
+    d.rectangle([0, 0, 79, 43], fill=wood, outline=edge)
+    d.rectangle([0, 48, 179, 65], fill=(42, 12, 12, 255), outline=edge)
+    d.rectangle([0, 70, 179, 87], fill=(12, 18, 48, 255), outline=edge)
+    d.rectangle([0, 96, 511, 205], fill=wood, outline=edge)
+    d.rectangle([200, 0, 349, 149], fill=wood, outline=edge)
+    d.rectangle([360, 160, 507, 349], fill=wood, outline=edge)
     im.save(path, optimize=True)
     print(f"wrote {path} bytes={path.stat().st_size}")
 
@@ -650,27 +735,14 @@ def main() -> None:
                     src = min(f, usable - 1)
                     draw_actor_frame(img, ox, oy, actor, d, action, src)
 
-    painters = [
-        lambda im, x, y: paint_grass(im, x, y, False),
-        lambda im, x, y: paint_grass(im, x, y, True),
-        paint_dirt,
-        paint_path,
-        paint_stone,
-        paint_safe,
-        paint_water,
-        paint_wall_tile,
-        paint_tree,
-        paint_portal_tile,
-    ]
-    for i, painter in enumerate(painters):
-        blit_tile(img, i, painter)
+    build_tiles(img, char_h)
+    fx_y = char_h + TILE
     for i, name in enumerate(FX):
         for f in range(FX_FRAMES):
-            paint_fx(img, name, i, f)
+            paint_fx(img, name, i, f, fx_y)
 
-    root = Path(__file__).resolve().parents[1]
-    out_png = root / "client/Legend.Playable/Assets/atlas.png"
-    out_json = root / "client/Legend.Playable/Assets/atlas.json"
+    out_png = ROOT / "client/Legend.Playable/Assets/atlas.png"
+    out_json = ROOT / "client/Legend.Playable/Assets/atlas.json"
     img.save(out_png, optimize=True)
     meta = {
         "frameW": FRAME_W,
@@ -683,15 +755,15 @@ def main() -> None:
         "tileSize": TILE,
         "tileY": char_h,
         "tiles": TILES,
-        "fxY": char_h + TILE,
+        "fxY": fx_y,
         "fx": FX,
         "fxFrames": FX_FRAMES,
         "fxSize": TILE,
-        "note": "Original sheet generated by tools/gen_mir_sheet.py. Not official Mir art.",
+        "note": "Original sheet generated by tools/gen_mir_sheet.py (48x64). Not official Mir art.",
     }
     out_json.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {out_png} {img.size} bytes={out_png.stat().st_size}")
-    paint_ui(root / "client/Legend.Playable/Assets/ui_chrome.png")
+    paint_ui(ROOT / "client/Legend.Playable/Assets/ui_chrome.png")
 
 
 if __name__ == "__main__":

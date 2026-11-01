@@ -47,6 +47,7 @@ Done 217，Partial 0，NotStarted 0。清单 100%。MATRIX_COMPLETE=true。
 - 协议仍 **1.21.0**；服务端无协议变更。矩阵仍 100%。
 - 进度对照 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
+- 2026-11-01：可玩画面 P0 — AI 切帧 enrich atlas + WorldCanvas 阴影/放大精灵/受击闪白；同步 `dist/windows-player`。见 [PLAYABLE_VISUAL_PLAN.md](client/PLAYABLE_VISUAL_PLAN.md)。
 - 2026-11-01：扩展窗布局合入 #33 → `840e6f3` — OL-04-A 技能列表+F1–F8、OL-06-B 商店 Tab 双栏、OL-06-E 仓库双栏、OL-08-A 交易双格、OL-09-A 行会、OL-05-B 大地图示意、OL-12-A 设置 Tab。仅客户端 UI；服务端无变更（试玩服未重部署）。Windows `dist/windows-player/LegendClient.exe` 已按 `840e6f3` 重打并同步用户机。见 [VISUAL_PARITY.md](VISUAL_PARITY.md)。
 
 - 2026-11-01：第五刀抽检 P0/P1 合入 — OL-07-D 中置独立邀请模态去重文案；OL-09-D 等级列/近满员条/贡献入会示意；OL-17-BF 绑/非绑+日期栏+负重提取；OL-08-J 三 Tab+剩余列；OL-16-N 石金厚窗+挂/回设置双控件；OL-17-B 真图标紫框+通道关闭禁用态；OL-16-K 风险门闩底边距。仅客户端；协议 1.21.0；试玩服未重部署。
